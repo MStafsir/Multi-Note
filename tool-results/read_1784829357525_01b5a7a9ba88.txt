@@ -1,0 +1,270 @@
+     1→     1→disini saya mau kamu pahami konteks ini saja dulu jika paham nanti bilang saya paham .
+     2→     2→Permintaan "Drive + Notion + Kalkulator" tanpa disiplin scope akan menghasilkan tiga produk setengah jadi — bukan satu produk komplit. Peningkatan: fokuskan sebagai Unified Workspace dengan File Storage sebagai core primitive, Note-taking sebagai layer di atasnya (note bisa embed file/folder), dan Calculator sebagai utility widget — bukan tiga sistem terpisah yang dipaksa hidup berdampingan. Tier proyek: L — Full Application (multi-fitur, CRUD kompleks, real-time sync, storage backend berat) → 30–50 modul.
+     3→     3→
+     4→     4→Environment & Dependency Setup
+     5→     5→
+     6→     6→Tool    Alasan
+     7→     7→Next.js 15 (App Router) SSR + Server Actions untuk file mutation tanpa API route boilerplate berlebih
+     8→     8→TypeScript strict mode  Union type locking untuk file/folder schema, zero implicit any
+     9→     9→Supabase (Postgres + Storage + Realtime)        Storage bucket native + row-level security + realtime subscription untuk collaborative note editing
+    10→    10→Tiptap / ProseKit editor engine Rich-text block editor mirip Notion, extensible node schema
+    11→    11→Zustand State management untuk file tree, editor draft state, calculator session
+    12→    12→React Query (TanStack Query)    Cache & invalidation untuk file list, folder tree, note list — hindari refetch storm
+    13→    13→Framer Motion   Transisi drag-drop, folder expand/collapse, modal
+    14→    14→react-dropzone  Multi-file upload dengan chunking
+    15→    15→Zod     Schema validation server-side untuk semua payload CRUD
+    16→    16→ESLint + Prettier + Husky pre-commit    Anti-bug-hell gate sebelum commit masuk
+    17→    17→Vercel CLI      Deployment target, edge function untuk file processing ringan
+    18→    18→MASTER CONTEXT BLUEPRINT — UNIFIED WORKSPACE (Drive + Notion + Calculator)
+    19→    19→
+    20→    20→Batch Ledger: Batch #1 | Modul 1–14 (Foundation, Storage Core, Folder CRUD) | Dependency: tidak ada, ini inisiasi proyek baru.
+    21→    21→
+    22→    22→[Modul 1: Project Scaffolding & Type Contract Lock]
+    23→    23→1.1. Inisiasi Next.js 15 App Router project dengan TypeScript strict: true, target ES2022.
+    24→    24→1.2. Definisikan union type absolut untuk entity: FileSystemNode = FileNode | FolderNode, locked, tidak boleh extend tanpa [STACK CHANGE FLAG].
+    25→    25→1.3. Definisikan discriminated union NodeType = 'file' | 'folder' | 'note' sebagai single source of truth tipe entitas.
+    26→    26→1.4. Setup path alias @/ di tsconfig, hindari relative import lebih dari 2 level.
+    27→    27→1.5. Konfigurasi ESLint rule no-explicit-any: error, no-unused-vars: error.
+    28→    28→1.6. Inisiasi Husky pre-commit hook: lint + type-check wajib pass sebelum commit diterima.
+    29→    29→1.7. Definisikan environment variable schema via Zod (env.mjs), validasi saat build-time — fail fast jika SUPABASE_URL/SUPABASE_ANON_KEY kosong.
+    30→    30→1.8. Setup folder struktur: /app, /components, /lib/supabase, /lib/validators, /store, /types.
+    31→    31→1.9. Testing: pnpm build harus pass zero TypeScript error sebagai baseline sebelum modul berikutnya dimulai.
+    32→    32→
+    33→    33→[Modul 2: Supabase Project Bootstrap & RLS Foundation]
+    34→    34→2.1. Provisioning Supabase project, region terdekat target user ([FLAG: VERIFY] — pilih region sesuai traffic asal, default ap-southeast).
+    35→    35→2.2. Definisikan skema tabel nodes: id (uuid, pk), owner_id (uuid, fk auth.users), parent_id (uuid, nullable, self-referencing fk), type (enum: file/folder/note), name (text), created_at, updated_at, deleted_at (nullable, soft-delete).
+    36→    36→2.3. Index composite (owner_id, parent_id) untuk query folder-tree performant, target query time p99 < 50ms pada 10k node/user.
+    37→    37→2.4. Aktifkan Row Level Security di semua tabel, default deny-all.
+    38→    38→2.5. Policy RLS: SELECT/INSERT/UPDATE/DELETE hanya jika owner_id = auth.uid().
+    39→    39→2.6. Definisikan tabel terpisah file_metadata: node_id (fk), storage_path, mime_type, size_bytes, checksum_sha256 — mencegah duplikasi kolom di tabel nodes yang bersifat generic.
+    40→    40→2.7. Definisikan tabel note_content: node_id (fk), content_json (jsonb) — menyimpan struktur block-editor, bukan raw HTML/Markdown string.
+    41→    41→2.8. Testing: insert 1 dummy node via SQL editor, verifikasi RLS block akses dari anon role.
+    42→    42→
+    43→    43→[Modul 3: Authentication & Session Architecture]
+    44→    44→3.1. Implementasi Supabase Auth dengan provider email/password + OAuth (Google) minimal, [FLAG: VERIFY] provider tambahan sesuai kebutuhan bisnis.
+    45→    45→3.2. Middleware Next.js untuk protected route: redirect ke /login jika session null, cek di edge runtime bukan di client-side saja (mencegah flash-of-protected-content).
+    46→    46→3.3. Session refresh token rotation, expiry access token 1 jam, refresh token 30 hari — [FLAG: VERIFY] sesuaikan dengan Supabase Auth default policy terbaru.
+    47→    47→3.4. Definisikan server action getServerSession() sebagai single entry point ambil user di Server Component, jangan duplikasi logic di setiap page.
+    48→    48→3.5. Rate limiting login attempt: max 5 percobaan/15 menit per IP, gunakan Supabase Auth built-in atau Redis counter jika butuh custom.
+    49→    49→3.6. Testing: simulasi session expired mid-request, verifikasi auto-refresh tanpa user logout paksa.
+    50→    50→
+    51→    51→[Modul 4: Folder Tree Data Layer — CRUD Core]
+    52→    52→4.1. Server action createFolder(parentId, name): validasi Zod schema, cek name tidak boleh duplikat dalam scope parent_id yang sama (unique constraint composite parent_id + name + owner_id).
+    53→    53→4.2. Server action renameFolder(nodeId, newName): optimistic update di client via Zustand, rollback jika server response error.
+    54→    54→4.3. Server action deleteFolder(nodeId): soft-delete cascading — set deleted_at di seluruh child node secara rekursif via recursive CTE query di Postgres, bukan loop di aplikasi layer.
+    55→    55→4.4. Server action moveFolder(nodeId, newParentId): validasi cycle-detection — folder tidak boleh dipindah ke dalam child-nya sendiri, cek via recursive ancestor lookup sebelum commit.
+    56→    56→4.5. Definisikan query getFolderTree(parentId): return flat array dengan parent_id reference, materialize tree di client menggunakan algoritma adjacency-list-to-tree, bukan nested query berlapis dari server (hindari N+1).
+    57→    57→4.6. React Query key structure: ['nodes', parentId] dengan invalidation otomatis saat create/rename/delete/move terjadi pada parentId terkait.
+    58→    58→4.7. Testing: buat 100 folder nested 5 level, verifikasi query tree time p99 < 100ms, verifikasi cycle-detection reject percobaan invalid move.
+    59→    59→
+    60→    60→[Modul 5: File Upload Pipeline — Multi-format Ingestion]
+    61→    61→5.1. Integrasi react-dropzone, terima semua MIME type tanpa whitelist ketat di client ([FLAG: VERIFY] kecuali ada requirement bisnis membatasi tipe file tertentu).
+    62→    62→5.2. Upload flow: client request signed URL dari server action getUploadUrl(fileName, mimeType), bukan upload langsung lewat client credential.
+    63→    63→5.3. Chunked upload untuk file > 6MB menggunakan Supabase Storage resumable upload protocol (TUS-based), progress callback ke UI per chunk.
+    64→    64→5.4. Validasi ukuran maksimum file di server-side sebelum signed URL diberikan, batas default 500MB/file [FLAG: VERIFY] sesuai tier storage plan.
+    65→    65→5.5. Generate checksum SHA-256 di client sebelum upload, verifikasi ulang di server post-upload via Supabase Storage webhook — reject & rollback jika checksum mismatch.
+    66→    66→5.6. Insert row ke nodes + file_metadata hanya setelah upload sukses dikonfirmasi webhook, bukan optimistic-insert sebelum file benar-benar tersimpan (mencegah orphan record).
+    67→    67→5.7. Testing: upload file 0 byte (edge case), upload file 499MB, simulasi network interrupt mid-chunk lalu resume — verifikasi tidak ada duplikasi bucket object.
+    68→    68→
+    69→    69→[Modul 6: Storage Quota & Resource Governance]
+    70→    70→6.1. Definisikan kolom storage_used_bytes di tabel profiles, update via Postgres trigger AFTER INSERT/DELETE ON file_metadata.
+    71→    71→6.2. Enforcement quota di server action upload: reject signed URL request jika storage_used_bytes + incoming_size > quota_limit.
+    72→    72→6.3. Definisikan quota tier default [FLAG: VERIFY] — free tier vs paid tier byte limit sesuai model bisnis.
+    73→    73→6.4. Background job (Supabase Edge Function cron) untuk reconciliation: bandingkan storage_used_bytes vs actual bucket size mingguan, auto-correct drift.
+    74→    74→6.5. Testing: upload file yang melebihi sisa quota, verifikasi reject sebelum signed URL dikeluarkan (bukan reject setelah upload selesai — buang bandwidth).
+    75→    75→
+    76→    76→[Modul 7: File Preview & Rendering Engine]
+    77→    77→7.1. Preview inline untuk image (jpg/png/webp/avif) via signed URL + Next.js Image component, lazy-load dengan blur placeholder.
+    78→    78→7.2. Preview PDF via PDF.js embedded viewer, render halaman pertama sebagai thumbnail, full viewer on-click.
+    79→    79→7.3. Preview video via native HTML5 video tag + signed streaming URL, tidak full-download untuk preview (Range header request).
+    80→    80→7.4. Preview dokumen Office (docx/xlsx/pptx) via konversi ke PDF on-demand menggunakan LibreOffice headless di Edge Function, cache hasil konversi.
+    81→    81→7.5. Fallback icon generik berdasarkan mime_type untuk file tanpa preview support.
+    82→    82→7.6. Testing: verifikasi preview generation time p99 < 2s untuk file < 10MB, verifikasi cache-hit rate > 80% untuk file yang sudah pernah di-convert.
+    83→    83→
+    84→    84→[Modul 8: Drag-and-Drop Interaction Layer]
+    85→    85→8.1. Implementasi drag-drop file/folder reorder menggunakan @dnd-kit/core, bukan native HTML5 drag-drop (browser inconsistency issue).
+    86→    86→8.2. Drop-zone visual feedback: highlight target folder saat item di-drag di atasnya, debounce hover detection 100ms.
+    87→    87→8.3. Multi-select drag: shift-click + ctrl-click selection, drag multiple node sekaligus dengan payload array node IDs.
+    88→    88→8.4. Validasi drop target: reject drop jika target adalah file (bukan folder) atau descendant dari item yang di-drag.
+    89→    89→8.5. Optimistic UI update saat drop, rollback dengan toast error jika server moveFolder/moveFile gagal.
+    90→    90→8.6. Testing: drag 50 item sekaligus, verifikasi tidak ada frame drop di bawah 60fps selama drag interaction.
+    91→    91→
+    92→    92→[Modul 9: Note Editor Core — Block-based Architecture]
+    93→    93→9.1. Integrasi Tiptap dengan extension: Paragraph, Heading, BulletList, OrderedList, TodoList, CodeBlock, Table, Image, Divider.
+    94→    94→9.2. Simpan content_json sebagai Tiptap native JSON schema (ProseMirror doc structure), bukan HTML string — mencegah XSS vector dan mempermudah versioning.
+    95→    95→9.3. Custom node extension EmbeddedFile: render inline card file/folder reference di dalam note, klik membuka file preview modal tanpa navigasi keluar dari note.
+    96→    96→9.4. Slash-command menu (/) untuk insert block type, trigger di posisi cursor, filter list realtime sesuai ketikan.
+    97→    97→9.5. Autosave debounced 800ms setelah user berhenti mengetik, indikator status "Saving.../Saved" di UI.
+    98→    98→9.6. Testing: verifikasi tidak ada data loss saat browser tab ditutup mid-typing sebelum debounce selesai (gunakan beforeunload + navigator.sendBeacon sebagai fallback save).
+    99→    99→
+   100→   100→[Modul 10: Note Realtime Collaboration Layer]
+   101→   101→10.1. Integrasi Supabase Realtime channel per node_id note, broadcast perubahan content_json ke semua subscriber aktif.
+   102→   102→10.2. Conflict resolution: gunakan Yjs CRDT sebagai layer sinkronisasi jika target adalah true multi-cursor collaborative editing [FLAG: VERIFY] — jika scope hanya single-user-multi-device, last-write-wins dengan updated_at timestamp comparison sudah cukup, hindari over-engineering Yjs jika tidak perlu.
+   103→   103→10.3. Presence indicator: tampilkan avatar user lain yang sedang membuka note yang sama secara realtime.
+   104→   104→10.4. Testing: buka note yang sama di 2 tab browser berbeda, verifikasi perubahan tersinkron < 500ms tanpa cursor-jump yang mengganggu UX.
+   105→   105→
+   106→   106→[Modul 11: Calculator Widget — Embedded Utility]
+   107→   107→11.1. Definisikan calculator sebagai floating widget component, bukan halaman terpisah — toggle via keyboard shortcut (Ctrl+K atau tombol dedicated di sidebar).
+   108→   108→11.2. Parser ekspresi matematika menggunakan library mathjs, bukan eval() (security risk critical — reject total penggunaan native eval).
+   109→   109→11.3. Mode kalkulasi: basic arithmetic, scientific (trig, log, exponent), dan unit conversion — tab-switchable dalam satu widget.
+   110→   110→11.4. History kalkulasi tersimpan per-session di Zustand store, opsional persist ke tabel calculation_history jika user ingin riwayat permanen.
+   111→   111→11.5. Fitur insert-hasil-kalkulasi langsung ke note aktif (jika calculator dibuka dari dalam note editor context) via slash-command /calc.
+   112→   112→11.6. Testing: verifikasi parser reject input malicious seperti require('fs') (harus treat sebagai invalid math expression, bukan crash).
+   113→   113→
+   114→   114→[Modul 12: Global Search & Indexing]
+   115→   115→12.1. Full-text search Postgres native (tsvector) pada kolom name (nodes) dan content_json (note, extract text-only via jsonb path).
+   116→   116→12.2. Index GIN pada kolom tsvector, update trigger otomatis saat insert/update konten note atau rename file.
+   117→   117→12.3. Search scope filter: by type (file/folder/note), by date range, by owner (untuk shared workspace).
+   118→   118→12.4. Debounce search input 300ms, tampilkan hasil realtime dropdown sebelum user submit full search page.
+   119→   119→12.5. Testing: index 10.000 note dengan rata-rata 500 kata/note, verifikasi search response time p99 < 200ms.
+   120→   120→
+   121→   121→[Modul 13: Sharing & Permission Model]
+   122→   122→13.1. Definisikan tabel node_shares: node_id, shared_with_user_id, permission_level (enum: view/comment/edit), created_at.
+   123→   123→13.2. RLS policy tambahan: SELECT diizinkan jika owner_id = auth.uid() OR EXISTS (SELECT 1 FROM node_shares WHERE node_id = nodes.id AND shared_with_user_id = auth.uid()).
+   124→   124→13.3. Share-link generation: token unik signed (JWT short-lived atau random UUID + expiry), public access tanpa login jika permission_level = view dan link type = public.
+   125→   125→13.4. Cascading permission: share folder otomatis grant akses ke seluruh child node, evaluasi via recursive ancestor check di RLS function.
+   126→   126→13.5. Testing: verifikasi user tanpa share-access mendapat 403 saat akses langsung via URL node_id, verifikasi share-link expired ditolak setelah expiry_at lewat.
+   127→   127→
+   128→   128→[Modul 14: Deployment Pipeline & Edge Configuration]
+   129→   129→14.1. Konfigurasi Vercel project, environment variable production terpisah dari staging (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY — service role key HANYA di server action, never expose ke client bundle).
+   130→   130→14.2. Setup Vercel Edge Middleware untuk auth-check sebelum request mencapai Server Component (latency tambahan minimal, target < 20ms overhead).
+   131→   131→14.3. Konfigurasi CORS di Supabase Storage bucket, whitelist domain production saja, reject origin lain.
+   132→   132→14.4. Setup preview deployment per branch/PR, environment variable staging point ke Supabase project terpisah (bukan production data).
+   133→   133→14.5. Testing: full deployment dry-run ke preview URL, verifikasi signed upload URL berfungsi across domain (bukan localhost-only bug).
+   134→   134→
+   135→   135→Batch Ledger
+   136→   136→Batch #2 | Modul 15–30 (Version History, Trash/Restore, Bulk Operations, Activity Log, Notifikasi, Tagging & Favorites, Command Palette, Mobile/PWA, Performance Budget, Error Handling, Observability, Data Portability, Accessibility, Testing & CI/CD)
+   137→   137→Dependency: mewarisi skema nodes/file_metadata/note_content (Modul 2), RLS pattern (Modul 2.4–2.5), Zustand store & selection-logic (Modul 4.2, 8.3), React Query key structure (Modul 4.6).
+   138→   138→
+   139→   139→[Modul 15: Version History & Snapshot System — Files]
+   140→   140→15.1. Definisikan tabel file_versions: id, node_id (fk), storage_path (versioned), version_number (int, auto-increment per node_id), size_bytes, checksum_sha256, created_at, created_by.
+   141→   141→15.2. Setiap re-upload ke node yang sama generate row baru di file_versions — retain history, jangan overwrite storage object asli.
+   142→   142→15.3. Retention default: maksimal 20 versi terakhir per file [FLAG: VERIFY] sesuai kapasitas storage plan, auto-prune versi tertua via scheduled Edge Function.
+   143→   143→15.4. UI version-list: timeline versi dengan opsi "Restore this version" (generate versi baru dari versi lama — non-destructive) dan "Download this version".
+   144→   144→15.5. Diff-preview file text-based (txt/md/json/csv): line-diff via library diff, tampil sebelum user konfirmasi restore.
+   145→   145→15.6. Versi lama tetap terhitung dalam storage_used_bytes (Modul 6.1) — cost retention history harus visible ke user.
+   146→   146→15.7. Testing: upload 21x ke node sama → verifikasi versi ke-1 ter-prune otomatis; restore versi ke-10 → hasilkan versi baru (ke-22), bukan overwrite current version.
+   147→   147→
+   148→   148→[Modul 16: Version History & Revision Diffing — Notes]
+   149→   149→16.1. Definisikan tabel note_revisions: id, node_id (fk), content_json_snapshot (jsonb), revision_number, created_at, trigger_type (enum: autosave/manual/restore).
+   150→   150→16.2. Snapshot interval: simpan revisi baru setiap 10 autosave cycle ATAU 15 menit aktif editing — bukan setiap autosave (cegah bloat tabel).
+   151→   151→16.3. Diff rendering: konversi dua snapshot content_json ke plain-text representation, gunakan algoritma Myers diff untuk highlight perubahan paragraf/kata.
+   152→   152→16.4. UI timeline revisi pola Google Docs version history — sidebar list timestamp + preview snapshot on-hover.
+   153→   153→16.5. Restore revisi: overwrite content_json current dengan snapshot terpilih, tapi simpan state-sebelum-restore sebagai revisi baru dulu (non-destructive, sama prinsip 15.4).
+   154→   154→16.6. Testing: simulasi 2 jam sesi editing kontinu → verifikasi jumlah revisi tersimpan proporsional, bukan ratusan row untuk 1 sesi.
+   155→   155→
+   156→   156→[Modul 17: Trash & Restore System — Unified Soft-Delete Recovery]
+   157→   157→17.1. UI halaman "Trash": tampilkan node dengan deleted_at IS NOT NULL dalam scope owner_id user aktif, sort descending berdasarkan deleted_at.
+   158→   158→17.2. Restore action: null-kan deleted_at pada node + seluruh child (recursive CTE, pola sama dengan Modul 4.3) — jika parent asal sudah dihapus permanen, restore ke root + notifikasi user.
+   159→   159→17.3. Auto-purge permanen: node di trash > 30 hari [FLAG: VERIFY] dihapus permanen via scheduled Edge Function — hard delete row + storage object + trigger update storage_used_bytes.
+   160→   160→17.4. "Empty Trash": konfirmasi modal dua-langkah (checkbox "saya paham ini permanen" + tombol confirm), bukan single-click destructive action.
+   161→   161→17.5. Restore quota-check: jika restore akan melebihi sisa quota (storage sudah terisi hal lain sejak dihapus), block dengan pesan jelas — jangan silent fail.
+   162→   162→17.6. Testing: hapus folder nested 50 file → verifikasi seluruh child masuk trash bersamaan; restore → verifikasi struktur tree persis sama.
+   163→   163→
+   164→   164→[Modul 18: Bulk Operations Engine]
+   165→   165→18.1. Multi-select state Zustand: selectedNodeIds: Set<string>, toggle via checkbox/shift/ctrl-click (reuse selection logic Modul 8.3).
+   166→   166→18.2. Bulk action toolbar contextual muncul saat selectedNodeIds.size > 0: Move, Delete, Download as ZIP, Share, Tag.
+   167→   167→18.3. Bulk delete: satu batch UPDATE statement dengan kondisi id termasuk himpunan node terpilih — bukan loop per-node dari aplikasi layer (hindari N round-trip ke database).
+   168→   168→18.4. Bulk download: server-side ZIP streaming via Edge Function dengan streaming response — bukan buffer seluruh file di memory (cegah OOM untuk bulk besar).
+   169→   169→18.5. Progress indicator untuk bulk operation > 20 item: real-time progress bar via Server-Sent Events atau polling status endpoint.
+   170→   170→18.6. Partial failure handling: 1 dari 50 item gagal → lanjutkan sisa item, tampilkan summary "48 berhasil, 2 gagal" dengan detail — bukan all-or-nothing rollback.
+   171→   171→18.7. Testing: bulk-delete 500 node sekaligus → verifikasi tidak timeout (batas serverless function 10–60s [FLAG: VERIFY] sesuai plan Vercel), UI tetap responsive.
+   172→   172→
+   173→   173→[Modul 19: Activity Log & Audit Trail]
+   174→   174→19.1. Definisikan tabel activity_log: id, actor_id, node_id (nullable), action_type (enum: create/rename/move/delete/restore/share/edit), metadata (jsonb), created_at.
+   175→   175→19.2. Insert log entry di setiap server action mutation (Modul 4, 5, 9, 13) via shared helper logActivity() — single point of truth, jangan duplikasi insert-logic per action.
+   176→   176→19.3. UI tab "Activity" per file/folder: timeline chronological siapa melakukan apa — relevan khusus shared workspace (Modul 13).
+   177→   177→19.4. Retention log: indefinite untuk compliance [FLAG: VERIFY], atau archive ke cold-storage table setelah 1 tahun.
+   178→   178→19.5. Index composite (node_id, created_at DESC) untuk query timeline performant.
+   179→   179→19.6. Testing: setiap action CRUD (create/rename/move/delete/restore/share) menghasilkan tepat 1 log entry — tidak ada duplicate atau missing log.
+   180→   180→
+   181→   181→[Modul 20: Notification System — In-App & Email]
+   182→   182→20.1. Definisikan tabel notifications: id, recipient_id, type (enum: share_received/comment_added/mention/quota_warning), payload (jsonb), read_at (nullable), created_at.
+   183→   183→20.2. Trigger: share diterima (Modul 13), storage quota mendekati limit 90% (Modul 6.2), mention di note comment.
+   184→   184→20.3. In-app delivery: Supabase Realtime channel per recipient_id, badge counter unread di header, update realtime tanpa refresh.
+   185→   185→20.4. Email delivery: integrasi Resend/SMTP built-in Supabase untuk notifikasi kritikal saja (quota exceeded, share received) — bukan setiap in-app juga kirim email (cegah notification fatigue).
+   186→   186→20.5. User preference: halaman setting toggle per-jenis notifikasi (in-app only/email only/both/off), simpan di tabel notification_preferences.
+   187→   187→20.6. Testing: trigger quota-warning → verifikasi masuk in-app + email sesuai preference, verifikasi tidak duplicate-send jika trigger terpanggil 2x dalam interval singkat (debounce/dedup logic).
+   188→   188→
+   189→   189→[Modul 21: Tagging, Favorites & Custom Metadata]
+   190→   190→21.1. Definisikan tabel tags: id, owner_id, name, color_hex.
+   191→   191→21.2. Definisikan junction table node_tags: node_id, tag_id — many-to-many.
+   192→   192→21.3. Favorites: kolom boolean is_favorite langsung di tabel nodes (bukan tabel terpisah — akses frequency tinggi, hindari join tambahan).
+   193→   193→21.4. UI sidebar "Favorites": filter berdasarkan is_favorite = true, sort descending berdasarkan updated_at.
+   194→   194→21.5. Tag filter di search (extend Modul 12.3): filter node berdasarkan keanggotaan di node_tags sesuai tag_id terpilih — dukung mode single-tag maupun multi-tag (AND/OR selectable).
+   195→   195→21.6. Testing: assign 5 tag ke 1 node → verifikasi filter search by single-tag maupun multi-tag berfungsi sesuai ekspektasi logic.
+   196→   196→
+   197→   197→[Modul 22: Global Command Palette & Keyboard Shortcuts]
+   198→   198→22.1. Command palette (Cmd/Ctrl+K) terpusat: gabungkan search (Modul 12), quick-navigate folder, quick-create file/folder/note, akses calculator (Modul 11.1) — bukan shortcut terpisah tanpa hierarki.
+   199→   199→22.2. Fuzzy-match algorithm via library cmdk atau fuse.js, ranking berdasarkan recency + frequency of use.
+   200→   200→22.3. Keyboard shortcut map global: N (new note), F (new folder), Delete (move to trash on selected), Cmd+Z (undo, terhubung ke sistem versi Modul 15/16).
+   201→   201→22.4. Undo-stack: simpan last 10 mutable action di Zustand ephemeral state (bukan persist ke DB), scope per-session, expire saat reload.
+   202→   202→22.5. Shortcut discoverability: tooltip hint on-hover action button, halaman "Keyboard Shortcuts" reference accessible dari command palette.
+   203→   203→22.6. Testing: verifikasi shortcut tidak konflik dengan browser native shortcut [FLAG: VERIFY] (Cmd+K browser search di beberapa browser), verifikasi undo bekerja across action type berbeda.
+   204→   204→
+   205→   205→[Modul 23: Mobile-Responsive Breakpoint Specification]
+   206→   206→23.1. Breakpoint tier: mobile (<640px), tablet (640–1024px), desktop (>1024px) — konsisten Tailwind default, jangan custom breakpoint tanpa alasan kuat.
+   207→   207→23.2. Folder-tree navigation mobile: sidebar collapse jadi bottom-sheet drawer, swipe-gesture untuk navigasi back/forward antar folder level.
+   208→   208→23.3. Note editor mobile: toolbar formatting collapse jadi floating action button, slash-command (Modul 9.4) tetap accessible via on-screen keyboard trigger.
+   209→   209→23.4. Calculator mobile: full-screen modal (bukan floating widget seperti desktop, Modul 11.1) — keterbatasan ruang layar.
+   210→   210→23.5. Touch target minimum 44x44px semua interactive element (WCAG guideline), spacing antar target minimum 8px cegah mis-tap.
+   211→   211→23.6. Drag-drop mobile (Modul 8): fallback ke long-press context-menu untuk move/select — native drag kurang reliable di touchscreen.
+   212→   212→23.7. Testing: verifikasi seluruh flow CRUD (create/upload/edit note) selesai penuh di viewport 375px tanpa horizontal-scroll atau elemen terpotong.
+   213→   213→
+   214→   214→[Modul 24: Offline-First PWA & Service Worker Layer]
+   215→   215→24.1. Registrasi Service Worker via next-pwa atau native Workbox, precache static asset (JS/CSS/font) saat install.
+   216→   216→24.2. Cache strategy: stale-while-revalidate untuk folder-tree metadata (Modul 4.5), network-only untuk file upload/binary — jangan cache file besar (risk storage bloat).
+   217→   217→24.3. Offline note-editing: queue perubahan content_json di IndexedDB saat offline, sync otomatis saat koneksi kembali via background sync API.
+   218→   218→24.4. Conflict handling sync offline-edit: bandingkan updated_at lokal vs server — jika server lebih baru, tampilkan merge-prompt ke user, bukan silent overwrite.
+   219→   219→24.5. Install-prompt PWA: custom "Add to Home Screen" banner setelah engagement threshold (misal kunjungan ke-3), bukan native browser prompt.
+   220→   220→24.6. Testing: simulasi offline mode di DevTools, edit note, kembali online → verifikasi sync tanpa data loss; upload file di-reject gracefully dengan pesan "butuh koneksi".
+   221→   221→
+   222→   222→[Modul 25: Performance Budget & Core Web Vitals Enforcement]
+   223→   223→25.1. Target eksplisit: LCP < 2.5s, INP < 200ms, CLS < 0.1 (threshold "Good" Google), diukur viewport mobile 375px dengan throttle 4G.
+   224→   224→25.2. Bundle size budget: initial JS < 200KB gzipped untuk route utama, code-splitting per-route via dynamic import untuk Tiptap editor (Modul 9) — load on-demand, bukan bundled initial load.
+   225→   225→25.3. Image optimization: seluruh thumbnail preview (Modul 7.1) format AVIF dengan WebP fallback, lazy-load below-the-fold.
+   226→   226→25.4. Font loading: font-display: swap, preload font kritikal, subset font hanya karakter yang dipakai.
+   227→   227→25.5. Monitoring berkelanjutan: Vercel Speed Insights atau Lighthouse CI di GitHub Actions — fail build jika Performance score < 90.
+   228→   228→25.6. Testing: Lighthouse CI pada 3 halaman kritikal (dashboard, note editor, file preview) → verifikasi seluruh metric dalam threshold sebelum merge ke main.
+   229→   229→
+   230→   230→[Modul 26: Error Boundary & Fallback UI Architecture]
+   231→   231→26.1. React Error Boundary level route-segment (error.tsx per route Next.js), bukan satu global boundary — isolasi kegagalan komponen.
+   232→   232→26.2. Fallback UI kontekstual: preview file gagal render → generic icon + pesan "Preview tidak tersedia" + tombol download, bukan blank screen atau crash keseluruhan halaman.
+   233→   233→26.3. Network-error handling: retry exponential backoff (maksimal 3 retry) untuk request gagal karena network — bukan langsung tampilkan error di percobaan pertama.
+   234→   234→26.4. Error reporting: kirim stack-trace + context (user_id, route, action) ke Sentry, redact data sensitif — jangan log content_json note secara penuh jika mengandung data pribadi.
+   235→   235→26.5. Graceful degradation: Realtime connection drop (Modul 10.1) → fallback polling interval 5s untuk note collaboration, tampilkan indicator "Reconnecting...".
+   236→   236→26.6. Testing: simulasi API 500 error di endpoint kritikal (upload, save note, delete) → verifikasi user selalu melihat pesan actionable, bukan raw error stack atau halaman putih.
+   237→   237→
+   238→   238→[Modul 27: Monitoring, Logging & Observability]
+   239→   239→27.1. Structured logging seluruh server action: format JSON field wajib timestamp, level, action, user_id, duration_ms — bukan console.log string bebas format.
+   240→   240→27.2. Integrasi APM (Vercel Observability atau Sentry Performance) — trace request lambat > 1s otomatis flagged.
+   241→   241→27.3. Alert threshold: notifikasi internal (Slack/Discord webhook) jika error-rate > 1% dalam window 5 menit, atau p99 latency > 1s pada endpoint kritikal.
+   242→   242→27.4. Dashboard internal metrics: total user aktif, total storage terpakai platform-wide, jumlah upload/hari — kebutuhan monitoring bisnis, bukan user-facing.
+   243→   243→27.5. Log retention & privacy: redact PII (email, nama file sensitif) dari log level info, hanya level debug non-production yang verbose.
+   244→   244→27.6. Testing: inject deliberate error di staging → verifikasi alert masuk < 1 menit, verifikasi log structured bisa di-query by user_id untuk debugging spesifik user.
+   245→   245→
+   246→   246→[Modul 28: Data Export, Import & Portability]
+   247→   247→28.1. Export seluruh data user: generate ZIP berisi file asli (struktur folder dipertahankan) + note di-export sebagai Markdown (serializer dari content_json Tiptap ke MD).
+   248→   248→28.2. Async export job untuk data besar: proses background (Edge Function/queue), notifikasi (Modul 20) ke user saat selesai dengan link download expiry 24 jam.
+   249→   249→28.3. Import dari platform lain: dukung import ZIP folder-structure generik, deteksi format Markdown untuk auto-convert ke content_json Tiptap [FLAG: VERIFY] — cakupan parser platform spesifik (Notion export, Google Takeout) butuh mapping terpisah per format.
+   250→   250→28.4. Data-deletion request (compliance): endpoint "Delete My Account" trigger hard-delete seluruh row terkait owner_id + storage object — bukan soft-delete, sesuai prinsip right-to-be-forgotten [FLAG: VERIFY] sesuai regulasi yurisdiksi target user.
+   251→   251→28.5. Testing: export akun 1000 file + 200 note → verifikasi ZIP integrity (semua file terbuka, tidak corrupt), verifikasi hasil convert markdown readable tanpa kehilangan formatting utama.
+   252→   252→
+   253→   253→[Modul 29: Accessibility (a11y) Compliance Layer]
+   254→   254→29.1. Target standar WCAG 2.1 Level AA sebagai baseline [FLAG: VERIFY] — upgrade ke AAA jika ada requirement compliance spesifik.
+   255→   255→29.2. Semantic HTML wajib: <nav>, <main>, <aside> untuk struktur folder-tree/sidebar — bukan div-soup dengan ARIA role tempelan.
+   256→   256→29.3. Keyboard navigation penuh: seluruh interactive element reachable via Tab, focus-visible ring jelas, tidak ada keyboard-trap di modal.
+   257→   257→29.4. Screen-reader announcement: aria-live="polite" untuk toast notification (upload progress, save status), aria-label deskriptif untuk icon-only button.
+   258→   258→29.5. Color contrast ratio minimum 4.5:1 teks normal, 3:1 teks besar — verifikasi khusus pada tema dark-mode.
+   259→   259→29.6. Testing: automated a11y scan via axe-core di setiap PR (CI gate), manual screen-reader testing (NVDA/VoiceOver) untuk flow kritikal.
+   260→   260→
+   261→   261→[Modul 30: End-to-End Testing Suite & CI/CD Pipeline]
+   262→   262→30.1. Unit test coverage minimum 80% untuk /lib/validators dan business-logic murni (bukan UI component), gunakan Vitest.
+   263→   263→30.2. Integration test seluruh server action kritikal (create/delete/move node, upload file, save note) menggunakan Supabase local instance (Docker) — bukan mock, verifikasi RLS policy benar-benar ter-enforce.
+   264→   264→30.3. E2E test via Playwright: skenario penuh "upload file → buat folder → pindahkan file → buat note dengan embed file tersebut → share ke user lain → user lain akses via link" sebagai satu test-case kontinu.
+   265→   265→30.4. Visual regression testing: Chromatic atau Percy untuk snapshot komponen UI kritikal — catch unintended visual break saat refactor.
+   266→   266→30.5. CI pipeline (GitHub Actions): lint → type-check → unit test → integration test → build → E2E test (staging) → deploy preview — fail-fast di stage awal.
+   267→   267→30.6. Branch protection: main require semua CI check pass + minimal 1 approval review sebelum merge, no direct push.
+   268→   268→30.7. Testing-the-testing: verifikasi E2E suite sendiri tidak flaky — run 10x berturut-turut di CI, reject suite jika ada intermittent failure tanpa root-cause jelas.
+   269→   269→
+   270→   270→Batch #2 selesai (Modul 15–30): Version History, Trash/Restore, Bulk Operations, Activity Log, Notifikasi, Tagging & Favorites, Command Palette, Mobile/PWA, Performance Budget, Error Handling, Observability, Data Portability, Accessibility, Testing & CI/CD.
