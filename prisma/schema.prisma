@@ -1,8 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ============================================================
+// MODUL 2: Database Schema & Foundation
+// Adapted: Prisma SQLite (instead of Supabase Postgres)
+// ============================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +12,174 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// --- NextAuth.js Required Tables (Modul 3) ---
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
-model Post {
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  passwordHash  String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts   Account[]
+  sessions   Session[]
+  nodes      Node[]
+  profile    Profile?
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- User Profile with Storage Quota (Modul 6 prep) ---
+model Profile {
+  id             String @id @default(cuid())
+  userId         String @unique
+  storageUsedBytes Int   @default(0)
+  quotaLimitBytes  Int   @default(5368709120) // 5GB default
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- Core Node Table (Modul 2.2) ---
+model Node {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  ownerId   String
+  parentId  String?
+  type      String   // "file" | "folder" | "note" — discriminated union
+  name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // soft-delete (Modul 4.3)
+
+  owner      User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parent     Node?          @relation("NodeTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children   Node[]         @relation("NodeTree")
+  metadata   FileMetadata?
+  note       NoteContent?
+  shares     NodeShare[]
+  tags       NodeTag[]
+  activity   ActivityLog[]
+
+  @@index([ownerId, parentId])
+  @@index([ownerId, type])
+  @@index([deletedAt])
+}
+
+// --- File Metadata (Modul 2.6) ---
+model FileMetadata {
+  nodeId        String @id @default(cuid())
+  storagePath   String
+  mimeType      String
+  sizeBytes     Int
+  checksumSha256 String?
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+}
+
+// --- Note Content (Modul 2.7) ---
+model NoteContent {
+  nodeId      String @id @default(cuid())
+  contentJson String // Tiptap ProseMirror JSON — NOT raw HTML/Markdown
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+}
+
+// --- Node Shares (Modul 13 prep) ---
+model NodeShare {
+  id              String @id @default(cuid())
+  nodeId          String
+  sharedWithUserId String
+  permissionLevel String // "view" | "comment" | "edit"
+  createdAt       DateTime @default(now())
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@unique([nodeId, sharedWithUserId])
+}
+
+// --- Tags (Modul 21 prep) ---
+model Tag {
+  id       String @id @default(cuid())
+  ownerId  String
+  name     String
+  colorHex String @default("#6B7280")
+
+  nodes NodeTag[]
+
+  @@unique([ownerId, name])
+}
+
+model NodeTag {
+  nodeId String
+  tagId  String
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([nodeId, tagId])
+}
+
+// --- Activity Log (Modul 19 prep) ---
+model ActivityLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  nodeId     String?
+  actionType String   // "create" | "rename" | "move" | "delete" | "restore" | "share" | "edit"
+  metadata   String?  // JSON string
+  createdAt  DateTime @default(now())
+
+  node Node? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+
+  @@index([nodeId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+// --- File Versions (Modul 15 prep) ---
+model FileVersion {
+  id            String   @id @default(cuid())
+  nodeId        String
+  storagePath   String
+  versionNumber Int
+  sizeBytes     Int
+  checksumSha256 String?
+  createdAt     DateTime @default(now())
+
+  @@index([nodeId, versionNumber])
 }

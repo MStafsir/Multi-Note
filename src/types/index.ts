@@ -1,0 +1,119 @@
+// ============================================================
+// MODUL 1: Type Contract Lock — Single Source of Truth
+// [STACK CHANGE FLAG] required to modify these types
+// ============================================================
+
+// 1.3 — Discriminated union: single source of truth for entity types
+export type NodeType = 'file' | 'folder' | 'note';
+
+// 1.2 — Union type absolut untuk entity, LOCKED
+// Cannot be extended without [STACK CHANGE FLAG]
+export type FileSystemNode = FileNode | FolderNode | NoteNode;
+
+export interface FileNode {
+  id: string;
+  type: 'file';
+  name: string;
+  parentId: string | null;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  metadata?: FileMetadata;
+}
+
+export interface FolderNode {
+  id: string;
+  type: 'folder';
+  name: string;
+  parentId: string | null;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  children?: FileSystemNode[];
+}
+
+export interface NoteNode {
+  id: string;
+  type: 'note';
+  name: string;
+  parentId: string | null;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  content?: NoteContent;
+}
+
+// 2.6 — File metadata separate table
+export interface FileMetadata {
+  nodeId: string;
+  storagePath: string;
+  mimeType: string;
+  sizeBytes: number;
+  checksumSha256: string | null;
+}
+
+// 2.7 — Note content stored as Tiptap JSON schema
+export interface NoteContent {
+  nodeId: string;
+  contentJson: string;
+}
+
+// Discriminator helper — type-safe narrowing
+export function isFileNode(node: FileSystemNode): node is FileNode {
+  return node.type === 'file';
+}
+export function isFolderNode(node: FileSystemNode): node is FolderNode {
+  return node.type === 'folder';
+}
+export function isNoteNode(node: FileSystemNode): node is NoteNode {
+  return node.type === 'note';
+}
+
+// Tree materialization types
+export interface TreeNode {
+  id: string;
+  name: string;
+  type: NodeType;
+  parentId: string | null;
+  children: TreeNode[];
+  metadata?: FileMetadata;
+  content?: NoteContent;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// API response types
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+// Upload progress types
+export interface UploadProgress {
+  fileId: string;
+  fileName: string;
+  progress: number;
+  status: 'pending' | 'uploading' | 'complete' | 'error';
+  error?: string;
+}
+
+// Storage quota types
+export interface StorageQuota {
+  usedBytes: number;
+  limitBytes: number;
+  percentage: number;
+}
+
+// Auth Types
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+// Selection state types
+export type SelectionMode = 'single' | 'multi';
