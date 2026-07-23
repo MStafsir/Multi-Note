@@ -42,6 +42,9 @@ import { UploadZone } from '@/components/upload/upload-zone';
 import { RenameDialog } from './rename-dialog';
 import { NoteEditor } from './note-editor';
 import { useDeleteNode } from '@/hooks/use-file-tree';
+import { DraggableItem } from '@/components/dnd/draggable-item';
+import { DroppableFolder } from '@/components/dnd/droppable-folder';
+import { useWorkspaceDnd } from '@/components/dnd/dnd-context';
 
 export function ContentArea() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -50,6 +53,7 @@ export function ContentArea() {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameNodeId, setRenameNodeId] = useState<string>('');
   const [renameNodeName, setRenameNodeName] = useState<string>('');
+  const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
 
   const {
     tree,
@@ -58,7 +62,11 @@ export function ContentArea() {
     currentFolderPath,
     setCurrentFolder,
     isLoading,
+    selectedNodeIds,
+    selectNode,
   } = useFileTreeStore();
+
+  const { isDragging } = useWorkspaceDnd();
 
   const deleteMutation = useDeleteNode();
 
@@ -72,6 +80,42 @@ export function ContentArea() {
         item.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : itemsInFolder;
+
+  // Multi-select: get selected nodes for drag operations
+  const getSelectedNodes = (draggedNode: TreeNode): TreeNode[] => {
+    if (multiSelectedIds.size > 0 && multiSelectedIds.has(draggedNode.id)) {
+      return Array.from(multiSelectedIds)
+        .map(id => flatNodes.get(id))
+        .filter(Boolean) as TreeNode[];
+    }
+    return [draggedNode];
+  };
+
+  // Handle multi-select click (Ctrl/Cmd + click)
+  const handleItemClick = (node: TreeNode, e?: React.MouseEvent) => {
+    if (e && (e.metaKey || e.ctrlKey)) {
+      // Multi-select
+      const newSelection = new Set(multiSelectedIds);
+      if (newSelection.has(node.id)) {
+        newSelection.delete(node.id);
+      } else {
+        newSelection.add(node.id);
+      }
+      setMultiSelectedIds(newSelection);
+      return;
+    }
+
+    // Clear multi-selection on regular click
+    setMultiSelectedIds(new Set());
+
+    if (node.type === 'folder') {
+      navigateToFolder(node.id, node.name);
+    } else if (node.type === 'note') {
+      openNote(node.id);
+    } else {
+      setSelectedNodeId(node.id);
+    }
+  };
 
   // Navigate to folder
   const navigateToFolder = (folderId: string, folderName: string) => {
@@ -101,18 +145,6 @@ export function ContentArea() {
   // Open note editor
   const openNote = (noteId: string) => {
     setSelectedNodeId(noteId);
-  };
-
-  // Handle item click
-  const handleItemClick = (node: TreeNode) => {
-    if (node.type === 'folder') {
-      navigateToFolder(node.id, node.name);
-    } else if (node.type === 'note') {
-      openNote(node.id);
-    } else {
-      // For files, we could show download preview, but for now just select
-      setSelectedNodeId(node.id);
-    }
   };
 
   const handleRename = (nodeId: string, currentName: string) => {
@@ -209,6 +241,13 @@ export function ContentArea() {
             </BreadcrumbList>
           </Breadcrumb>
 
+          {/* Multi-select info */}
+          {multiSelectedIds.size > 0 && (
+            <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-1">
+              {multiSelectedIds.size} selected
+            </span>
+          )}
+
           {/* Search */}
           <div className="relative hidden sm:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -286,18 +325,18 @@ export function ContentArea() {
               >
                 {viewMode === 'grid' ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {filteredItems.map((node) => (
-                      <motion.div
-                        key={node.id}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        whileHover={{ y: -2 }}
-                      >
+                    {filteredItems.map((node) => {
+                      // Folder items get DroppableFolder wrapper + DraggableItem
+                      // Non-folder items just get DraggableItem
+                      const isSelected = multiSelectedIds.has(node.id);
+
+                      const cardContent = (
                         <Card
-                          className="cursor-pointer hover:border-accent transition-colors group relative"
-                          onClick={() => handleItemClick(node)}
+                          className={`cursor-pointer hover:border-accent transition-colors group relative
+                            ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
+                            ${isDragging ? 'pointer-events-none' : ''}
+                          `}
+                          onClick={(e) => handleItemClick(node, e)}
                         >
                           <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                             <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
@@ -346,22 +385,48 @@ export function ContentArea() {
                             </DropdownMenu>
                           </div>
                         </Card>
-                      </motion.div>
-                    ))}
+                      );
+
+                      // Wrap folder cards with DroppableFolder for drop targets
+                      if (node.type === 'folder') {
+                        return (
+                          <DraggableItem
+                            key={node.id}
+                            id={node.id}
+                            node={node}
+                            selectedNodes={getSelectedNodes(node)}
+                          >
+                            <DroppableFolder id={node.id} node={node}>
+                              {cardContent}
+                            </DroppableFolder>
+                          </DraggableItem>
+                        );
+                      }
+
+                      return (
+                        <DraggableItem
+                          key={node.id}
+                          id={node.id}
+                          node={node}
+                          selectedNodes={getSelectedNodes(node)}
+                        >
+                          {cardContent}
+                        </DraggableItem>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    {filteredItems.map((node) => (
-                      <motion.div
-                        key={node.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.15 }}
-                      >
+                    {filteredItems.map((node) => {
+                      const isSelected = multiSelectedIds.has(node.id);
+
+                      const rowContent = (
                         <div
-                          className="flex items-center gap-3 p-3 rounded-md hover:bg-accent/50 cursor-pointer group transition-colors"
-                          onClick={() => handleItemClick(node)}
+                          className={`flex items-center gap-3 p-3 rounded-md hover:bg-accent/50 cursor-pointer group transition-colors
+                            ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
+                            ${isDragging ? 'pointer-events-none' : ''}
+                          `}
+                          onClick={(e) => handleItemClick(node, e)}
                         >
                           <div className="w-8 h-8 rounded flex items-center justify-center shrink-0">
                             {getIcon(node.type)}
@@ -406,8 +471,35 @@ export function ContentArea() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                      </motion.div>
-                    ))}
+                      );
+
+                      // Wrap folder rows with DroppableFolder
+                      if (node.type === 'folder') {
+                        return (
+                          <DraggableItem
+                            key={node.id}
+                            id={node.id}
+                            node={node}
+                            selectedNodes={getSelectedNodes(node)}
+                          >
+                            <DroppableFolder id={node.id} node={node}>
+                              {rowContent}
+                            </DroppableFolder>
+                          </DraggableItem>
+                        );
+                      }
+
+                      return (
+                        <DraggableItem
+                          key={node.id}
+                          id={node.id}
+                          node={node}
+                          selectedNodes={getSelectedNodes(node)}
+                        >
+                          {rowContent}
+                        </DraggableItem>
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>

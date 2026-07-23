@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { renameNodeSchema, deleteNodeSchema, moveNodeSchema, noteContentSchema } from '@/lib/validators';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { bigintToNumber } from '@/lib/bigint';
 
 // GET /api/nodes/[id] — Get single node details
 export async function GET(
@@ -30,6 +31,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
     }
 
+    const metadata = node.metadata as Record<string, unknown> | null;
     return NextResponse.json({
       success: true,
       data: {
@@ -41,7 +43,7 @@ export async function GET(
         createdAt: node.createdAt,
         updatedAt: node.updatedAt,
         deletedAt: node.deletedAt,
-        metadata: node.metadata || null,
+        metadata: metadata ? { ...metadata, sizeBytes: bigintToNumber(metadata.sizeBytes as bigint | number | null) } : null,
         content: node.note ? { nodeId: node.note.nodeId, contentJson: node.note.contentJson } : null,
       },
     });
@@ -101,6 +103,7 @@ export async function PATCH(
 
       await logActivity(session.user.id, id, 'rename', { oldName: node.name, newName: validated.newName });
 
+      const renameMetadata = updated.metadata as Record<string, unknown> | null;
       return NextResponse.json({
         success: true,
         data: {
@@ -112,7 +115,7 @@ export async function PATCH(
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
           deletedAt: updated.deletedAt,
-          metadata: updated.metadata || null,
+          metadata: renameMetadata ? { ...renameMetadata, sizeBytes: bigintToNumber(renameMetadata.sizeBytes as bigint | number | null) } : null,
           content: updated.note ? { nodeId: updated.note.nodeId, contentJson: updated.note.contentJson } : null,
         },
       });
@@ -144,6 +147,7 @@ export async function PATCH(
         newParentId: validated.newParentId,
       });
 
+      const moveMetadata = updated.metadata as Record<string, unknown> | null;
       return NextResponse.json({
         success: true,
         data: {
@@ -155,7 +159,7 @@ export async function PATCH(
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
           deletedAt: updated.deletedAt,
-          metadata: updated.metadata || null,
+          metadata: moveMetadata ? { ...moveMetadata, sizeBytes: bigintToNumber(moveMetadata.sizeBytes as bigint | number | null) } : null,
           content: updated.note ? { nodeId: updated.note.nodeId, contentJson: updated.note.contentJson } : null,
         },
       });
@@ -180,6 +184,7 @@ export async function PATCH(
 
       await logActivity(session.user.id, id, 'edit', { type: 'note' });
 
+      const noteMetadata = updated.metadata as Record<string, unknown> | null;
       return NextResponse.json({
         success: true,
         data: {
@@ -191,7 +196,7 @@ export async function PATCH(
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
           deletedAt: updated.deletedAt,
-          metadata: updated.metadata || null,
+          metadata: noteMetadata ? { ...noteMetadata, sizeBytes: bigintToNumber(noteMetadata.sizeBytes as bigint | number | null) } : null,
           content: updated.note ? { nodeId: updated.note.nodeId, contentJson: updated.note.contentJson } : null,
         },
       });
@@ -247,7 +252,7 @@ export async function DELETE(
     let totalBytesFreed = 0;
     for (const f of fileNodes) {
       if (f.metadata) {
-        totalBytesFreed += f.metadata.sizeBytes;
+        totalBytesFreed += bigintToNumber(f.metadata.sizeBytes) ?? 0;
       }
     }
 

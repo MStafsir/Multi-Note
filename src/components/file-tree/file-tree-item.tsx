@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, File, FileText, ChevronRight, ChevronDown, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
+import { Folder, File, FileText, ChevronRight, ChevronDown, Pencil, Trash2, MoreHorizontal, GripVertical } from 'lucide-react';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { TreeNode } from '@/types';
 import { useFileTreeStore } from '@/store/file-tree';
+import { useWorkspaceDnd } from '@/components/dnd/dnd-context';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,10 +32,41 @@ export function FileTreeItem({ node, depth }: FileTreeItemProps) {
     setCurrentFolder,
   } = useFileTreeStore();
 
+  const { overFolderId, isDragging, activeDragId } = useWorkspaceDnd();
+
   const deleteMutation = useDeleteNode();
   const isSelected = selectedNodeIds.has(node.id);
   const isExpanded = expandedFolderIds.has(node.id);
   const isFolder = node.type === 'folder';
+
+  // Make all items draggable
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging: thisItemDragging,
+  } = useDraggable({
+    id: `tree-${node.id}`,
+    data: {
+      node,
+      selectedNodes: [node],
+    },
+  });
+
+  // Make folder items droppable targets
+  const {
+    setNodeRef: setDropRef,
+    isOver,
+  } = useDroppable({
+    id: node.id, // Use same id as content-area droppable so they share targets
+    data: {
+      node,
+    },
+    disabled: !isFolder, // Only folders can be drop targets
+  });
+
+  // Highlight when dragging over this folder in the tree
+  const isHighlighted = (isOver && isFolder) || (String(overFolderId) === node.id && isFolder);
 
   const getIcon = () => {
     switch (node.type) {
@@ -52,7 +85,6 @@ export function FileTreeItem({ node, depth }: FileTreeItemProps) {
     selectNode(node.id, 'single');
 
     if (isFolder) {
-      // Navigate into folder
       const currentPath = useFileTreeStore.getState().currentFolderPath;
       const newPath = [...currentPath, { id: node.id, name: node.name }];
       setCurrentFolder(node.id, newPath);
@@ -71,25 +103,43 @@ export function FileTreeItem({ node, depth }: FileTreeItemProps) {
     deleteMutation.mutate({ nodeId: node.id });
   };
 
+  // Combine refs for draggable + droppable on folders
+  const combinedRef = isFolder
+    ? (el: HTMLDivElement | null) => {
+        setDragRef(el);
+        setDropRef(el);
+      }
+    : setDragRef;
+
   return (
     <>
       <div
+        ref={combinedRef}
         className={`
           group flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer
           transition-colors text-sm
           ${isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'}
+          ${isHighlighted ? 'ring-2 ring-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20' : ''}
+          ${thisItemDragging ? 'opacity-30' : ''}
         `}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={handleClick}
         role="treeitem"
         aria-selected={isSelected}
         aria-expanded={isFolder ? isExpanded : undefined}
+        {...attributes}
+        {...listeners}
       >
+        {/* Drag handle */}
+        <span className="shrink-0 opacity-0 group-hover:opacity-50 transition-opacity">
+          <GripVertical className="h-3 w-3 text-muted-foreground" />
+        </span>
+
         {/* Expand/collapse for folders */}
         {isFolder && (
           <button
             onClick={handleExpandClick}
-            className="shrink-0 p-0.5 hover:bg-accent rounded"
+            className="shrink-0 p-0.5 hover:bg-accent rounded min-h-[22px] min-w-[22px] flex items-center justify-center"
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? (

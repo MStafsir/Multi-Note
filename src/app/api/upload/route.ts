@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { bigintToNumber } from '@/lib/bigint';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'download', 'uploads');
 
@@ -53,7 +54,9 @@ export async function POST(request: Request) {
     });
 
     if (profile) {
-      const remaining = profile.quotaLimitBytes - profile.storageUsedBytes;
+      const usedBytes = bigintToNumber(profile.storageUsedBytes) || 0;
+      const limitBytes = bigintToNumber(profile.quotaLimitBytes) || 0;
+      const remaining = limitBytes - usedBytes;
       if (file.size > remaining) {
         return NextResponse.json(
           { success: false, error: `Storage quota exceeded. ${formatBytes(remaining)} remaining.` },
@@ -124,7 +127,13 @@ export async function POST(request: Request) {
         createdAt: node.createdAt,
         updatedAt: node.updatedAt,
         deletedAt: node.deletedAt,
-        metadata: node.metadata || null,
+        metadata: node.metadata ? {
+          nodeId: node.metadata.nodeId,
+          storagePath: node.metadata.storagePath,
+          mimeType: node.metadata.mimeType,
+          sizeBytes: bigintToNumber(node.metadata.sizeBytes),
+          checksumSha256: node.metadata.checksumSha256,
+        } : null,
       },
     });
   } catch (error: unknown) {

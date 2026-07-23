@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { createFolderSchema, getFolderTreeSchema, nodeTypeSchema } from '@/lib/validators';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { bigintToNumber } from '@/lib/bigint';
 
 // GET /api/nodes — List nodes in a folder (4.5)
 export async function GET(request: Request) {
@@ -180,6 +181,7 @@ export async function POST(request: Request) {
 
 // Helper: Format node for API response
 function formatNode(node: Record<string, unknown>) {
+  const metadata = node.metadata as Record<string, unknown> | null;
   return {
     id: node.id,
     type: node.type,
@@ -189,7 +191,7 @@ function formatNode(node: Record<string, unknown>) {
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
     deletedAt: node.deletedAt,
-    metadata: node.metadata || null,
+    metadata: metadata ? { ...metadata, sizeBytes: bigintToNumber(metadata.sizeBytes as bigint | number | null) } : null,
     content: node.note ? { nodeId: node.note.nodeId, contentJson: node.note.contentJson } : null,
   };
 }

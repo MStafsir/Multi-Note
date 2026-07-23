@@ -19,7 +19,8 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/api/nodes') ||
     pathname.startsWith('/api/upload') ||
-    pathname.startsWith('/api/storage-quota')
+    pathname.startsWith('/api/storage-quota') ||
+    pathname.startsWith('/api/preview')
   ) {
     const token = await getToken({
       req: request,
@@ -52,6 +53,7 @@ export const config = {
   matcher: [
     '/api/nodes/:path*',
     '/api/upload/:path*',
-    '/api/storage-quota',
+    '/api/storage-quota/:path*',
+    '/api/preview/:path*',
   ],
 };

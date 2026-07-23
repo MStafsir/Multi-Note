@@ -69,8 +69,8 @@ model VerificationToken {
 model Profile {
   id             String @id @default(cuid())
   userId         String @unique
-  storageUsedBytes Int   @default(0)
-  quotaLimitBytes  Int   @default(5368709120) // 5GB default
+  storageUsedBytes BigInt @default(0)
+  quotaLimitBytes  BigInt @default(5368709120) // 5GB default
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -107,7 +107,7 @@ model FileMetadata {
   nodeId        String @id @default(cuid())
   storagePath   String
   mimeType      String
-  sizeBytes     Int
+  sizeBytes     BigInt
   checksumSha256 String?
 
   node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
@@ -177,7 +177,7 @@ model FileVersion {
   nodeId        String
   storagePath   String
   versionNumber Int
-  sizeBytes     Int
+  sizeBytes     BigInt
   checksumSha256 String?
   createdAt     DateTime @default(now())
 
