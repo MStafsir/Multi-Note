@@ -119,7 +119,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-[420px] sm:max-w-[460px] md:max-w-[520px] lg:max-w-[560px]"
+        className="w-full max-w-[400px] md:max-w-[480px] lg:max-w-[540px]"
       >
         {/* Logo / Brand */}
         <div className="text-center mb-8 md:mb-10">
@@ -127,20 +127,20 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.1, type: 'spring' }}
-            className="inline-flex items-center justify-center w-16 h-16 md:w-18 md:h-18 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 mb-4"
           >
-            <ArrowRight className="w-8 h-8 md:w-9 md:h-9 rotate-[-45deg]" />
+            <ArrowRight className="w-8 h-8 md:w-10 md:h-10 rotate-[-45deg]" />
           </motion.div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Unified Workspace</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-2">Drive + Notes + Calculator</p>
+          <h1 className="text-2xl md:text-4xl font-bold text-foreground">Unified Workspace</h1>
+          <p className="text-base md:text-lg text-muted-foreground mt-2">Drive + Notes + Calculator</p>
         </div>
 
         <Card className="shadow-xl border-neutral-200 dark:border-neutral-800 rounded-xl md:rounded-2xl">
-          <CardHeader className="pb-4 md:pb-6 px-6 md:px-8 pt-6 md:pt-8">
+          <CardHeader className="pb-4 md:pb-6 px-6 md:px-10 pt-6 md:pt-8">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'login' | 'register')}>
-              <TabsList className="grid w-full grid-cols-2 h-11 md:h-12">
-                <TabsTrigger value="login" className="text-sm md:text-base">Sign In</TabsTrigger>
-                <TabsTrigger value="register" className="text-sm md:text-base">Register</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 h-12 md:h-14">
+                <TabsTrigger value="login" className="text-base md:text-lg">Sign In</TabsTrigger>
+                <TabsTrigger value="register" className="text-base md:text-lg">Register</TabsTrigger>
               </TabsList>
 
               <AnimatePresence mode="wait">
@@ -153,8 +153,8 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                     transition={{ duration: 0.2 }}
                   >
                     <TabsContent value="login" className="mt-0">
-                      <CardTitle className="text-lg md:text-xl">Welcome back</CardTitle>
-                      <CardDescription className="text-sm md:text-base">Sign in to access your workspace</CardDescription>
+                      <CardTitle className="text-xl md:text-2xl">Welcome back</CardTitle>
+                      <CardDescription className="text-base md:text-lg">Sign in to access your workspace</CardDescription>
                     </TabsContent>
                   </motion.div>
                 ) : (
@@ -166,8 +166,8 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                     transition={{ duration: 0.2 }}
                   >
                     <TabsContent value="register" className="mt-0">
-                      <CardTitle className="text-lg md:text-xl">Create account</CardTitle>
-                      <CardDescription className="text-sm md:text-base">Get started with your workspace</CardDescription>
+                      <CardTitle className="text-xl md:text-2xl">Create account</CardTitle>
+                      <CardDescription className="text-base md:text-lg">Get started with your workspace</CardDescription>
                     </TabsContent>
                   </motion.div>
                 )}
@@ -175,7 +175,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
             </Tabs>
           </CardHeader>
 
-          <CardContent className="px-6 md:px-8 pb-6 md:pb-8">
+          <CardContent className="px-6 md:px-10 pb-6 md:pb-8">
             <AnimatePresence mode="wait">
               {activeTab === 'login' ? (
                 <motion.form
@@ -185,19 +185,19 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   exit={{ opacity: 0, x: 10 }}
                   transition={{ duration: 0.2 }}
                   onSubmit={handleLogin}
-                  className="space-y-4 md:space-y-5"
+                  className="space-y-5 md:space-y-6"
                 >
                   <div className="space-y-2">
-                    <Label htmlFor="login-email" className="text-sm md:text-base">Email</Label>
+                    <Label htmlFor="login-email" className="text-base md:text-lg">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                       <Input
                         id="login-email"
                         type="email"
                         placeholder="you@example.com"
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
-                        className="pl-10 h-11 md:h-12 text-sm md:text-base"
+                        className="pl-10 md:pl-12 h-12 md:h-14 text-base md:text-lg"
                         disabled={isLoading}
                         required
                       />
@@ -205,16 +205,16 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="login-password" className="text-sm md:text-base">Password</Label>
+                    <Label htmlFor="login-password" className="text-base md:text-lg">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                       <Input
                         id="login-password"
                         type="password"
                         placeholder="Enter your password"
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
-                        className="pl-10 h-11 md:h-12 text-sm md:text-base"
+                        className="pl-10 md:pl-12 h-12 md:h-14 text-base md:text-lg"
                         disabled={isLoading}
                         required
                       />
@@ -233,12 +233,12 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
 
                   <Button
                     type="submit"
-                    className="w-full h-11 md:h-12 text-sm md:text-base"
+                    className="w-full h-12 md:h-14 text-base md:text-lg"
                     disabled={isLoading}
                     size="lg"
                   >
                     {isLoading ? (
-                      <Loader2 className="mr-2 h-4 w-4 md:h-5 md:w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 md:h-6 md:w-6 animate-spin" />
                     ) : null}
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
@@ -251,35 +251,35 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   exit={{ opacity: 0, x: -10 }}
                   transition={{ duration: 0.2 }}
                   onSubmit={handleRegister}
-                  className="space-y-4 md:space-y-5"
+                  className="space-y-5 md:space-y-6"
                 >
                   <div className="space-y-2">
-                    <Label htmlFor="register-name" className="text-sm md:text-base">Name (optional)</Label>
+                    <Label htmlFor="register-name" className="text-base md:text-lg">Name (optional)</Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                       <Input
                         id="register-name"
                         type="text"
                         placeholder="Your name"
                         value={registerName}
                         onChange={(e) => setRegisterName(e.target.value)}
-                        className="pl-10 h-11 md:h-12 text-sm md:text-base"
+                        className="pl-10 md:pl-12 h-12 md:h-14 text-base md:text-lg"
                         disabled={isLoading}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="register-email" className="text-sm md:text-base">Email</Label>
+                    <Label htmlFor="register-email" className="text-base md:text-lg">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                       <Input
                         id="register-email"
                         type="email"
                         placeholder="you@example.com"
                         value={registerEmail}
                         onChange={(e) => setRegisterEmail(e.target.value)}
-                        className="pl-10 h-11 md:h-12 text-sm md:text-base"
+                        className="pl-10 md:pl-12 h-12 md:h-14 text-base md:text-lg"
                         disabled={isLoading}
                         required
                       />
@@ -287,16 +287,16 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="register-password" className="text-sm md:text-base">Password</Label>
+                    <Label htmlFor="register-password" className="text-base md:text-lg">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                       <Input
                         id="register-password"
                         type="password"
                         placeholder="Min. 6 characters"
                         value={registerPassword}
                         onChange={(e) => setRegisterPassword(e.target.value)}
-                        className="pl-10 h-11 md:h-12 text-sm md:text-base"
+                        className="pl-10 md:pl-12 h-12 md:h-14 text-base md:text-lg"
                         disabled={isLoading}
                         required
                         minLength={6}
@@ -316,12 +316,12 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
 
                   <Button
                     type="submit"
-                    className="w-full h-11 md:h-12 text-sm md:text-base"
+                    className="w-full h-12 md:h-14 text-base md:text-lg"
                     disabled={isLoading}
                     size="lg"
                   >
                     {isLoading ? (
-                      <Loader2 className="mr-2 h-4 w-4 md:h-5 md:w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 md:h-6 md:w-6 animate-spin" />
                     ) : null}
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>

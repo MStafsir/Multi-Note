@@ -251,3 +251,224 @@ export interface KeyboardShortcut {
   description: string;
   macLabel?: string; // Display label for Mac (e.g., ⌘ instead of Ctrl)
 }
+
+// ============================================================
+// MODUL 31: Database Block — Schema & Property Type Engine
+// ============================================================
+
+// 31.3 — Property type enum (NOT a new NodeType — DatabaseBlock is Tiptap custom node)
+export type PropertyType =
+  | 'text'
+  | 'number'
+  | 'select'
+  | 'multi_select'
+  | 'date'
+  | 'checkbox'
+  | 'url'
+  | 'person'
+  | 'relation'
+  | 'formula'
+  | 'rollup'
+  | 'created_time'
+  | 'created_by';
+
+// 31.2 — Column schema definition
+export interface ColumnSchema {
+  column_id: string;
+  name: string;
+  type: PropertyType;
+  config?: ColumnConfig;
+}
+
+// Column config varies by property type
+export interface ColumnConfig {
+  options?: SelectOption[];        // for select/multi_select
+  relationDatabaseId?: string;     // for relation — FK to another note_databases
+  rollupColumnId?: string;         // for rollup — which column to aggregate
+  rollupAggregation?: 'sum' | 'count' | 'average' | 'min' | 'max'; // for rollup
+  formulaExpression?: string;      // for formula — mathjs expression with prop("ColumnName")
+  dateFormat?: string;             // for date display format
+}
+
+export interface SelectOption {
+  id: string;
+  name: string;
+  colorHex: string;
+}
+
+// 31.2 — Database info (note_databases table)
+export interface NoteDatabaseInfo {
+  id: string;
+  parentNoteId: string;
+  title: string;
+  schema: ColumnSchema[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 31.4 — Row data (database_rows table)
+export interface DatabaseRowInfo {
+  id: string;
+  databaseId: string;
+  cellData: Record<string, CellValue>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Cell value type — varies by property type
+export type CellValue =
+  | string      // text, url, select (option id), person (user id), created_by
+  | number      // number, formula, rollup result
+  | boolean     // checkbox
+  | string[]    // multi_select (array of option ids)
+  | null;       // empty cell
+
+// ============================================================
+// MODUL 32: Database View — Rendering, Filter, Sort & Layout
+// ============================================================
+
+// 32.1 — View type enum
+export type DatabaseViewType = 'table' | 'board' | 'list' | 'gallery';
+
+// 32.2 — Filter condition
+export type FilterOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'not_contains'
+  | 'greater_than'
+  | 'less_than'
+  | 'is_empty'
+  | 'is_not_empty'
+  | 'before'
+  | 'after'
+  | 'on_or_before'
+  | 'on_or_after';
+
+export interface FilterCondition {
+  columnId: string;
+  operator: FilterOperator;
+  value?: CellValue;
+}
+
+export interface FilterGroup {
+  type: 'and' | 'or';
+  conditions: FilterCondition[];
+  groups?: FilterGroup[];
+}
+
+// 32.3 — Sort definition
+export interface SortDefinition {
+  columnId: string;
+  direction: 'asc' | 'desc';
+}
+
+// 32.1 — Database view info
+export interface DatabaseViewInfo {
+  id: string;
+  databaseId: string;
+  type: DatabaseViewType;
+  name: string;
+  config: DatabaseViewConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DatabaseViewConfig {
+  filters?: FilterGroup;
+  sorts?: SortDefinition[];
+  groupBy?: string;       // column_id for board view grouping
+  fieldOrder?: string[];  // column_id order for display
+  hiddenFields?: string[]; // column_ids hidden in this view
+  galleryCoverColumnId?: string; // column_id to use as cover in gallery view
+}
+
+// ============================================================
+// MODUL 33: Note Template & Duplication System
+// ============================================================
+
+// 33.1 — Template category enum
+export type TemplateCategory =
+  | 'meeting_notes'
+  | 'project_plan'
+  | 'journal'
+  | 'weekly_review'
+  | 'blank'
+  | 'custom';
+
+// 33.1 — Note template info
+export interface NoteTemplateInfo {
+  id: string;
+  ownerId: string | null; // null = system built-in template
+  title: string;
+  contentJsonTemplate: string;
+  category: TemplateCategory;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// MODUL 34: Backlink & Bi-directional Note-Linking Graph
+// ============================================================
+
+// 34.2 — Note link info (note_links table)
+export interface NoteLinkInfo {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  createdAt: string;
+}
+
+// 34.3 — Backlink with context snippet
+export interface BacklinkInfo {
+  sourceNodeId: string;
+  sourceNodeName: string;
+  contextSnippet: string; // sentence context around the link
+  createdAt: string;
+}
+
+// 34.5 — Graph node for force-directed visualization
+export interface GraphNode {
+  id: string;
+  name: string;
+  backlinkCount: number;
+}
+
+// 34.5 — Graph edge for force-directed visualization
+export interface GraphEdge {
+  source: string;
+  target: string;
+}
+
+// ============================================================
+// MODUL 35: In-Note Threaded Commenting System
+// ============================================================
+
+// 35.1 — Comment info
+export interface CommentInfo {
+  id: string;
+  nodeId: string;
+  parentCommentId: string | null;
+  authorId: string;
+  authorName?: string;
+  authorEmail?: string;
+  content: string;
+  anchorPosition: AnchorPosition | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 35.2 — Anchor position using ProseMirror mapping/transform
+export interface AnchorPosition {
+  from: number;
+  to: number;
+  text: string;     // the selected text that was anchored
+  path: number[];   // path to the node in ProseMirror doc tree
+}
+
+// 35.3 — Threaded comment display (flattened: reply-to-reply → same thread)
+export interface CommentThread {
+  root: CommentInfo;
+  replies: CommentInfo[];
+}

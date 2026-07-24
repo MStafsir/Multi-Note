@@ -58,6 +58,8 @@ model User {
   calculations  CalculationHistory[]
   notifications Notification[]
   notificationPreference NotificationPreference?
+  comments      Comment[]
+  noteTemplates NoteTemplate[]
 }
 
 model VerificationToken {
@@ -97,11 +99,15 @@ model Node {
   children   Node[]         @relation("NodeTree")
   metadata   FileMetadata?
   note       NoteContent?
-  shares     NodeShare[]
-  tags       NodeTag[]
-  activity   ActivityLog[]
-  versions   FileVersion[]
-  revisions  NoteRevision[]
+  shares        NodeShare[]
+  tags          NodeTag[]
+  activity      ActivityLog[]
+  versions      FileVersion[]
+  revisions     NoteRevision[]
+  noteDatabases NoteDatabase[]
+  sourceLinks   NoteLink[]  @relation("SourceLinks")
+  targetLinks   NoteLink[]  @relation("TargetLinks")
+  comments      Comment[]
 
   @@index([ownerId, parentId])
   @@index([ownerId, type])
@@ -254,4 +260,119 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ============================================================
+// MODUL 31: Database Block — Schema & Property Type Engine
+// ============================================================
+
+// Database block exists as rich-block inside content_json (Tiptap DatabaseBlock node)
+// NOT a new NodeType — prevents discriminated union inflation (Modul 1.3 lock)
+model NoteDatabase {
+  id             String   @id @default(cuid())
+  parentNoteId   String   // FK to nodes.id — note that contains this database block
+  title          String   @default("Untitled Database")
+  schema         String   // JSON string: array of {column_id, name, type, config}
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  parentNote Node           @relation(fields: [parentNoteId], references: [id], onDelete: Cascade)
+  rows       DatabaseRow[]
+  views      DatabaseView[]
+
+  @@index([parentNoteId])
+}
+
+model DatabaseRow {
+  id         String @id @default(cuid())
+  databaseId String
+  cellData   String // JSON string: key=column_id, value=cell content
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  database NoteDatabase @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+
+  @@index([databaseId])
+}
+
+// ============================================================
+// MODUL 32: Database View — Rendering, Filter, Sort & Layout
+// ============================================================
+
+model DatabaseView {
+  id         String   @id @default(cuid())
+  databaseId String
+  type       String   // "table" | "board" | "list" | "gallery"
+  name       String   @default("Default View")
+  config     String   // JSON string: {filters, sorts, groupBy, fieldOrder, etc.}
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  database NoteDatabase @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+
+  @@index([databaseId])
+}
+
+// ============================================================
+// MODUL 33: Note Template & Duplication System
+// ============================================================
+
+model NoteTemplate {
+  id                  String   @id @default(cuid())
+  ownerId             String?  // null = system built-in template
+  title               String
+  contentJsonTemplate String   // Tiptap ProseMirror JSON template with placeholder blocks
+  category            String   // "meeting_notes" | "project_plan" | "journal" | "weekly_review" | "blank" | "custom"
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([category])
+}
+
+// ============================================================
+// MODUL 34: Backlink & Bi-directional Note-Linking Graph
+// ============================================================
+
+// note_links: populated/updated via parser when content_json is saved
+// Extracts all NoteLinkMention nodes from Tiptap document tree
+model NoteLink {
+  id          String   @id @default(cuid())
+  sourceNodeId String  // note that contains the [[nama-note]] link
+  targetNodeId String  // note being referenced
+  createdAt   DateTime @default(now())
+
+  sourceNode Node @relation("SourceLinks", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode Node @relation("TargetLinks", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceNodeId, targetNodeId])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+}
+
+// ============================================================
+// MODUL 35: In-Note Threaded Commenting System
+// ============================================================
+
+model Comment {
+  id               String    @id @default(cuid())
+  nodeId           String    // FK to nodes.id — note where comment is anchored
+  parentCommentId  String?   // nullable — self-referencing for threaded replies (max 1 level)
+  authorId         String
+  content          String    // plain text — NOT rich-block
+  anchorPosition   String?   // JSON string: ProseMirror mapping/transform for text-anchor
+  resolvedAt       DateTime? // nullable — toggle resolved/unresolved
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  node          Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  parentComment Comment? @relation("CommentThread", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies       Comment[] @relation("CommentThread")
+  author        User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId, createdAt])
+  @@index([nodeId, resolvedAt])
+  @@index([parentCommentId])
 }

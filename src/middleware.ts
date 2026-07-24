@@ -45,7 +45,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/admin') ||
     pathname === '/api/export' ||
     pathname.startsWith('/api/import') ||
-    pathname.startsWith('/api/account')
+    pathname.startsWith('/api/account') ||
+    pathname.startsWith('/api/databases') ||
+    pathname.startsWith('/api/templates') ||
+    pathname.startsWith('/api/comments') ||
+    pathname.startsWith('/api/graph')
   ) {
     const token = await getToken({
       req: request,
@@ -92,5 +96,9 @@ export const config = {
     '/api/export/:path*',
     '/api/import/:path*',
     '/api/account/:path*',
+    '/api/databases/:path*',
+    '/api/templates/:path*',
+    '/api/comments/:path*',
+    '/api/graph',
   ],
 };
