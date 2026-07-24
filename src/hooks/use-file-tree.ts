@@ -43,6 +43,7 @@ export function useNodeList(parentId: string | null) {
           children: [],
           metadata: n.metadata as Record<string, unknown> | undefined,
           content: n.content as Record<string, unknown> | undefined,
+          isFavorite: n.isFavorite as boolean | undefined,
           createdAt: n.createdAt as string,
           updatedAt: n.updatedAt as string,
         }));

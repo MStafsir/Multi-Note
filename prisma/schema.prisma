@@ -82,14 +82,15 @@ model Profile {
 
 // --- Core Node Table (Modul 2.2) ---
 model Node {
-  id        String   @id @default(cuid())
-  ownerId   String
-  parentId  String?
-  type      String   // "file" | "folder" | "note" — discriminated union
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // soft-delete (Modul 4.3)
+  id         String    @id @default(cuid())
+  ownerId    String
+  parentId   String?
+  type       String    // "file" | "folder" | "note" — discriminated union
+  name       String
+  isFavorite Boolean   @default(false) // Modul 21.3 — direct column for high-frequency access
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime? // soft-delete (Modul 4.3)
 
   owner      User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   parent     Node?          @relation("NodeTree", fields: [parentId], references: [id], onDelete: Cascade)
@@ -105,6 +106,7 @@ model Node {
   @@index([ownerId, parentId])
   @@index([ownerId, type])
   @@index([deletedAt])
+  @@index([ownerId, isFavorite]) // Modul 21.4 — favorites filter
 }
 
 // --- File Metadata (Modul 2.6) ---

@@ -3,13 +3,15 @@
 // ============================================================
 // MODUL 12: SearchDropdown — Debounced search with realtime dropdown
 // 12.4 — 300ms debounce, realtime dropdown, scope filter
+// 21 — Tag filter section with AND/OR mode toggle
 // Keyboard navigation (arrow keys, Enter, Escape)
 // ============================================================
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearch, type SearchFilters, type SearchResult } from '@/hooks/use-search';
+import { useTags } from '@/hooks/use-tags';
 import { useFileTreeStore } from '@/store/file-tree';
-import type { NodeType } from '@/types';
+import type { NodeType, TagInfo } from '@/types';
 import {
   Folder,
   File,
@@ -18,6 +20,7 @@ import {
   Loader2,
   X,
   Keyboard,
+  Tag,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -33,6 +36,8 @@ export function SearchDropdown({ onNavigateToNode, className }: SearchDropdownPr
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
   const [typeFilter, setTypeFilter] = useState<NodeType | undefined>(undefined);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [tagMode, setTagMode] = useState<'AND' | 'OR'>('OR');
 
   // 12.4 — isOpen is derived from whether query has content
   const isOpen = query.trim().length > 0;
@@ -40,7 +45,16 @@ export function SearchDropdown({ onNavigateToNode, className }: SearchDropdownPr
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 21 — Fetch available tags for filter UI
+  const { data: availableTags } = useTags();
+
+  // Build filters including tag filter
   const filters: SearchFilters = { type: typeFilter };
+  if (selectedTagIds.length > 0) {
+    filters.tags = selectedTagIds.join(',');
+    filters.tagMode = tagMode;
+  }
+
   const { data, isLoading } = useSearch(query, filters);
   const results = data?.results || [];
 
@@ -53,6 +67,7 @@ export function SearchDropdown({ onNavigateToNode, className }: SearchDropdownPr
   const handleSelect = useCallback((result: SearchResult) => {
     setQuery('');
     setActiveIndex(-1);
+    setSelectedTagIds([]);
 
     if (onNavigateToNode) {
       onNavigateToNode(result.id, result.type, result.parentId);
@@ -75,6 +90,16 @@ export function SearchDropdown({ onNavigateToNode, className }: SearchDropdownPr
       }
     }
   }, [onNavigateToNode, flatNodes, setCurrentFolder]);
+
+  // 21 — Toggle a tag in the filter selection
+  const toggleTag = useCallback((tagId: string) => {
+    setSelectedTagIds(prev => {
+      if (prev.includes(tagId)) {
+        return prev.filter(id => id !== tagId);
+      }
+      return [...prev, tagId];
+    });
+  }, []);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -174,7 +199,7 @@ export function SearchDropdown({ onNavigateToNode, className }: SearchDropdownPr
             variant="ghost"
             size="icon"
             className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-            onClick={() => { setQuery(''); inputRef.current?.focus(); }}
+            onClick={() => { setQuery(''); setSelectedTagIds([]); inputRef.current?.focus(); }}
             aria-label="Clear search"
           >
             <X className="h-3.5 w-3.5" />
@@ -205,6 +230,40 @@ export function SearchDropdown({ onNavigateToNode, className }: SearchDropdownPr
               </Badge>
             ))}
           </div>
+
+          {/* 21 — Tag Filter Section */}
+          {availableTags && availableTags.length > 0 && (
+            <div className="px-3 py-2 border-b border-border bg-muted/20">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Tag className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Tags:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-5 px-1.5 text-xs font-mono ml-1 ${tagMode === 'AND' ? 'bg-primary text-primary-foreground' : ''}`}
+                  onClick={() => setTagMode(tagMode === 'AND' ? 'OR' : 'AND')}
+                  aria-label={`Toggle tag filter mode: ${tagMode}`}
+                >
+                  {tagMode}
+                </Button>
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                {availableTags.map((tag: TagInfo) => (
+                  <Badge
+                    key={tag.id}
+                    variant={selectedTagIds.includes(tag.id) ? 'default' : 'outline'}
+                    className="cursor-pointer text-xs px-2 py-0.5 hover:bg-accent transition-colors"
+                    style={selectedTagIds.includes(tag.id) ? { backgroundColor: tag.colorHex, borderColor: tag.colorHex } : { borderColor: tag.colorHex, color: tag.colorHex }}
+                    onClick={() => toggleTag(tag.id)}
+                    role="button"
+                    aria-pressed={selectedTagIds.includes(tag.id)}
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Results */}
           <ScrollArea className="max-h-72">

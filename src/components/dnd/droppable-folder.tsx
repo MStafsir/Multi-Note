@@ -1,15 +1,15 @@
 'use client';
 
+// ============================================================
+// MODUL 23.6: DroppableFolder — Desktop drop target + Mobile passthrough
+// IMPORTANT: Hooks must be called before any conditional return
+// On mobile, disabled flag prevents drop behavior
+// ============================================================
+
 import { type ReactNode } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { TreeNode } from '@/types';
 import { useWorkspaceDnd } from './dnd-context';
-
-// ============================================================
-// DroppableFolder — Wrapper for droppable folder targets
-// Visual feedback: highlight border/bg when drag is over
-// Validates: reject drop if target is a file or descendant conflict
-// ============================================================
 
 interface DroppableFolderProps {
   id: string;
@@ -18,16 +18,24 @@ interface DroppableFolderProps {
 }
 
 export function DroppableFolder({ id, node, children }: DroppableFolderProps) {
-  const { overFolderId } = useWorkspaceDnd();
+  const { overFolderId, isMobile } = useWorkspaceDnd();
 
+  // Always call useDroppable hook (required before any conditional logic)
+  // Disabled on mobile so it doesn't interfere with long-press behavior
   const { setNodeRef, isOver } = useDroppable({
     id,
     data: {
       node,
     },
+    disabled: isMobile,
   });
 
-  // Highlight if this folder is the current drag-over target
+  // On mobile, no drop behavior — just render children as a plain wrapper
+  if (isMobile) {
+    return <div>{children}</div>;
+  }
+
+  // On desktop, use @dnd-kit droppable with visual feedback
   const isHighlighted = isOver || String(overFolderId) === id;
 
   return (

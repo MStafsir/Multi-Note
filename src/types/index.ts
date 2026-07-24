@@ -81,6 +81,7 @@ export interface TreeNode {
   children: TreeNode[];
   metadata?: FileMetadata;
   content?: NoteContent;
+  isFavorite?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -217,4 +218,36 @@ export interface DiffLine {
 
 export interface DiffData {
   diff: DiffLine[];
+}
+
+// --- Modul 21: Tagging, Favorites & Custom Metadata Types ---
+export interface TagInfo {
+  id: string;
+  name: string;
+  colorHex: string;
+}
+
+export interface NodeTagInfo {
+  tagId: string;
+  nodeId: string;
+  tag?: TagInfo;
+}
+
+// --- Modul 22: Undo Stack & Command Palette Types ---
+export type UndoActionType = 'rename' | 'move' | 'delete' | 'create' | 'favorite_toggle';
+
+export interface UndoAction {
+  id: string;
+  type: UndoActionType;
+  description: string;
+  timestamp: number;
+  undoData: Record<string, unknown>;
+}
+
+export interface KeyboardShortcut {
+  key: string;
+  label: string;
+  category: 'navigation' | 'creation' | 'editing' | 'tools';
+  description: string;
+  macLabel?: string; // Display label for Mac (e.g., ⌘ instead of Ctrl)
 }

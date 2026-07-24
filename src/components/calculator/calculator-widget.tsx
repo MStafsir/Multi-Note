@@ -1,12 +1,12 @@
 'use client';
 
 // ============================================================
-// CalculatorWidget — Floating panel (Modul 11)
-// Three tab-switchable modes: Basic, Scientific, Unit Conversion
+// MODUL 23.4: CalculatorWidget — Floating panel on desktop
+// Full-screen modal on mobile (<640px)
 // CRITICAL: NEVER uses eval() — always uses mathjs via store
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -37,8 +37,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { CalcMode } from '@/types';
 
+const MOBILE_BREAKPOINT = 640;
+
 // --- Unit Conversion Definitions ---
-// Uses mathjs unit support for conversions
 const UNIT_CATEGORIES = {
   length: {
     label: 'Length',
@@ -50,7 +51,7 @@ const UNIT_CATEGORIES = {
   },
   temperature: {
     label: 'Temperature',
-    units: ['degC', 'degF', 'degR'], // mathjs temperature units
+    units: ['degC', 'degF', 'degR'],
   },
   time: {
     label: 'Time',
@@ -90,13 +91,13 @@ const SCIENTIFIC_BUTTONS: { label: string; value: string; type: 'func' | 'const'
   { label: 'cos', value: 'cos(', type: 'func' },
   { label: 'tan', value: 'tan(', type: 'func' },
   { label: 'log', value: 'log(', type: 'func' },
-  { label: 'ln', value: 'log(', type: 'func' }, // mathjs log() is natural log by default
+  { label: 'ln', value: 'log(', type: 'func' },
   { label: '√', value: 'sqrt(', type: 'func' },
   { label: 'x^y', value: '^', type: 'op' },
   { label: '!', value: '!', type: 'op' },
   { label: 'π', value: 'pi', type: 'const' },
   { label: 'e', value: 'e', type: 'const' },
-  { label: 'ans', value: 'ans', type: 'const' }, // previous result
+  { label: 'ans', value: 'ans', type: 'const' },
 ];
 
 export function CalculatorWidget() {
@@ -121,6 +122,7 @@ export function CalculatorWidget() {
 
   const { user } = useAuthStore();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [unitCategory, setUnitCategory] = useState<UnitCategory>('length');
   const [fromUnit, setFromUnit] = useState('m');
   const [toUnit, setToUnit] = useState('km');
@@ -128,12 +130,20 @@ export function CalculatorWidget() {
   const [unitResult, setUnitResult] = useState<string | null>(null);
   const [unitError, setUnitError] = useState<string | null>(null);
 
+  // Detect mobile viewport
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   // Focus input when widget opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen && inputRef.current && !isMobile) {
       inputRef.current.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
   // Handle basic/scientific button press
   const handleButtonPress = useCallback(
@@ -159,7 +169,7 @@ export function CalculatorWidget() {
     [calculate, clearExpression, backspace, appendToExpression, result]
   );
 
-  // Handle unit category change — resets units to defaults for new category
+  // Handle unit category change
   const handleCategoryChange = useCallback(
     (category: UnitCategory) => {
       const units = UNIT_CATEGORIES[category].units;
@@ -173,7 +183,7 @@ export function CalculatorWidget() {
     []
   );
 
-  // Handle Enter key in expression input
+  // Handle Enter key
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
@@ -183,7 +193,7 @@ export function CalculatorWidget() {
     [calculate]
   );
 
-  // Unit conversion using mathjs
+  // Unit conversion
   const performUnitConversion = useCallback(() => {
     if (!unitInput.trim()) {
       setUnitResult(null);
@@ -192,15 +202,12 @@ export function CalculatorWidget() {
     }
 
     try {
-      // Build mathjs unit conversion expression: e.g., "5 m to km"
-      // CRITICAL: Uses mathjs.evaluate() — NEVER eval()
       const expr = `${unitInput} ${fromUnit} to ${toUnit}`;
-      const evaluated = evaluate(expr); // mathjs evaluate
+      const evaluated = evaluate(expr);
       const resultStr = String(evaluated);
       setUnitResult(resultStr);
       setUnitError(null);
 
-      // Add to history via store
       useCalculatorStore.setState((state) => ({
         history: [
           {
@@ -218,7 +225,7 @@ export function CalculatorWidget() {
     }
   }, [unitInput, fromUnit, toUnit]);
 
-  // Copy result to clipboard
+  // Copy result
   const copyResult = useCallback(() => {
     if (result) {
       navigator.clipboard.writeText(result);
@@ -226,7 +233,7 @@ export function CalculatorWidget() {
     }
   }, [result]);
 
-  // Save to permanent history (DB)
+  // Save to permanent history
   const saveToPermanentHistory = useCallback(async () => {
     if (!result || !user) return;
 
@@ -261,6 +268,302 @@ export function CalculatorWidget() {
 
   if (!isOpen) return null;
 
+  // Shared calculator content (used in both mobile and desktop)
+  const calculatorContent = (
+    <>
+      {/* Tabs */}
+      <Tabs value={mode} onValueChange={handleModeChange} className="flex-1 flex flex-col">
+        <div className="px-3 pt-2">
+          <TabsList className="w-full h-8">
+            <TabsTrigger value="basic" className="text-xs">Basic</TabsTrigger>
+            <TabsTrigger value="scientific" className="text-xs">Scientific</TabsTrigger>
+            <TabsTrigger value="unit" className="text-xs">Unit</TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Expression + Result Display */}
+        <TabsContent value="basic" className="flex-1 flex flex-col px-3 pt-2 gap-2">
+          <div className="space-y-1">
+            <Input
+              ref={inputRef}
+              value={expression}
+              onChange={(e) => setExpression(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type expression..."
+              className="text-sm h-9"
+              aria-label="Calculator expression input"
+            />
+            <div className="flex items-center justify-between min-h-[28px] px-1">
+              {error && <span className="text-xs text-destructive">{error}</span>}
+              {result && !error && (
+                <span className="text-sm font-medium text-emerald-600 truncate max-w-full">
+                  = {result}
+                </span>
+              )}
+              {!result && !error && (
+                <span className="text-xs text-muted-foreground">Enter an expression</span>
+              )}
+            </div>
+          </div>
+
+          {/* Basic button grid */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {BASIC_BUTTONS.map((btn) => (
+              <Button
+                key={btn.label}
+                variant={btn.type === 'action' ? 'secondary' : btn.type === 'op' ? 'outline' : 'ghost'}
+                size="sm"
+                className={`h-9 min-h-[44px] text-sm font-medium ${
+                  btn.type === 'action' ? 'bg-muted' : ''
+                } ${
+                  btn.value === '=' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''
+                }`}
+                onClick={() => handleButtonPress(btn.value, btn.type)}
+                aria-label={btn.label}
+              >
+                {btn.label}
+              </Button>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="scientific" className="flex-1 flex flex-col px-3 pt-2 gap-2">
+          <div className="space-y-1">
+            <Input
+              ref={inputRef}
+              value={expression}
+              onChange={(e) => setExpression(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type expression (e.g., sin(pi/2))..."
+              className="text-sm h-9"
+              aria-label="Scientific calculator expression input"
+            />
+            <div className="flex items-center justify-between min-h-[28px] px-1">
+              {error && <span className="text-xs text-destructive">{error}</span>}
+              {result && !error && (
+                <span className="text-sm font-medium text-emerald-600 truncate max-w-full">
+                  = {result}
+                </span>
+              )}
+              {!result && !error && (
+                <span className="text-xs text-muted-foreground">Enter an expression</span>
+              )}
+            </div>
+          </div>
+
+          {/* Scientific buttons */}
+          <div className="grid grid-cols-4 gap-1.5 mb-1">
+            {SCIENTIFIC_BUTTONS.map((btn) => (
+              <Button
+                key={btn.label}
+                variant={btn.type === 'const' ? 'secondary' : 'outline'}
+                size="sm"
+                className="h-8 min-h-[44px] text-xs font-medium"
+                onClick={() => handleButtonPress(btn.value, btn.type)}
+                aria-label={btn.label}
+              >
+                {btn.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Basic buttons below */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {BASIC_BUTTONS.map((btn) => (
+              <Button
+                key={`sci-${btn.label}`}
+                variant={btn.type === 'action' ? 'secondary' : btn.type === 'op' ? 'outline' : 'ghost'}
+                size="sm"
+                className={`h-9 min-h-[44px] text-sm font-medium ${
+                  btn.type === 'action' ? 'bg-muted' : ''
+                } ${
+                  btn.value === '=' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''
+                }`}
+                onClick={() => handleButtonPress(btn.value, btn.type)}
+                aria-label={btn.label}
+              >
+                {btn.label}
+              </Button>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="unit" className="flex-1 flex flex-col px-3 pt-2 gap-3">
+          {/* Category selector */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+            <Select value={unitCategory} onValueChange={(v) => handleCategoryChange(v as UnitCategory)}>
+              <SelectTrigger className="w-full h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(UNIT_CATEGORIES).map(([key, cat]) => (
+                  <SelectItem key={key} value={key}>{cat.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* From/To unit selectors */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">From</label>
+              <Select value={fromUnit} onValueChange={setFromUnit}>
+                <SelectTrigger className="w-full h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIT_CATEGORIES[unitCategory].units.map((u) => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">To</label>
+              <Select value={toUnit} onValueChange={setToUnit}>
+                <SelectTrigger className="w-full h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIT_CATEGORIES[unitCategory].units.map((u) => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Value input */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Value</label>
+            <Input
+              value={unitInput}
+              onChange={(e) => setUnitInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') performUnitConversion();
+              }}
+              placeholder="Enter value..."
+              className="text-sm h-9"
+              aria-label="Unit conversion value"
+            />
+          </div>
+
+          {/* Convert button */}
+          <Button onClick={performUnitConversion} className="w-full bg-emerald-600 text-white hover:bg-emerald-700 h-9 min-h-[44px]">
+            Convert
+          </Button>
+
+          {/* Result display */}
+          <div className="min-h-[28px] px-1">
+            {unitError && <span className="text-xs text-destructive">{unitError}</span>}
+            {unitResult && !unitError && (
+              <span className="text-sm font-medium text-emerald-600">
+                {unitInput} {fromUnit} = {unitResult}
+              </span>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* History section */}
+      <Separator />
+      <div className="px-3 py-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <History className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">History</span>
+            <span className="text-xs text-muted-foreground">({history.length})</span>
+          </div>
+          {history.length > 0 && (
+            <Button variant="ghost" size="sm" className="h-6 min-h-[44px] text-xs text-muted-foreground" onClick={clearHistory}>
+              Clear
+            </Button>
+          )}
+        </div>
+
+        <ScrollArea className={isMobile ? 'max-h-[200px]' : 'max-h-[120px]'}>
+          {history.length === 0 ? (
+            <span className="text-xs text-muted-foreground italic">No calculations yet</span>
+          ) : (
+            <div className="space-y-1">
+              {history.map((item, index) => (
+                <button
+                  key={`hist-${index}-${item.createdAt}`}
+                  className="flex items-center gap-2 w-full px-2 py-1 min-h-[44px] rounded text-xs hover:bg-accent/50 transition-colors text-left"
+                  onClick={() => applyHistoryItem(index)}
+                  aria-label={`Use calculation: ${item.expression}`}
+                >
+                  <span className="text-muted-foreground truncate flex-1 min-w-0">
+                    {item.expression}
+                  </span>
+                  <span className="text-emerald-600 font-medium shrink-0">
+                    = {item.result}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      {/* Footer hint */}
+      <div className="px-3 py-1.5 border-t bg-muted/20">
+        <span className="text-xs text-muted-foreground">
+          Ctrl+K to toggle · Ctrl+S to save note
+        </span>
+      </div>
+    </>
+  );
+
+  // ===== Mobile: Full-screen modal =====
+  if (isMobile) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-background flex flex-col"
+        >
+          {/* Header with close button */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-orange-500" />
+              <span className="font-semibold text-sm">Calculator</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {result && (
+                <>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" onClick={copyResult} aria-label="Copy result">
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" onClick={saveToPermanentHistory} aria-label="Save to history">
+                    <Bookmark className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" onClick={insertToNote} aria-label="Insert to note">
+                    <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+                  </Button>
+                </>
+              )}
+              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={toggleOpen} aria-label="Close calculator">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Calculator content */}
+          <div className="flex-1 overflow-auto">
+            <Card className="flex flex-col overflow-hidden border-0 bg-background h-full">
+              {calculatorContent}
+            </Card>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  // ===== Desktop: Floating widget =====
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -279,265 +582,24 @@ export function CalculatorWidget() {
           <div className="flex items-center gap-1">
             {result && (
               <>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={copyResult} aria-label="Copy result">
+                <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" onClick={copyResult} aria-label="Copy result">
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveToPermanentHistory} aria-label="Save to history">
+                <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" onClick={saveToPermanentHistory} aria-label="Save to history">
                   <Bookmark className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={insertToNote} aria-label="Insert to note">
+                <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" onClick={insertToNote} aria-label="Insert to note">
                   <ChevronDown className="h-3.5 w-3.5 rotate-180" />
                 </Button>
               </>
             )}
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleOpen} aria-label="Close calculator">
+            <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" onClick={toggleOpen} aria-label="Close calculator">
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={mode} onValueChange={handleModeChange} className="flex-1 flex flex-col">
-          <div className="px-3 pt-2">
-            <TabsList className="w-full h-8">
-              <TabsTrigger value="basic" className="text-xs">Basic</TabsTrigger>
-              <TabsTrigger value="scientific" className="text-xs">Scientific</TabsTrigger>
-              <TabsTrigger value="unit" className="text-xs">Unit</TabsTrigger>
-            </TabsList>
-          </div>
-
-          {/* Expression + Result Display (shared for basic & scientific) */}
-          <TabsContent value="basic" className="flex-1 flex flex-col px-3 pt-2 gap-2">
-            <div className="space-y-1">
-              <Input
-                ref={inputRef}
-                value={expression}
-                onChange={(e) => setExpression(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type expression..."
-                className="text-sm h-9"
-                aria-label="Calculator expression input"
-              />
-              <div className="flex items-center justify-between min-h-[28px] px-1">
-                {error && <span className="text-xs text-destructive">{error}</span>}
-                {result && !error && (
-                  <span className="text-sm font-medium text-emerald-600 truncate max-w-full">
-                    = {result}
-                  </span>
-                )}
-                {!result && !error && (
-                  <span className="text-xs text-muted-foreground">Enter an expression</span>
-                )}
-              </div>
-            </div>
-
-            {/* Basic button grid */}
-            <div className="grid grid-cols-4 gap-1.5">
-              {BASIC_BUTTONS.map((btn) => (
-                <Button
-                  key={btn.label}
-                  variant={btn.type === 'action' ? 'secondary' : btn.type === 'op' ? 'outline' : 'ghost'}
-                  size="sm"
-                  className={`h-9 text-sm font-medium ${
-                    btn.type === 'action' ? 'bg-muted' : ''
-                  } ${
-                    btn.value === '=' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''
-                  }`}
-                  onClick={() => handleButtonPress(btn.value, btn.type)}
-                  aria-label={btn.label}
-                >
-                  {btn.label}
-                </Button>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="scientific" className="flex-1 flex flex-col px-3 pt-2 gap-2">
-            <div className="space-y-1">
-              <Input
-                ref={inputRef}
-                value={expression}
-                onChange={(e) => setExpression(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type expression (e.g., sin(pi/2))..."
-                className="text-sm h-9"
-                aria-label="Scientific calculator expression input"
-              />
-              <div className="flex items-center justify-between min-h-[28px] px-1">
-                {error && <span className="text-xs text-destructive">{error}</span>}
-                {result && !error && (
-                  <span className="text-sm font-medium text-emerald-600 truncate max-w-full">
-                    = {result}
-                  </span>
-                )}
-                {!result && !error && (
-                  <span className="text-xs text-muted-foreground">Enter an expression</span>
-                )}
-              </div>
-            </div>
-
-            {/* Scientific buttons */}
-            <div className="grid grid-cols-4 gap-1.5 mb-1">
-              {SCIENTIFIC_BUTTONS.map((btn) => (
-                <Button
-                  key={btn.label}
-                  variant={btn.type === 'const' ? 'secondary' : 'outline'}
-                  size="sm"
-                  className="h-8 text-xs font-medium"
-                  onClick={() => handleButtonPress(btn.value, btn.type)}
-                  aria-label={btn.label}
-                >
-                  {btn.label}
-                </Button>
-              ))}
-            </div>
-
-            {/* Also include basic buttons below */}
-            <div className="grid grid-cols-4 gap-1.5">
-              {BASIC_BUTTONS.map((btn) => (
-                <Button
-                  key={`sci-${btn.label}`}
-                  variant={btn.type === 'action' ? 'secondary' : btn.type === 'op' ? 'outline' : 'ghost'}
-                  size="sm"
-                  className={`h-9 text-sm font-medium ${
-                    btn.type === 'action' ? 'bg-muted' : ''
-                  } ${
-                    btn.value === '=' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''
-                  }`}
-                  onClick={() => handleButtonPress(btn.value, btn.type)}
-                  aria-label={btn.label}
-                >
-                  {btn.label}
-                </Button>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="unit" className="flex-1 flex flex-col px-3 pt-2 gap-3">
-            {/* Category selector */}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Category</label>
-              <Select value={unitCategory} onValueChange={(v) => handleCategoryChange(v as UnitCategory)}>
-                <SelectTrigger className="w-full h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(UNIT_CATEGORIES).map(([key, cat]) => (
-                    <SelectItem key={key} value={key}>{cat.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* From/To unit selectors */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">From</label>
-                <Select value={fromUnit} onValueChange={setFromUnit}>
-                  <SelectTrigger className="w-full h-9 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNIT_CATEGORIES[unitCategory].units.map((u) => (
-                      <SelectItem key={u} value={u}>{u}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">To</label>
-                <Select value={toUnit} onValueChange={setToUnit}>
-                  <SelectTrigger className="w-full h-9 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNIT_CATEGORIES[unitCategory].units.map((u) => (
-                      <SelectItem key={u} value={u}>{u}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Value input */}
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Value</label>
-              <Input
-                value={unitInput}
-                onChange={(e) => setUnitInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') performUnitConversion();
-                }}
-                placeholder="Enter value..."
-                className="text-sm h-9"
-                aria-label="Unit conversion value"
-              />
-            </div>
-
-            {/* Convert button */}
-            <Button onClick={performUnitConversion} className="w-full bg-emerald-600 text-white hover:bg-emerald-700 h-9">
-              Convert
-            </Button>
-
-            {/* Result display */}
-            <div className="min-h-[28px] px-1">
-              {unitError && <span className="text-xs text-destructive">{unitError}</span>}
-              {unitResult && !unitError && (
-                <span className="text-sm font-medium text-emerald-600">
-                  {unitInput} {fromUnit} = {unitResult}
-                </span>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* History section */}
-        <Separator />
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <History className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">History</span>
-              <span className="text-xs text-muted-foreground">({history.length})</span>
-            </div>
-            {history.length > 0 && (
-              <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground" onClick={clearHistory}>
-                Clear
-              </Button>
-            )}
-          </div>
-
-          <ScrollArea className="max-h-[120px]">
-            {history.length === 0 ? (
-              <span className="text-xs text-muted-foreground italic">No calculations yet</span>
-            ) : (
-              <div className="space-y-1">
-                {history.map((item, index) => (
-                  <button
-                    key={`hist-${index}-${item.createdAt}`}
-                    className="flex items-center gap-2 w-full px-2 py-1 rounded text-xs hover:bg-accent/50 transition-colors text-left"
-                    onClick={() => applyHistoryItem(index)}
-                    aria-label={`Use calculation: ${item.expression}`}
-                  >
-                    <span className="text-muted-foreground truncate flex-1 min-w-0">
-                      {item.expression}
-                    </span>
-                    <span className="text-emerald-600 font-medium shrink-0">
-                      = {item.result}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </div>
-
-        {/* Footer hint */}
-        <div className="px-3 py-1.5 border-t bg-muted/20">
-          <span className="text-xs text-muted-foreground">
-            Ctrl+K to toggle · Ctrl+S to save note
-          </span>
-        </div>
+        {calculatorContent}
       </Card>
     </motion.div>
   );

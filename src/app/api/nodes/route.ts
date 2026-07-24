@@ -189,6 +189,7 @@ function formatNode(node: Record<string, unknown>) {
     name: node.name,
     parentId: node.parentId,
     ownerId: node.ownerId,
+    isFavorite: node.isFavorite,
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
     deletedAt: node.deletedAt,

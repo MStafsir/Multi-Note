@@ -9,7 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
 
-// GET /api/search?q=...&type=...&dateFrom=...&dateTo=...
+// GET /api/search?q=...&type=...&dateFrom=...&dateTo=...&tags=...&tagMode=AND|OR
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -22,6 +22,8 @@ export async function GET(request: Request) {
     const type = searchParams.get('type') || undefined;
     const dateFrom = searchParams.get('dateFrom') || undefined;
     const dateTo = searchParams.get('dateTo') || undefined;
+    const tagsParam = searchParams.get('tags') || undefined; // comma-separated tag IDs
+    const tagMode = searchParams.get('tagMode') || 'OR'; // "AND" | "OR"
 
     if (!q || q.trim().length < 1) {
       return NextResponse.json({ success: true, data: { results: [] } });
@@ -53,13 +55,51 @@ export async function GET(request: Request) {
       }
     }
 
+    // 21 — Tag filter: if tags are specified, filter nodes that have matching tags
+    let tagFilter: Record<string, unknown> | undefined;
+    if (tagsParam) {
+      const tagIds = tagsParam.split(',').filter(Boolean);
+      if (tagIds.length > 0) {
+        if (tagMode === 'AND') {
+          // AND mode: node must have ALL specified tags
+          // We need to find nodes that have ALL the specified tagIds
+          // Get all nodeTag entries for these tagIds
+          const nodeTagEntries = await db.nodeTag.findMany({
+            where: { tagId: { in: tagIds } },
+            select: { nodeId: true, tagId: true },
+          });
+          // Group by nodeId and check which nodes have ALL tags
+          const nodeTagMap = new Map<string, Set<string>>();
+          for (const entry of nodeTagEntries) {
+            if (!nodeTagMap.has(entry.nodeId)) {
+              nodeTagMap.set(entry.nodeId, new Set());
+            }
+            nodeTagMap.get(entry.nodeId)!.add(entry.tagId);
+          }
+          const andMatchingNodeIds = Array.from(nodeTagMap.entries())
+            .filter(([_, tagSet]) => tagIds.every(tid => tagSet.has(tid)))
+            .map(([nodeId]) => nodeId);
+          tagFilter = { id: { in: andMatchingNodeIds } };
+        } else {
+          // OR mode: node must have ANY of the specified tags
+          tagFilter = {
+            tags: {
+              some: { tagId: { in: tagIds } },
+            },
+          };
+        }
+      }
+    }
+
+    // Build combined where clause with tag filter
+    const nameWhere = tagFilter
+      ? { ...where, ...tagFilter, name: { contains: query } }
+      : { ...where, name: { contains: query } };
+
     // 12.1 — Search Node table by name using LIKE
     // SQLite LIKE is case-insensitive by default for ASCII chars
     const nameMatches = await db.node.findMany({
-      where: {
-        ...where,
-        name: { contains: query },
-      },
+      where: nameWhere,
       orderBy: [{ updatedAt: 'desc' }],
       include: {
         metadata: true,

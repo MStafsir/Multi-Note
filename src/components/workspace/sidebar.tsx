@@ -1,18 +1,26 @@
 'use client';
 
+// ============================================================
+// MODUL 23.5: Sidebar — 44px touch target audit
+// All buttons have min-h-[44px] min-w-[44px] touch targets
+// Spacing between targets is minimum 8px (gap-2)
+// ============================================================
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { FolderPlus, FileText, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFileTreeStore } from '@/store/file-tree';
 import { useAuthStore } from '@/store/auth';
 import { FileTreeView } from '@/components/file-tree/file-tree-view';
 import { CreateDialog } from './create-dialog';
 import { useStorageQuota } from '@/hooks/use-file-tree';
+import { useFavorites } from '@/hooks/use-tags';
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
 
 interface SidebarProps {
@@ -29,6 +37,18 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
 
   // Fetch storage quota
   const { data: quota } = useStorageQuota();
+  // 21 — Fetch favorite nodes
+  const { data: favorites } = useFavorites();
+
+  // 21 — Handle favorite item click: navigate to item
+  const handleFavoriteClick = (fav: { id: string; type: string; parentId: string | null; name: string }) => {
+    setActiveView('workspace');
+    if (fav.type === 'folder') {
+      setCurrentFolder(fav.id, []);
+    } else if (fav.parentId) {
+      setCurrentFolder(fav.parentId, []);
+    }
+  };
 
   const formatBytes = (bytes: number): string => {
     if (!bytes || bytes <= 0) return '0 B';
@@ -41,48 +61,76 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   if (collapsed) {
     return (
       <div className="flex flex-col h-full items-center py-4 gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => {
-            setCreateType('folder');
-            setCreateDialogOpen(true);
-          }}
-          aria-label="New folder"
-        >
-          <FolderPlus className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => {
-            setCreateType('note');
-            setCreateDialogOpen(true);
-          }}
-          aria-label="New note"
-        >
-          <FileText className="h-5 w-5" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 min-h-[44px] min-w-[44px]"
+              onClick={() => {
+                setCreateType('folder');
+                setCreateDialogOpen(true);
+              }}
+              aria-label="New folder"
+            >
+              <FolderPlus className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>New Folder (F)</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 min-h-[44px] min-w-[44px]"
+              onClick={() => {
+                setCreateType('note');
+                setCreateDialogOpen(true);
+              }}
+              aria-label="New note"
+            >
+              <FileText className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>New Note (N)</p>
+          </TooltipContent>
+        </Tooltip>
         <Separator />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10"
-          aria-label="Favorites"
-        >
-          <Star className="h-5 w-5" />
-        </Button>
-        <Button
-          variant={activeView === 'trash' ? 'secondary' : 'ghost'}
-          size="icon"
-          className="h-10 w-10"
-          onClick={() => setActiveView('trash')}
-          aria-label="Trash"
-        >
-          <Trash2 className="h-5 w-5" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 min-h-[44px] min-w-[44px]"
+              aria-label="Favorites"
+            >
+              <Star className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Favorites</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={activeView === 'trash' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-10 w-10 min-h-[44px] min-w-[44px]"
+              onClick={() => setActiveView('trash')}
+              aria-label="Trash"
+            >
+              <Trash2 className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Trash</p>
+          </TooltipContent>
+        </Tooltip>
         <Separator />
         <div className="flex-1" />
         <div className="px-2">
@@ -107,30 +155,44 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={() => {
-              setCreateType('folder');
-              setCreateDialogOpen(true);
-            }}
-          >
-            <FolderPlus className="h-4 w-4 mr-1" />
-            Folder
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={() => {
-              setCreateType('note');
-              setCreateDialogOpen(true);
-            }}
-          >
-            <FileText className="h-4 w-4 mr-1" />
-            Note
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 min-h-[44px]"
+                onClick={() => {
+                  setCreateType('folder');
+                  setCreateDialogOpen(true);
+                }}
+              >
+                <FolderPlus className="h-4 w-4 mr-1" />
+                Folder
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>New Folder (F)</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 min-h-[44px]"
+                onClick={() => {
+                  setCreateType('note');
+                  setCreateDialogOpen(true);
+                }}
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                Note
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>New Note (N)</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -145,11 +207,11 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
 
       <Separator />
 
-      {/* Favorites (Modul 21 prep) */}
+      {/* Favorites (Modul 21) */}
       <div className="px-3 py-1">
         <button
           onClick={() => setFavoritesExpanded(!favoritesExpanded)}
-          className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+          className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 min-h-[44px]"
         >
           {favoritesExpanded ? (
             <ChevronDown className="h-4 w-4 mr-1" />
@@ -158,17 +220,47 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           )}
           <Star className="h-4 w-4 mr-1" />
           Favorites
+          {favorites && favorites.length > 0 && (
+            <span className="ml-auto text-xs tabular-nums">{favorites.length}</span>
+          )}
         </button>
-        {favoritesExpanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="py-1 text-xs text-muted-foreground text-center"
-          >
-            No favorites yet
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {favoritesExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <ScrollArea className="max-h-48">
+                {favorites && favorites.length > 0 ? (
+                  <div className="space-y-1 py-1">
+                    {favorites.map((fav) => (
+                      <button
+                        key={fav.id}
+                        className="flex items-center gap-2 w-full px-2 py-2 min-h-[44px] text-xs rounded-sm hover:bg-accent/50 transition-colors"
+                        onClick={() => handleFavoriteClick(fav)}
+                      >
+                        <Star className="h-3 w-3 shrink-0" />
+                        {fav.type === 'folder' ? (
+                          <FolderPlus className="h-3 w-3 text-orange-500 shrink-0" />
+                        ) : fav.type === 'note' ? (
+                          <FileText className="h-3 w-3 text-emerald-600 shrink-0" />
+                        ) : (
+                          <File className="h-3 w-3 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="truncate flex-1 text-left">{fav.name}</span>
+                        <span className="text-muted-foreground capitalize shrink-0">{fav.type}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-2 text-xs text-muted-foreground text-center">No favorites yet</p>
+                )}
+              </ScrollArea>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <Separator />
@@ -177,7 +269,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       <div className="px-3 py-1">
         <button
           onClick={() => setActivityExpanded(!activityExpanded)}
-          className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+          className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 min-h-[44px]"
         >
           {activityExpanded ? (
             <ChevronDown className="h-4 w-4 mr-1" />
@@ -203,7 +295,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       {/* Trash (Modul 17) */}
       <button
         onClick={() => setActiveView('trash')}
-        className={`flex items-center w-full px-3 py-1.5 text-sm font-medium transition-colors rounded-sm
+        className={`flex items-center w-full px-3 py-2 min-h-[44px] text-sm font-medium transition-colors rounded-sm
           ${activeView === 'trash'
             ? 'text-foreground bg-accent'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'

@@ -34,7 +34,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/users') ||
     pathname.startsWith('/api/activity') ||
     pathname.startsWith('/api/notifications') ||
-    pathname.startsWith('/api/trash')
+    pathname.startsWith('/api/trash') ||
+    pathname.startsWith('/api/tags')
   ) {
     const token = await getToken({
       req: request,
@@ -76,5 +77,6 @@ export const config = {
     '/api/activity/:path*',
     '/api/notifications/:path*',
     '/api/trash/:path*',
+    '/api/tags/:path*',
   ],
 };

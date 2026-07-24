@@ -10,7 +10,7 @@ import { db } from '@/lib/db';
 import { getAllDescendants } from '@/lib/permissions';
 import { readFile, stat } from 'fs/promises';
 import path from 'path';
-import archiver from 'archiver';
+import * as archiver from 'archiver';
 import { z } from 'zod';
 
 const bulkDownloadSchema = z.object({

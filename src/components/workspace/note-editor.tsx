@@ -1,18 +1,60 @@
 'use client';
 
+// ============================================================
+// MODUL 25.2: NoteEditor — Wrapper with offline support + lazy loading
+// Uses dynamic import for TiptapEditor to reduce initial bundle
+// When saving fails (network error), queues the change in IndexedDB
+// When connection returns, syncs queued changes
+// ============================================================
+
 import { useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Loader2, WifiOff, CloudOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
-import { TiptapEditor } from '@/components/editor/tiptap-editor';
 import { useNoteRevisions } from '@/hooks/use-note-revisions';
+import { queueNoteEdit, syncQueuedEdits, getUnsyncedCount, registerBackgroundSync } from '@/lib/offline-queue';
+import { Skeleton } from '@/components/ui/skeleton';
+import dynamic from 'next/dynamic';
 
-// ============================================================
-// NoteEditor — Wrapper that connects TiptapEditor to API + Collab
-// Modul 10: userId/userName for collab integration
-// Modul 16.2: Revision snapshot interval management
-// ============================================================
+// Editor skeleton shown while TiptapEditor is loading
+function EditorSkeleton() {
+  return (
+    <div className="flex flex-col border rounded-lg bg-background">
+      {/* Toolbar skeleton */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-8 rounded" />
+        ))}
+      </div>
+      {/* Status bar skeleton */}
+      <div className="flex items-center justify-between px-4 py-1.5 border-b">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-16" />
+      </div>
+      {/* Content skeleton */}
+      <div className="flex-1 p-6 space-y-3">
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-5/6" />
+        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className="h-6 w-2/3" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+    </div>
+  );
+}
+
+// Dynamic import for TiptapEditor — reduces initial bundle size significantly
+const TiptapEditor = dynamic(
+  () => import('@/components/editor/tiptap-editor').then(mod => ({ default: mod.TiptapEditor })),
+  {
+    ssr: false,
+    loading: () => <EditorSkeleton />,
+  }
+);
 
 interface NoteEditorProps {
   nodeId: string;
@@ -32,7 +74,34 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
     resetRevisionTracking();
   }, [nodeId, resetRevisionTracking]);
 
-  // Fetch note content (returns the raw contentJson string)
+  // Sync queued offline edits when connection returns
+  useEffect(() => {
+    const syncOnReconnect = async () => {
+      const count = await getUnsyncedCount();
+      if (count > 0) {
+        const result = await syncQueuedEdits();
+        if (result.synced > 0) {
+          toast.success(`Synced ${result.synced} offline edits`);
+          queryClient.invalidateQueries({ queryKey: ['note'] });
+          queryClient.invalidateQueries({ queryKey: ['nodes'] });
+        }
+      }
+    };
+
+    // Listen for online event
+    window.addEventListener('online', syncOnReconnect);
+    // Also try syncing on mount if we have pending edits
+    syncOnReconnect();
+
+    return () => window.removeEventListener('online', syncOnReconnect);
+  }, [queryClient]);
+
+  // Register Background Sync for offline edits
+  useEffect(() => {
+    registerBackgroundSync();
+  }, []);
+
+  // Fetch note content
   const { data: noteData, isLoading } = useQuery({
     queryKey: ['note', nodeId],
     queryFn: async () => {
@@ -40,7 +109,6 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 
-      // Return the contentJson string directly (TiptapEditor will parse it)
       if (data.data?.content?.contentJson) {
         return data.data.content.contentJson;
       }
@@ -49,45 +117,53 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
     staleTime: 30000,
   });
 
-  // Save mutation — sends contentJson to API
+  // Save mutation — with offline queue fallback
   const saveMutation = useMutation({
     mutationFn: async (contentJson: string) => {
-      const res = await fetch(`/api/nodes/${nodeId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contentJson,
-        }),
-      });
+      try {
+        const res = await fetch(`/api/nodes/${nodeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contentJson,
+          }),
+        });
 
-      const responseData = await res.json();
-      if (!responseData.success) throw new Error(responseData.error);
-      return responseData.data;
+        if (!res.ok) {
+          // Network/server error — queue for offline sync
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const responseData = await res.json();
+        if (!responseData.success) throw new Error(responseData.error);
+        return responseData.data;
+      } catch (error) {
+        // Queue the edit for offline sync
+        await queueNoteEdit(nodeId, contentJson, new Date().toISOString());
+        toast.warning('Saved locally — will sync when connection returns');
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['note', nodeId] });
       queryClient.invalidateQueries({ queryKey: ['nodes'] });
     },
     onError: (error) => {
-      toast.error(`Save failed: ${error.message}`);
+      // Only show error if it's not a queued offline edit
+      if (!error.message.includes('will sync')) {
+        toast.error(`Save failed: ${error.message}`);
+      }
     },
   });
 
   // Save handler passed to TiptapEditor
-  // Modul 16.2: After each successful autosave, check if revision should be created
   const handleSave = useCallback(async (contentJson: string) => {
     await saveMutation.mutateAsync(contentJson);
-    // Check revision interval after successful save (16.2)
     checkRevisionInterval(contentJson);
   }, [saveMutation, checkRevisionInterval]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading note...</span>
-      </div>
-    );
+    return <EditorSkeleton />;
   }
 
   return (

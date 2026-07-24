@@ -1,0 +1,6 @@
+{
+  "name": "dev-server",
+  "scripts": {
+    "dev": "bash index.sh"
+  }
+}

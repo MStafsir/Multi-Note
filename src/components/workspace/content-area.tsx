@@ -17,6 +17,7 @@ import {
   Trash2,
   Share2,
   History,
+  Star,
 } from 'lucide-react';
 import type { TreeNode, NodeType } from '@/types';
 import { useFileTreeStore } from '@/store/file-tree';
@@ -43,6 +44,8 @@ import { UploadZone } from '@/components/upload/upload-zone';
 import { RenameDialog } from './rename-dialog';
 import { NoteEditor } from './note-editor';
 import { useDeleteNode } from '@/hooks/use-file-tree';
+import { buildTree } from '@/store/file-tree';
+import { toast } from 'sonner';
 import { DraggableItem } from '@/components/dnd/draggable-item';
 import { DroppableFolder } from '@/components/dnd/droppable-folder';
 import { useWorkspaceDnd } from '@/components/dnd/dnd-context';
@@ -80,6 +83,32 @@ export function ContentArea() {
   const { isDragging } = useWorkspaceDnd();
 
   const deleteMutation = useDeleteNode();
+
+  // 21 — Favorite toggle: We use a lazy approach to avoid creating a mutation per node
+  // since nodeId varies per item click
+  const handleFavoriteToggle = async (nodeId: string) => {
+    const node = flatNodes.get(nodeId);
+    if (!node) return;
+    const res = await fetch(`/api/nodes/${nodeId}/favorite`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFavorite: !node.isFavorite }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Optimistic update: toggle isFavorite in the local tree
+      const flatNodesUpdate = new Map(flatNodes);
+      const existing = flatNodesUpdate.get(nodeId);
+      if (existing) {
+        flatNodesUpdate.set(nodeId, { ...existing, isFavorite: !existing.isFavorite });
+      }
+      // Force refresh from store
+      const storeNodes = Array.from(flatNodesUpdate.values());
+      const newTree = buildTree(storeNodes);
+      useFileTreeStore.getState().setTree(newTree);
+      toast.success(data.data.isFavorite ? 'Added to favorites' : 'Removed from favorites');
+    }
+  };
 
   // Get items in the current folder
   const currentFolder = flatNodes.get(currentFolderId || '');
@@ -214,6 +243,7 @@ export function ContentArea() {
             <Button
               variant="ghost"
               size="sm"
+              className="min-h-[44px]"
               onClick={() => {
                 setSelectedNodeId(null);
                 setShowRevisionSidebar(false);
@@ -228,6 +258,7 @@ export function ContentArea() {
             <Button
               variant={showRevisionSidebar ? 'secondary' : 'ghost'}
               size="sm"
+              className="min-h-[44px]"
               onClick={() => setShowRevisionSidebar(!showRevisionSidebar)}
             >
               <History className="h-4 w-4 mr-1" />
@@ -331,7 +362,7 @@ export function ContentArea() {
             <Button
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 min-h-[44px] min-w-[44px]"
               onClick={() => setViewMode('grid')}
               aria-label="Grid view"
             >
@@ -340,7 +371,7 @@ export function ContentArea() {
             <Button
               variant={viewMode === 'list' ? 'secondary' : 'ghost'}
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 min-h-[44px] min-w-[44px]"
               onClick={() => setViewMode('list')}
               aria-label="List view"
             >
@@ -440,11 +471,15 @@ export function ContentArea() {
                           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]">
                                   <MoreHorizontal className="h-3.5 w-3.5" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleFavoriteToggle(node.id)}>
+                                  <Star className={`h-4 w-4 mr-2 ${node.isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                  {node.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleRename(node.id, node.name)}>
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Rename
@@ -536,12 +571,16 @@ export function ContentArea() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                className="h-7 w-7 min-h-[44px] min-w-[44px] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                               >
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleFavoriteToggle(node.id)}>
+                                <Star className={`h-4 w-4 mr-2 ${node.isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                {node.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleRename(node.id, node.name)}>
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Rename

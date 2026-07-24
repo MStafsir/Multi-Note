@@ -1,0 +1,833 @@
+834
+==========================================
+[2026-07-24 07:28:41] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.03ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 925 installs across 1003 packages (no changes) [30.00ms]
+==========================================
+[2026-07-24 07:28:41] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:28:41] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 192ms
+
+==========================================
+[2026-07-24 07:28:43] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 2s
+==========================================
+
+==========================================
+[2026-07-24 07:28:43] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+$ next dev -p 3000 2>&1 | tee dev.log
+==========================================
+[2026-07-24 07:28:43] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:28:43] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+
+Attempt 1/60: Next.js dev server not ready yet, waiting...
+Attempt 2/60: Next.js dev server not ready yet, waiting...
+Next.js dev server is ready!
+==========================================
+[2026-07-24 07:28:55] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 12s
+==========================================
+
+==========================================
+[2026-07-24 07:28:55] Starting: Health check
+==========================================
+[BUN] Performing health check...
+curl: (22) The requested URL returned error: 500
+==========================================
+[2026-07-24 07:42:33] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.04ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 925 installs across 1003 packages (no changes) [259.00ms]
+==========================================
+[2026-07-24 07:42:33] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:33] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 101ms
+
+==========================================
+[2026-07-24 07:42:34] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 1s
+==========================================
+
+==========================================
+[2026-07-24 07:42:34] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+[2026-07-24 07:42:34] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:34] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+Next.js dev server is ready!
+==========================================
+[2026-07-24 07:42:34] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:34] Starting: Health check
+==========================================
+[BUN] Performing health check...
+[BUN] Health check passed
+==========================================
+[2026-07-24 07:42:34] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:34] Starting: Starting mini-services
+==========================================
+⨯ Failed to start server
+Found mini-services directory, scanning for sub-services...
+Checking service: collab-service
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+Starting collab-service in background...
+[collab-service] Started in background (PID: 4018)
+[collab-service] Log: /home/z/my-project/.zscripts/mini-service-collab-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-24 07:42:34] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 3979).
+Use 'kill 3979' to stop it.
+
+==========================================
+[2026-07-24 07:42:37] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.02ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 925 installs across 1003 packages (no changes) [21.00ms]
+==========================================
+[2026-07-24 07:42:37] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:37] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 101ms
+
+==========================================
+[2026-07-24 07:42:38] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 1s
+==========================================
+
+==========================================
+[2026-07-24 07:42:38] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+[2026-07-24 07:42:38] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:38] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+Next.js dev server is ready!
+==========================================
+[2026-07-24 07:42:38] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:38] Starting: Health check
+==========================================
+[BUN] Performing health check...
+[BUN] Health check passed
+==========================================
+[2026-07-24 07:42:38] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 07:42:38] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Checking service: collab-service
+Starting collab-service in background...
+[collab-service] Started in background (PID: 4174)
+[collab-service] Log: /home/z/my-project/.zscripts/mini-service-collab-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-24 07:42:38] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 4139).
+Use 'kill 4139' to stop it.
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+
+==========================================
+[2026-07-24 10:07:08] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.48ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 970 installs across 1046 packages (no changes) [577.00ms]
+==========================================
+[2026-07-24 10:07:08] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 10:07:08] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+==========================================
+[2026-07-24 10:07:08] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.03ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 970 installs across 1046 packages (no changes) [45.00ms]
+==========================================
+[2026-07-24 10:07:08] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 10:07:08] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+Environment variables loaded from .env
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 217ms
+
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 232ms
+
+==========================================
+[2026-07-24 10:07:11] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 3s
+==========================================
+
+==========================================
+[2026-07-24 10:07:11] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+[2026-07-24 10:07:11] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+[2026-07-24 10:07:11] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+==========================================
+[2026-07-24 10:07:11] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 3s
+==========================================
+
+==========================================
+Attempt 1/60: Next.js dev server not ready yet, waiting...
+[2026-07-24 10:07:11] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+[2026-07-24 10:07:11] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 10:07:11] Starting: Waiting for Next.js dev server
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+Waiting for Next.js dev server to be ready on localhost:3000...
+Attempt 1/60: Next.js dev server not ready yet, waiting...
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+▲ Next.js 16.1.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://21.0.14.101:3000
+- Environments: .env
+
+✓ Starting...
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 3s
+Attempt 2/60: Next.js dev server not ready yet, waiting...
+Attempt 2/60: Next.js dev server not ready yet, waiting...
+○ Compiling / ...
+Attempt 3/60: Next.js dev server not ready yet, waiting...
+Attempt 3/60: Next.js dev server not ready yet, waiting...
+ GET / 200 in 5.6s (compile: 5.5s, render: 71ms)
+ GET / 200 in 5.6s (compile: 5.6s, render: 57ms)
+ GET / 200 in 6.5s (compile: 5.8s, render: 697ms)
+ GET / 200 in 54ms (compile: 6ms, render: 48ms)
+Next.js dev server is ready!
+==========================================
+[2026-07-24 10:07:24] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 13s
+==========================================
+
+==========================================
+[2026-07-24 10:07:24] Starting: Health check
+==========================================
+Next.js dev server is ready!
+ GET / 200 in 59ms (compile: 29ms, render: 30ms)
+[BUN] Performing health check...
+==========================================
+[2026-07-24 10:07:24] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 13s
+==========================================
+
+==========================================
+[2026-07-24 10:07:24] Starting: Health check
+==========================================
+[BUN] Performing health check...
+ GET / 200 in 28ms (compile: 6ms, render: 22ms)
+[BUN] Health check passed
+==========================================
+[2026-07-24 10:07:24] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 10:07:24] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Checking service: collab-service
+Starting collab-service in background...
+[collab-service] Started in background (PID: 15120)
+[collab-service] Log: /home/z/my-project/.zscripts/mini-service-collab-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-24 10:07:24] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 14894).
+Use 'kill 14894' to stop it.
+ GET / 200 in 28ms (compile: 4ms, render: 24ms)
+[BUN] Health check passed
+==========================================
+[2026-07-24 10:07:24] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 10:07:24] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Checking service: collab-service
+Starting collab-service in background...
+[collab-service] Started in background (PID: 15133)
+[collab-service] Log: /home/z/my-project/.zscripts/mini-service-collab-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-24 10:07:24] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 14908).
+Use 'kill 14908' to stop it.
+[next-auth][warn][NEXTAUTH_URL] 
+https://next-auth.js.org/warnings#nextauth_url
+ GET /api/auth/session 200 in 713ms (compile: 680ms, render: 32ms)
+✓ Compiled in 224ms
+ GET / 200 in 57ms (compile: 11ms, render: 46ms)
+ GET /api/auth/session 200 in 99ms (compile: 61ms, render: 38ms)
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`parentId` IS NULL AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Profile`.`id`, `main`.`Profile`.`userId`, `main`.`Profile`.`storageUsedBytes`, `main`.`Profile`.`quotaLimitBytes`, `main`.`Profile`.`createdAt`, `main`.`Profile`.`updatedAt` FROM `main`.`Profile` WHERE (`main`.`Profile`.`userId` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/storage-quota 200 in 752ms (compile: 696ms, proxy.ts: 9ms, render: 47ms)
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+ GET /api/nodes? 200 in 963ms (compile: 668ms, proxy.ts: 199ms, render: 96ms)
+✓ Compiled in 176ms
+✓ Compiled in 206ms
+✓ Compiled in 194ms
+✓ Compiled in 146ms
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`parentId` IS NULL AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+ GET /api/nodes? 200 in 29ms (compile: 4ms, proxy.ts: 10ms, render: 15ms)
+✓ Compiled in 208ms
+✓ Compiled in 160ms
+✓ Compiled in 437ms
+✓ Compiled in 180ms
+✓ Compiled in 908ms
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Profile`.`id`, `main`.`Profile`.`userId`, `main`.`Profile`.`storageUsedBytes`, `main`.`Profile`.`quotaLimitBytes`, `main`.`Profile`.`createdAt`, `main`.`Profile`.`updatedAt` FROM `main`.`Profile` WHERE (`main`.`Profile`.`userId` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/storage-quota 200 in 50ms (compile: 26ms, proxy.ts: 8ms, render: 17ms)
+✓ Compiled in 152ms
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`parentId` IS NULL AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+ GET /api/nodes? 200 in 71ms (compile: 3ms, proxy.ts: 10ms, render: 58ms)
+✓ Compiled in 2.3s
+✓ Compiled in 244ms
+✓ Compiled in 662ms
+✓ Compiled in 222ms
+✓ Compiled in 162ms
+✓ Compiled in 90ms
+✓ Compiled in 171ms
+✓ Compiled in 287ms
+✓ Compiled in 147ms
+✓ Compiled in 183ms
+ GET / 200 in 216ms (compile: 151ms, render: 65ms)
+ GET / 200 in 304ms (compile: 270ms, render: 34ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`parentId` IS NULL AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+ GET /api/nodes? 200 in 39ms (compile: 11ms, proxy.ts: 8ms, render: 19ms)
+prisma:query SELECT `main`.`Node`.`id`, `main`.`Node`.`ownerId`, `main`.`Node`.`parentId`, `main`.`Node`.`type`, `main`.`Node`.`name`, `main`.`Node`.`createdAt`, `main`.`Node`.`updatedAt`, `main`.`Node`.`deletedAt` FROM `main`.`Node` WHERE (`main`.`Node`.`ownerId` = ? AND `main`.`Node`.`deletedAt` IS NULL) ORDER BY `main`.`Node`.`type` ASC, `main`.`Node`.`name` ASC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Profile`.`id`, `main`.`Profile`.`userId`, `main`.`Profile`.`storageUsedBytes`, `main`.`Profile`.`quotaLimitBytes`, `main`.`Profile`.`createdAt`, `main`.`Profile`.`updatedAt` FROM `main`.`Profile` WHERE (`main`.`Profile`.`userId` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/storage-quota 200 in 31ms (compile: 7ms, proxy.ts: 12ms, render: 12ms)
+✓ Compiled in 0ms
+ GET / 200 in 264ms (compile: 155ms, render: 110ms)
+ GET / 200 in 92ms (compile: 5ms, render: 87ms)
+✓ Compiled in 322ms
+✓ Compiled in 2s
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/notifications 200 in 1526ms (compile: 1399ms, proxy.ts: 77ms, render: 49ms)
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`NotificationPreference`.`id`, `main`.`NotificationPreference`.`userId`, `main`.`NotificationPreference`.`shareReceived`, `main`.`NotificationPreference`.`commentAdded`, `main`.`NotificationPreference`.`mention`, `main`.`NotificationPreference`.`quotaWarning` FROM `main`.`NotificationPreference` WHERE (`main`.`NotificationPreference`.`userId` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query INSERT INTO `main`.`NotificationPreference` (`id`, `userId`, `shareReceived`, `commentAdded`, `mention`, `quotaWarning`) VALUES (?,?,?,?,?,?) RETURNING `id` AS `id`, `userId` AS `userId`, `shareReceived` AS `shareReceived`, `commentAdded` AS `commentAdded`, `mention` AS `mention`, `quotaWarning` AS `quotaWarning`
+ GET /api/notifications/preferences 200 in 1554ms (compile: 1510ms, proxy.ts: 9ms, render: 35ms)
+ GET /api/notifications 200 in 18ms (compile: 3ms, proxy.ts: 5ms, render: 9ms)
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+✓ Compiled in 232ms
+✓ Compiled in 745ms
+ GET /api/notifications 500 in 601ms (compile: 467ms, proxy.ts: 4ms, render: 130ms)
+ GET /api/notifications 500 in 24ms (compile: 9ms, proxy.ts: 5ms, render: 10ms)
+✓ Compiled in 201ms
+ GET /api/notifications 500 in 27ms (compile: 12ms, proxy.ts: 5ms, render: 10ms)
+ GET /api/notifications 500 in 22ms (compile: 10ms, proxy.ts: 4ms, render: 8ms)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`NotificationPreference`.`id`, `main`.`NotificationPreference`.`userId`, `main`.`NotificationPreference`.`shareReceived`, `main`.`NotificationPreference`.`commentAdded`, `main`.`NotificationPreference`.`mention`, `main`.`NotificationPreference`.`quotaWarning` FROM `main`.`NotificationPreference` WHERE (`main`.`NotificationPreference`.`userId` = ? AND 1=1) LIMIT ? OFFSET ?
+ GET /api/notifications/preferences 200 in 54ms (compile: 4ms, proxy.ts: 7ms, render: 43ms)
+ GET / 200 in 467ms (compile: 155ms, render: 312ms)
+ GET / 200 in 204ms (compile: 18ms, render: 185ms)
+✓ Compiled in 420ms
+ GET /api/notifications 200 in 17ms (compile: 3ms, proxy.ts: 5ms, render: 10ms)
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+ GET /api/notifications 200 in 17ms (compile: 5ms, proxy.ts: 4ms, render: 8ms)
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/notifications 200 in 15ms (compile: 3ms, proxy.ts: 4ms, render: 8ms)
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+✓ Compiled in 136ms
+ GET / 200 in 1525ms (compile: 54ms, render: 1471ms)
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+ GET /api/notifications 200 in 16ms (compile: 2ms, proxy.ts: 4ms, render: 9ms)
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/notifications 200 in 18ms (compile: 4ms, proxy.ts: 5ms, render: 9ms)
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/notifications 200 in 17ms (compile: 5ms, proxy.ts: 4ms, render: 8ms)
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/notifications 200 in 17ms (compile: 4ms, proxy.ts: 4ms, render: 9ms)
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+ GET /api/notifications 200 in 29ms (compile: 6ms, proxy.ts: 8ms, render: 16ms)
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) AS `_count$_all` FROM (SELECT `main`.`Notification`.`id` FROM `main`.`Notification` WHERE (`main`.`Notification`.`recipientId` = ? AND `main`.`Notification`.`readAt` IS NULL) LIMIT ? OFFSET ?) AS `sub`
+prisma:query SELECT `main`.`Notification`.`id`, `main`.`Notification`.`recipientId`, `main`.`Notification`.`type`, `main`.`Notification`.`payload`, `main`.`Notification`.`readAt`, `main`.`Notification`.`createdAt` FROM `main`.`Notification` WHERE `main`.`Notification`.`recipientId` = ? ORDER BY `main`.`Notification`.`createdAt` DESC LIMIT ? OFFSET ?
+error: script "dev" was terminated by signal SIGTERM (Polite quit request)
+
+==========================================
+[2026-07-24 12:40:21] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.04ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 975 installs across 1051 packages (no changes) [27.00ms]
+==========================================
+[2026-07-24 12:40:21] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:21] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 139ms
+
+==========================================
+[2026-07-24 12:40:22] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 1s
+==========================================
+
+==========================================
+[2026-07-24 12:40:22] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+[2026-07-24 12:40:22] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+[2026-07-24 12:40:22] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+Next.js dev server is ready!
+==========================================
+[2026-07-24 12:40:22] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:22] Starting: Health check
+==========================================
+[BUN] Performing health check...
+[BUN] Health check passed
+==========================================
+[2026-07-24 12:40:22] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:22] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Checking service: collab-service
+Starting collab-service in background...
+[collab-service] Started in background (PID: 603)
+[collab-service] Log: /home/z/my-project/.zscripts/mini-service-collab-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-24 12:40:22] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 568).
+Use 'kill 568' to stop it.
+==========================================
+[2026-07-24 12:40:22] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.05ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 975 installs across 1051 packages (no changes) [34.00ms]
+==========================================
+[2026-07-24 12:40:22] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:22] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 210ms
+
+==========================================
+[2026-07-24 12:40:24] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 2s
+==========================================
+
+==========================================
+[2026-07-24 12:40:24] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+[2026-07-24 12:40:24] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:24] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+Next.js dev server is ready!
+==========================================
+[2026-07-24 12:40:24] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:24] Starting: Health check
+==========================================
+[BUN] Performing health check...
+[BUN] Health check passed
+==========================================
+[2026-07-24 12:40:24] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:24] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Checking service: collab-service
+Starting collab-service in background...
+[collab-service] Started in background (PID: 730)
+[collab-service] Log: /home/z/my-project/.zscripts/mini-service-collab-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-24 12:40:25] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 1s
+==========================================
+
+Next.js dev server is running in background (PID: 703).
+Use 'kill 703' to stop it.
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+
+==========================================
+[2026-07-24 12:40:37] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.04ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+Checked 975 installs across 1051 packages (no changes) [23.00ms]
+==========================================
+[2026-07-24 12:40:37] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:37] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push --accept-data-loss
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "custom.db" at "file:/home/z/my-project/db/custom.db"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 124ms
+
+==========================================
+[2026-07-24 12:40:38] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 1s
+==========================================
+
+==========================================
+[2026-07-24 12:40:38] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+[2026-07-24 12:40:38] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+$ next dev -p 3000 2>&1 | tee dev.log
+[2026-07-24 12:40:38] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+Next.js dev server is ready!
+==========================================
+[2026-07-24 12:40:38] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:38] Starting: Health check
+==========================================
+[BUN] Performing health check...
+[BUN] Health check passed
+==========================================
+[2026-07-24 12:40:38] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-24 12:40:38] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Checking service: collab-service
+Starting collab-service in background...
+[collab-service] Started in background (PID: 928)
+[collab-service] Log: /home/z/my-project/.zscripts/mini-service-collab-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-24 12:40:38] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 901).
+Use 'kill 901' to stop it.
+⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3000
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3000)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+

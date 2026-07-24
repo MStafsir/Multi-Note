@@ -22,6 +22,8 @@ export interface SearchFilters {
   type?: NodeType;
   dateFrom?: string;
   dateTo?: string;
+  tags?: string; // comma-separated tag IDs (Modul 21)
+  tagMode?: 'AND' | 'OR'; // tag filter mode (Modul 21)
 }
 
 const SEARCH_KEYS = {
@@ -51,6 +53,8 @@ export function useSearch(query: string, filters: SearchFilters = {}) {
       if (filters.type) params.set('type', filters.type);
       if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
       if (filters.dateTo) params.set('dateTo', filters.dateTo);
+      if (filters.tags) params.set('tags', filters.tags); // 21
+      if (filters.tagMode) params.set('tagMode', filters.tagMode); // 21
 
       const res = await fetch(`/api/search?${params.toString()}`);
       const data = await res.json();
