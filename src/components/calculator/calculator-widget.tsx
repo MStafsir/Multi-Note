@@ -19,6 +19,7 @@ import {
   Bookmark,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { evaluate } from 'mathjs';
 import { useCalculatorStore } from '@/store/calculator';
 import { useAuthStore } from '@/store/auth';
 import { Button } from '@/components/ui/button';

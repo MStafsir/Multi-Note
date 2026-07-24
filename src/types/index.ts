@@ -173,8 +173,10 @@ export interface ShareLinkAccessData {
   nodeType: 'file' | 'folder' | 'note';
   nodeName: string;
   permissionLevel: SharePermission;
+  isReadOnly?: boolean;
   content?: string | null;
   metadata?: FileMetadata | null;
+  children?: Array<{ id: string; name: string; type: string }>;
 }
 
 // --- Modul 15: File Version History Types ---

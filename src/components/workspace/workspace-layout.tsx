@@ -7,10 +7,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PanelLeftClose, PanelLeftOpen, Calculator, Search } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, User as UserIcon } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sidebar } from './sidebar';
 import { ContentArea } from './content-area';
 import { useAuthStore } from '@/store/auth';
@@ -22,12 +24,31 @@ import { SearchDropdown } from '@/components/search/search-dropdown';
 import { TrashView } from '@/components/trash/trash-view';
 
 export function WorkspaceLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Default closed on mobile
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [headerSearchOpen, setHeaderSearchOpen] = useState(false);
+
+  // Auto-open sidebar on desktop, auto-close on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true);
+        setSidebarCollapsed(false);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+    // Set initial state based on viewport
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const { user } = useAuthStore();
   const { toggleOpen, isOpen } = useCalculatorStore();
   const { setCurrentFolder, flatNodes, activeView } = useFileTreeStore();
+
+  // Detect mobile viewport
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -99,9 +120,9 @@ export function WorkspaceLayout() {
                     setSidebarCollapsed(false);
                   }
                 }}
-                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={sidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
               >
-                {sidebarCollapsed || !sidebarOpen ? (
+                {!sidebarOpen ? (
                   <PanelLeftOpen className="h-5 w-5" />
                 ) : (
                   <PanelLeftClose className="h-5 w-5" />
@@ -178,19 +199,54 @@ export function WorkspaceLayout() {
                   </TooltipContent>
                 </Tooltip>
 
-                <div className="hidden sm:block text-sm text-muted-foreground">
-                  {user?.email}
-                </div>
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium">
-                  {user?.name?.charAt(0) || user?.email?.charAt(0) || '?'}
-                </div>
+                {/* User menu dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2 h-auto p-1 rounded-full">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium">
+                        {user?.name?.charAt(0) || user?.email?.charAt(0) || '?'}
+                      </div>
+                      <span className="hidden sm:inline text-sm text-muted-foreground">{user?.email}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{user?.name || 'User'}</span>
+                        <span className="text-xs text-muted-foreground">{user?.email}</span>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        useAuthStore.getState().logout();
+                        signOut({ redirect: false });
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </header>
 
           {/* Main content: sidebar + workspace */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Sidebar */}
+          <div className="flex-1 flex overflow-hidden relative">
+            {/* Mobile backdrop overlay — close sidebar when clicking backdrop */}
+            {sidebarOpen && isMobile && (
+              <div
+                className="fixed inset-0 bg-black/40 z-20 md:hidden"
+                onClick={() => setSidebarOpen(false)}
+                role="button"
+                tabIndex={-1}
+                aria-label="Close sidebar"
+              />
+            )}
+
+            {/* Sidebar — on mobile it overlays (z-20), on desktop it's inline */}
             <AnimatePresence initial={false}>
               {sidebarOpen && (
                 <motion.aside
@@ -198,7 +254,9 @@ export function WorkspaceLayout() {
                   animate={{ width: sidebarCollapsed ? 60 : 280 }}
                   exit={{ width: 0 }}
                   transition={{ duration: 0.2, ease: 'easeInOut' }}
-                  className="shrink-0 border-r border-border bg-sidebar overflow-hidden"
+                  className={`shrink-0 border-r border-border bg-sidebar overflow-hidden
+                    ${isMobile ? 'fixed left-0 top-14 bottom-0 z-20' : 'relative'}
+                  `}
                 >
                   <Sidebar collapsed={sidebarCollapsed} />
                 </motion.aside>
@@ -206,7 +264,7 @@ export function WorkspaceLayout() {
             </AnimatePresence>
 
             {/* Content area */}
-            <main className="flex-1 overflow-auto">
+            <main className="flex-1 overflow-auto min-w-0">
               {activeView === 'trash' ? (
                 <TrashView />
               ) : (

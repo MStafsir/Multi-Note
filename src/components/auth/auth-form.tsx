@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuthStore } from '@/store/auth';
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -18,6 +19,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { setUser } = useAuthStore();
 
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -41,12 +43,22 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       });
 
       if (result?.error) {
-        setError('Invalid email or password');
-      } else {
+        setError('Invalid email or password. Please check your credentials.');
+      } else if (result?.ok) {
+        // Successfully authenticated — immediately set user in Zustand
+        // so page.tsx transitions to workspace without waiting for useSession refetch
+        setUser({
+          id: '', // Will be properly filled when useSession refetches
+          email: loginEmail,
+          name: null,
+        });
         onSuccess?.();
+      } else {
+        // signIn returned neither error nor ok — unexpected state
+        setError('Login failed. Please try again.');
       }
     } catch {
-      setError('An unexpected error occurred');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +98,12 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
         setError('Registration succeeded but login failed. Please try logging in.');
         setActiveTab('login');
       } else {
+        // Immediately set user in Zustand so page.tsx transitions to workspace
+        setUser({
+          id: data.data.id || '',
+          email: registerEmail,
+          name: registerName || null,
+        });
         onSuccess?.();
       }
     } catch {

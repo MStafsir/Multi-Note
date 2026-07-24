@@ -19,17 +19,21 @@ export default function Home() {
 
     if (status === 'authenticated' && session?.user) {
       setUser({
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
+        id: session.user.id as string,
+        email: session.user.email as string,
+        name: session.user.name as string | null,
       });
     } else if (status === 'unauthenticated') {
-      setUser(null);
+      // Only clear auth if Zustand doesn't already have authenticated user
+      // This prevents clearing manually-set auth after signIn with redirect:false
+      if (!isAuthenticated) {
+        setUser(null);
+      }
     }
-  }, [status, session, setUser, setLoading]);
+  }, [status, session, setUser, setLoading, isAuthenticated]);
 
   // Show loading state while checking session
-  if (isLoading || status === 'loading') {
+  if (isLoading && status === 'loading') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -37,11 +41,13 @@ export default function Home() {
     );
   }
 
-  // Show auth form if not authenticated
-  if (!isAuthenticated || status === 'unauthenticated') {
+  // Show auth form if user is NOT authenticated
+  // Use AND logic: both Zustand and NextAuth must indicate unauthenticated
+  // This handles the race condition after signIn with redirect:false
+  if (!isAuthenticated && status !== 'authenticated') {
     return <AuthForm />;
   }
 
-  // Show workspace if authenticated
+  // Show workspace if authenticated (either via Zustand or NextAuth session)
   return <WorkspaceLayout />;
 }
