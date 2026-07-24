@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Folder,
@@ -10,17 +10,17 @@ import {
   ChevronRight,
   Grid3X3,
   List,
-  Search,
   ArrowUp,
   Loader2,
   MoreHorizontal,
   Pencil,
   Trash2,
+  Share2,
 } from 'lucide-react';
 import type { TreeNode, NodeType } from '@/types';
 import { useFileTreeStore } from '@/store/file-tree';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -45,15 +45,18 @@ import { useDeleteNode } from '@/hooks/use-file-tree';
 import { DraggableItem } from '@/components/dnd/draggable-item';
 import { DroppableFolder } from '@/components/dnd/droppable-folder';
 import { useWorkspaceDnd } from '@/components/dnd/dnd-context';
+import { SearchDropdown } from '@/components/search/search-dropdown';
+import { ShareDialog } from '@/components/sharing/share-dialog';
 
 export function ContentArea() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameNodeId, setRenameNodeId] = useState<string>('');
   const [renameNodeName, setRenameNodeName] = useState<string>('');
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareNode, setShareNode] = useState<TreeNode | null>(null);
 
   const {
     tree,
@@ -74,12 +77,8 @@ export function ContentArea() {
   const currentFolder = flatNodes.get(currentFolderId || '');
   const itemsInFolder = currentFolder?.children || tree;
 
-  // Filter items by search
-  const filteredItems = searchQuery
-    ? itemsInFolder.filter((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : itemsInFolder;
+  // Search is now handled by SearchDropdown — items display is unfiltered locally
+  const filteredItems = itemsInFolder;
 
   // Multi-select: get selected nodes for drag operations
   const getSelectedNodes = (draggedNode: TreeNode): TreeNode[] => {
@@ -155,6 +154,11 @@ export function ContentArea() {
 
   const handleDelete = (nodeId: string) => {
     deleteMutation.mutate({ nodeId });
+  };
+
+  const handleShare = (node: TreeNode) => {
+    setShareNode(node);
+    setShareDialogOpen(true);
   };
 
   const formatBytes = (bytes: number): string => {
@@ -248,16 +252,37 @@ export function ContentArea() {
             </span>
           )}
 
-          {/* Search */}
-          <div className="relative hidden sm:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-48 h-9"
-            />
-          </div>
+          {/* Search — 12.4: debounced dropdown */}
+          <SearchDropdown
+            className="hidden sm:block w-48"
+            onNavigateToNode={(nodeId, nodeType, parentId) => {
+              setMultiSelectedIds(new Set());
+              if (nodeType === 'folder') {
+                const folderNode = flatNodes.get(nodeId);
+                if (folderNode) {
+                  navigateToFolder(nodeId, folderNode.name);
+                }
+              } else if (nodeType === 'note') {
+                // Navigate to parent folder then open note
+                if (parentId) {
+                  const parentFolder = flatNodes.get(parentId);
+                  if (parentFolder) {
+                    setCurrentFolder(parentId, []);
+                  }
+                }
+                openNote(nodeId);
+              } else {
+                // File — navigate to parent folder
+                if (parentId) {
+                  const parentFolder = flatNodes.get(parentId);
+                  if (parentFolder) {
+                    setCurrentFolder(parentId, []);
+                  }
+                }
+                setSelectedNodeId(nodeId);
+              }
+            }}
+          />
 
           {/* View mode toggle */}
           <div className="flex items-center border rounded-md">
@@ -297,7 +322,7 @@ export function ContentArea() {
           )}
 
           {/* Empty state */}
-          {!isLoading && filteredItems.length === 0 && !searchQuery && (
+          {!isLoading && filteredItems.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -373,6 +398,10 @@ export function ContentArea() {
                                 <DropdownMenuItem onClick={() => handleRename(node.id, node.name)}>
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleShare(node)}>
+                                  <Share2 className="h-4 w-4 mr-2" />
+                                  Share
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(node.id)}
@@ -461,6 +490,10 @@ export function ContentArea() {
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Rename
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleShare(node)}>
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Share
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDelete(node.id)}
                                 className="text-destructive focus:text-destructive"
@@ -514,6 +547,13 @@ export function ContentArea() {
         onOpenChange={setRenameDialogOpen}
         nodeId={renameNodeId}
         currentName={renameNodeName}
+      />
+
+      {/* Share Dialog */}
+      <ShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        node={shareNode}
       />
     </div>
   );

@@ -51,10 +51,11 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts   Account[]
-  sessions   Session[]
-  nodes      Node[]
-  profile    Profile?
+  accounts      Account[]
+  sessions      Session[]
+  nodes         Node[]
+  profile       Profile?
+  calculations  CalculationHistory[]
 }
 
 model VerificationToken {
@@ -121,17 +122,21 @@ model NoteContent {
   node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
-// --- Node Shares (Modul 13 prep) ---
+// --- Node Shares (Modul 13) ---
 model NodeShare {
-  id              String @id @default(cuid())
-  nodeId          String
-  sharedWithUserId String
-  permissionLevel String // "view" | "comment" | "edit"
-  createdAt       DateTime @default(now())
+  id               String    @id @default(cuid())
+  nodeId           String
+  sharedWithUserId String?   // null for public share links
+  permissionLevel  String    // "view" | "comment" | "edit"
+  shareLinkToken   String?   @unique // UUID token for public share links
+  shareLinkExpiry  DateTime? // optional expiry for share links
+  linkType         String?   // "public" | "private" — null for user shares
+  createdAt        DateTime  @default(now())
 
   node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 
   @@unique([nodeId, sharedWithUserId])
+  @@index([shareLinkToken])
 }
 
 // --- Tags (Modul 21 prep) ---
@@ -182,4 +187,18 @@ model FileVersion {
   createdAt     DateTime @default(now())
 
   @@index([nodeId, versionNumber])
+}
+
+// --- Calculation History (Modul 11: Calculator Widget) ---
+model CalculationHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  expression String
+  result     String
+  mode       String   // "basic" | "scientific" | "unit"
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

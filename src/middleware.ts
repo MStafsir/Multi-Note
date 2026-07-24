@@ -1,6 +1,7 @@
 // ============================================================
 // MODUL 3.2: Next.js Middleware — Protected Route Check
 // Custom middleware to verify session without blocking API routes
+// MODUL 13: Added share routes — link access route is public (no auth)
 // ============================================================
 
 import { NextResponse } from 'next/server';
@@ -15,12 +16,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // MODUL 13 — Share link access route does NOT require auth
+  // /api/shares/link/[token] is public access for view-level shares
+  if (pathname.startsWith('/api/shares/link/')) {
+    return NextResponse.next();
+  }
+
   // Check for protected API routes
   if (
     pathname.startsWith('/api/nodes') ||
     pathname.startsWith('/api/upload') ||
     pathname.startsWith('/api/storage-quota') ||
-    pathname.startsWith('/api/preview')
+    pathname.startsWith('/api/preview') ||
+    pathname.startsWith('/api/search') ||
+    pathname.startsWith('/api/calculator') ||
+    pathname.startsWith('/api/shares') ||
+    pathname.startsWith('/api/users')
   ) {
     const token = await getToken({
       req: request,
@@ -55,5 +66,9 @@ export const config = {
     '/api/upload/:path*',
     '/api/storage-quota/:path*',
     '/api/preview/:path*',
+    '/api/search/:path*',
+    '/api/calculator/:path*',
+    '/api/shares/:path*',
+    '/api/users/:path*',
   ],
 };

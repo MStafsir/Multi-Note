@@ -66,9 +66,33 @@ export const noteContentSchema = z.object({
   contentJson: z.string().min(1, 'Content is required'),
 });
 
-// --- Search Validator (Modul 12 prep) ---
+// --- Search Validator (Modul 12) ---
 export const searchSchema = z.object({
   query: z.string().min(1, 'Search query required'),
   type: nodeTypeSchema.optional(),
-  parentId: z.string().nullable().optional(),
+  dateFrom: z.string().optional(), // ISO date string for createdAt filter
+  dateTo: z.string().optional(),   // ISO date string for createdAt filter
+});
+
+// --- Modul 13: Sharing Validators ---
+export const sharePermissionSchema = z.enum(['view', 'comment', 'edit']);
+export const shareLinkTypeSchema = z.enum(['public', 'private']);
+
+export const createShareSchema = z.object({
+  nodeId: z.string().min(1, 'Node ID is required'),
+  sharedWithUserId: z.string().nullable().optional(), // null for public link
+  permissionLevel: sharePermissionSchema,
+  generateLink: z.boolean().default(false),
+  linkType: shareLinkTypeSchema.optional(), // only for generateLink
+  expiryHours: z.number().min(1).max(8760).optional(), // 1h to 1y
+});
+
+export const updateShareSchema = z.object({
+  permissionLevel: sharePermissionSchema.optional(),
+  shareLinkExpiry: z.string().nullable().optional(), // ISO datetime string
+  linkType: shareLinkTypeSchema.optional(),
+});
+
+export const listSharesSchema = z.object({
+  nodeId: z.string().min(1, 'Node ID is required'),
 });

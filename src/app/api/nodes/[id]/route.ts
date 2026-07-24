@@ -8,6 +8,7 @@ import { renameNodeSchema, deleteNodeSchema, moveNodeSchema, noteContentSchema }
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
+import { checkNodeAccess } from '@/lib/permissions';
 
 // GET /api/nodes/[id] — Get single node details
 export async function GET(
@@ -27,8 +28,14 @@ export async function GET(
       include: { metadata: true, note: true },
     });
 
-    if (!node || node.ownerId !== session.user.id) {
+    if (!node) {
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    // Modul 13 — Permission check: owner OR share access (view/comment/edit)
+    const accessResult = await checkNodeAccess(session.user.id, id, 'view');
+    if (!accessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     const metadata = node.metadata as Record<string, unknown> | null;
@@ -68,12 +75,20 @@ export async function PATCH(
     const body = await request.json();
 
     const node = await db.node.findUnique({ where: { id } });
-    if (!node || node.ownerId !== session.user.id) {
+    if (!node) {
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
     }
 
-    // 4.2 — Rename
+    // Modul 13 — For rename/move, only owner can perform these actions
+    // For note content editing, owner OR user with 'edit' share can modify
+    const isOwner = node.ownerId === session.user.id;
+    const editAccess = await checkNodeAccess(session.user.id, id, 'edit');
+
+    // 4.2 — Rename (owner only)
     if (body.newName) {
+      if (!isOwner) {
+        return NextResponse.json({ success: false, error: 'Only the owner can rename this node' }, { status: 403 });
+      }
       const validated = renameNodeSchema.parse({ nodeId: id, newName: body.newName });
 
       // Check duplicate name in same parent scope
@@ -121,8 +136,12 @@ export async function PATCH(
       });
     }
 
-    // 4.4 — Move
+    // 4.4 — Move (owner only)
     if (body.newParentId !== undefined) {
+      if (!isOwner) {
+        return NextResponse.json({ success: false, error: 'Only the owner can move this node' }, { status: 403 });
+      }
+
       const validated = moveNodeSchema.parse({ nodeId: id, newParentId: body.newParentId });
 
       // 4.4 — Cycle detection: folder cannot be moved into its own child
@@ -165,8 +184,12 @@ export async function PATCH(
       });
     }
 
-    // Note content update
+    // Note content update (owner OR edit share)
     if (body.contentJson !== undefined && node.type === 'note') {
+      if (!editAccess.hasAccess) {
+        return NextResponse.json({ success: false, error: 'You need edit permission to modify this note' }, { status: 403 });
+      }
+
       const validated = noteContentSchema.parse({ nodeId: id, contentJson: body.contentJson });
 
       // Upsert note content

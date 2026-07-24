@@ -117,3 +117,62 @@ export interface AuthUser {
 
 // Selection state types
 export type SelectionMode = 'single' | 'multi';
+
+// ============================================================
+// MODUL 11: Calculator Widget — Types
+// ============================================================
+
+export type CalcMode = 'basic' | 'scientific' | 'unit';
+
+export interface CalcHistoryItem {
+  id?: string;
+  expression: string;
+  result: string;
+  mode: CalcMode;
+  createdAt?: string;
+}
+
+export interface CalculatorState {
+  isOpen: boolean;
+  mode: CalcMode;
+  expression: string;
+  result: string | null;
+  error: string | null;
+  history: CalcHistoryItem[];
+}
+
+// --- Modul 13: Sharing & Permission Types ---
+export type SharePermission = 'view' | 'comment' | 'edit';
+export type ShareLinkType = 'public' | 'private';
+
+export interface NodeShareInfo {
+  id: string;
+  nodeId: string;
+  sharedWithUserId: string | null;
+  permissionLevel: SharePermission;
+  shareLinkToken: string | null;
+  shareLinkExpiry: string | null;
+  linkType: ShareLinkType | null;
+  createdAt: string;
+  // Computed fields for display
+  sharedWithEmail?: string | null;
+  sharedWithName?: string | null;
+}
+
+export interface ShareLink {
+  token: string;
+  nodeId: string;
+  nodeName: string;
+  permissionLevel: SharePermission;
+  linkType: ShareLinkType;
+  expiry: string | null;
+}
+
+export interface ShareLinkAccessData {
+  nodeId: string;
+  nodeType: 'file' | 'folder' | 'note';
+  nodeName: string;
+  permissionLevel: SharePermission;
+  content?: string | null;
+  metadata?: FileMetadata | null;
+}

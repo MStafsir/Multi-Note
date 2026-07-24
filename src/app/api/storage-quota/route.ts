@@ -40,19 +40,21 @@ export async function GET() {
       });
     }
 
-    const percentage = profile.quotaLimitBytes > 0
-      ? Math.round((bigintToNumber(profile.storageUsedBytes) / bigintToNumber(profile.quotaLimitBytes)) * 100)
+    const usedBytes = bigintToNumber(profile.storageUsedBytes) ?? 0;
+    const limitBytes = bigintToNumber(profile.quotaLimitBytes) ?? QUOTA_TIERS[DEFAULT_TIER].limitBytes;
+    const percentage = limitBytes > 0
+      ? Math.round((usedBytes / limitBytes) * 100)
       : 0;
 
     // Determine tier from quota limit
-    const tierKey: QuotaTierKey = getTierFromLimit(bigintToNumber(profile.quotaLimitBytes));
+    const tierKey: QuotaTierKey = getTierFromLimit(limitBytes);
     const tierInfo = getTierInfo(tierKey);
 
     return NextResponse.json({
       success: true,
       data: {
-        usedBytes: bigintToNumber(profile.storageUsedBytes),
-        limitBytes: bigintToNumber(profile.quotaLimitBytes),
+        usedBytes,
+        limitBytes,
         percentage,
         tier: {
           key: tierKey,

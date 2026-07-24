@@ -1,5 +1,6 @@
 // ============================================================
 // MODUL 5: File Download API Route
+// Serves file from local storage with owner check
 // ============================================================
 
 import { NextResponse } from 'next/server';
@@ -8,8 +9,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { readFile } from 'fs/promises';
 import path from 'path';
-
-const UPLOAD_DIR = path.join(process.cwd(), 'download', 'uploads');
 
 export async function GET(
   request: Request,
@@ -23,34 +22,39 @@ export async function GET(
 
     const { id } = await params;
 
+    // Get node with metadata
     const node = await db.node.findUnique({
       where: { id },
       include: { metadata: true },
     });
 
-    if (!node || node.ownerId !== session.user.id || node.type !== 'file') {
+    if (!node || node.type !== 'file') {
       return NextResponse.json({ success: false, error: 'File not found' }, { status: 404 });
     }
 
+    // Owner check
+    if (node.ownerId !== session.user.id) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    }
+
     if (!node.metadata) {
-      return NextResponse.json({ success: false, error: 'File metadata missing' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'File metadata not found' }, { status: 404 });
     }
 
-    const fullPath = path.join(UPLOAD_DIR, node.metadata.storagePath);
+    const storagePath = node.metadata.storagePath;
+    const fullPath = path.join(process.cwd(), 'download', storagePath);
 
-    try {
-      const fileBuffer = await readFile(fullPath);
+    // Read file from disk
+    const fileBuffer = await readFile(fullPath);
 
-      return new NextResponse(fileBuffer, {
-        headers: {
-          'Content-Type': node.metadata.mimeType,
-          'Content-Disposition': `inline; filename="${node.name}"`,
-          'Content-Length': String(fileBuffer.length),
-        },
-      });
-    } catch {
-      return NextResponse.json({ success: false, error: 'File not found on disk' }, { status: 404 });
-    }
+    // Return file with appropriate headers
+    return new NextResponse(fileBuffer, {
+      headers: {
+        'Content-Type': node.metadata.mimeType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${node.name}"`,
+        'Content-Length': String(fileBuffer.length),
+      },
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Download failed';
     return NextResponse.json({ success: false, error: message }, { status: 500 });

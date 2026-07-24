@@ -21,8 +21,10 @@ import {
   Minus,
   Quote,
   FileText,
+  Calculator,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCalculatorStore } from '@/store/calculator';
 
 // ============================================================
 // Slash Command Extension — Shows dropdown when user types "/"
@@ -125,6 +127,23 @@ const slashCommands: SlashCommandItem[] = [
       editor.chain().focus().deleteRange(range).setParagraph().run();
     },
   },
+  {
+    title: 'Calculator Result',
+    description: 'Insert calculator result (opens calculator if no result)',
+    icon: 'calculator',
+    command: (editor, range) => {
+      // Get calculator result from store — if result exists, insert it inline
+      const calcState = useCalculatorStore.getState();
+      if (calcState.result) {
+        editor.chain().focus().deleteRange(range).setParagraph().run();
+        editor.chain().focus().insertContent(`= ${calcState.result}`).run();
+      } else {
+        // No result — open the calculator widget for user to compute first
+        useCalculatorStore.getState().toggleOpen();
+        editor.chain().focus().deleteRange(range).setParagraph().run();
+      }
+    },
+  },
 ];
 
 // Icon component for slash command menu
@@ -141,6 +160,7 @@ function CommandIcon({ name }: { name: string }) {
     table: <TableIcon className="h-4 w-4 text-muted-foreground" />,
     horizontalRule: <Minus className="h-4 w-4 text-muted-foreground" />,
     paragraph: <FileText className="h-4 w-4 text-muted-foreground" />,
+    calculator: <Calculator className="h-4 w-4 text-orange-500" />,
   };
 
   return <span className="shrink-0">{iconMap[name] || <FileText className="h-4 w-4" />}</span>;
