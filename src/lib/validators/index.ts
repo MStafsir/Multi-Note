@@ -106,3 +106,20 @@ export const restoreFileVersionSchema = z.object({
 export const restoreNoteRevisionSchema = z.object({
   revisionId: z.string().min(1, 'Revision ID is required'),
 });
+
+// --- Modul 30: Additional Validators for Testing Coverage ---
+export const createNodeSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  type: nodeTypeSchema,
+  parentId: z.string().nullable().optional(),
+});
+
+export const updateNodeSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long').optional(),
+  contentJson: z.string().min(1, 'Content is required').optional(),
+});
+
+export const tagSchema = z.object({
+  name: z.string().min(1, 'Tag name is required').max(50, 'Tag name too long'),
+  colorHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color format').default('#6B7280'),
+});

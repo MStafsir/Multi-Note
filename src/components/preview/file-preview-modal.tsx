@@ -16,6 +16,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { FilePreview } from './file-preview';
+import { ErrorBoundary } from '@/components/error/error-boundary';
+import { FilePreviewError } from '@/components/error/file-preview-error';
 
 interface FilePreviewModalProps {
   open: boolean;
@@ -46,12 +48,17 @@ export function FilePreviewModal({
             File preview for {name}
           </DialogDescription>
         </DialogHeader>
-        <FilePreview
-          id={id}
-          name={name}
-          mimeType={mimeType}
-          sizeBytes={sizeBytes}
-        />
+        <ErrorBoundary
+          fallback={(props) => <FilePreviewError {...props} fileName={name} fileId={id} />}
+          context={{ componentName: 'FilePreview', action: 'preview_file' }}
+        >
+          <FilePreview
+            id={id}
+            name={name}
+            mimeType={mimeType}
+            sizeBytes={sizeBytes}
+          />
+        </ErrorBoundary>
       </DialogContent>
     </Dialog>
   );

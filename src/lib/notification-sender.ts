@@ -4,8 +4,9 @@
 // ============================================================
 
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
-type NotificationType = 'share_received' | 'comment_added' | 'mention' | 'quota_warning';
+type NotificationType = 'share_received' | 'comment_added' | 'mention' | 'quota_warning' | 'monitoring_alert';
 
 interface CreateNotificationParams {
   recipientId: string;
@@ -39,7 +40,7 @@ export async function createNotification({ recipientId, type, payload }: CreateN
   // Currently just log it — email integration would use Resend/SMTP in production
   if (prefValue === 'email' || prefValue === 'both') {
     // TODO: Integrate with email service (Resend, SMTP, etc.)
-    console.log(`[notification] Email notification for ${recipientId}: ${type}`);
+    logger.info('email_notification_sent', { recipientId, type });
   }
 }
 

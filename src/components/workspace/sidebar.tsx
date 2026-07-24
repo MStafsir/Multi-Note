@@ -142,8 +142,8 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Quick Actions */}
-      <div className="p-4 space-y-2">
+      {/* Quick Actions — 29: semantic <section> */}
+      <section aria-label="Quick actions" className="p-4 space-y-2">
         <div className="flex items-center gap-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium">
             {user?.name?.charAt(0) || user?.email?.charAt(0) || '?'}
@@ -194,23 +194,27 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             </TooltipContent>
           </Tooltip>
         </div>
-      </div>
+      </section>
 
       <Separator />
 
-      {/* File Tree */}
-      <ScrollArea className="flex-1">
-        <div className="p-2">
-          <FileTreeView />
-        </div>
-      </ScrollArea>
+      {/* Navigation — 29: semantic <nav> */}
+      <nav aria-label="Folder navigation">
+        <ScrollArea className="flex-1">
+          <div className="p-2">
+            <FileTreeView />
+          </div>
+        </ScrollArea>
+      </nav>
 
       <Separator />
 
-      {/* Favorites (Modul 21) */}
-      <div className="px-3 py-1">
+      {/* Favorites (Modul 21) — 29: semantic <section> */}
+      <section aria-label="Favorites" className="px-3 py-1">
         <button
           onClick={() => setFavoritesExpanded(!favoritesExpanded)}
+          aria-expanded={favoritesExpanded}
+          aria-label={`${favoritesExpanded ? 'Collapse' : 'Expand'} favorites`}
           className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 min-h-[44px]"
         >
           {favoritesExpanded ? (
@@ -261,14 +265,16 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </section>
 
       <Separator />
 
-      {/* Activity (Modul 19) */}
-      <div className="px-3 py-1">
+      {/* Activity (Modul 19) — 29: semantic <section> */}
+      <section aria-label="Activity" className="px-3 py-1">
         <button
           onClick={() => setActivityExpanded(!activityExpanded)}
+          aria-expanded={activityExpanded}
+          aria-label={`${activityExpanded ? 'Collapse' : 'Expand'} activity`}
           className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2 min-h-[44px]"
         >
           {activityExpanded ? (
@@ -288,13 +294,14 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             <ActivityTimeline nodeId={currentFolderId} className="px-2 pt-2" />
           </motion.div>
         )}
-      </div>
+      </section>
 
       <Separator />
 
       {/* Trash (Modul 17) */}
       <button
         onClick={() => setActiveView('trash')}
+        aria-label="Trash view"
         className={`flex items-center w-full px-3 py-2 min-h-[44px] text-sm font-medium transition-colors rounded-sm
           ${activeView === 'trash'
             ? 'text-foreground bg-accent'

@@ -14,7 +14,7 @@ const NOTIFICATION_KEYS = {
 };
 
 // --- Notification Types ---
-export type NotificationType = 'share_received' | 'comment_added' | 'mention' | 'quota_warning';
+export type NotificationType = 'share_received' | 'comment_added' | 'mention' | 'quota_warning' | 'monitoring_alert';
 export type NotificationChannel = 'in_app' | 'email' | 'both' | 'off';
 
 export interface NotificationEntry {

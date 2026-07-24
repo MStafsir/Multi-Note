@@ -1,5 +1,6 @@
 // ============================================================
 // MODUL 4: Node CRUD API Routes — Create & List
+// MODUL 27: Added traceHandler wrapper & structured logging
 // ============================================================
 
 import { NextResponse } from 'next/server';
@@ -9,9 +10,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
 import { logActivity } from '@/lib/activity-logger';
+import { logger } from '@/lib/logger';
+import { traceHandler } from '@/lib/request-tracer';
 
 // GET /api/nodes — List nodes in a folder (4.5)
-export async function GET(request: Request) {
+async function handleGetNodes(request: Request): Promise<NextResponse> {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -65,6 +68,8 @@ export async function GET(request: Request) {
       },
     });
 
+    logger.info('nodes_listed', { parentId, type, includeDeleted, count: nodes.length }, session.user.id);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -73,13 +78,14 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: unknown) {
+    logger.error('nodes_list_failed', {}, error);
     const message = error instanceof Error ? error.message : 'Failed to fetch nodes';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
 // POST /api/nodes — Create a folder/note (4.1)
-export async function POST(request: Request) {
+async function handleCreateNode(request: Request): Promise<NextResponse> {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -104,6 +110,7 @@ export async function POST(request: Request) {
       });
 
       if (duplicate) {
+        logger.info('node_create_duplicate', { type: 'folder', name: validated.name, parentId: validated.parentId }, session.user.id);
         return NextResponse.json(
           { success: false, error: 'Folder with this name already exists' },
           { status: 409 }
@@ -123,6 +130,8 @@ export async function POST(request: Request) {
       // 19 — Log activity using shared logger
       await logActivity({ actorId: session.user.id, nodeId: node.id, actionType: 'create', metadata: { type: 'folder', name: validated.name } });
 
+      logger.info('node_created', { type: 'folder', name: validated.name, nodeId: node.id }, session.user.id);
+
       return NextResponse.json({ success: true, data: formatNode(node) });
     }
 
@@ -141,6 +150,7 @@ export async function POST(request: Request) {
       });
 
       if (duplicate) {
+        logger.info('node_create_duplicate', { type: 'note', name: validated.name, parentId: validated.parentId }, session.user.id);
         return NextResponse.json(
           { success: false, error: 'Note with this name already exists' },
           { status: 409 }
@@ -167,6 +177,8 @@ export async function POST(request: Request) {
 
       await logActivity({ actorId: session.user.id, nodeId: node.id, actionType: 'create', metadata: { type: 'note', name: validated.name } });
 
+      logger.info('node_created', { type: 'note', name: validated.name, nodeId: node.id }, session.user.id);
+
       return NextResponse.json({ success: true, data: formatNode(node) });
     }
 
@@ -175,6 +187,7 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   } catch (error: unknown) {
+    logger.error('node_create_failed', {}, error);
     const message = error instanceof Error ? error.message : 'Failed to create node';
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
@@ -198,4 +211,5 @@ function formatNode(node: Record<string, unknown>) {
   };
 }
 
-
+export const GET = traceHandler(handleGetNodes);
+export const POST = traceHandler(handleCreateNode);

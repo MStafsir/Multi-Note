@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
 import { useNoteRevisions } from '@/hooks/use-note-revisions';
 import { queueNoteEdit, syncQueuedEdits, getUnsyncedCount, registerBackgroundSync } from '@/lib/offline-queue';
+import { retryWithBackoff } from '@/lib/retry';
+import { reportError } from '@/lib/error-reporter';
 import { Skeleton } from '@/components/ui/skeleton';
 import dynamic from 'next/dynamic';
 
@@ -117,28 +119,34 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
     staleTime: 30000,
   });
 
-  // Save mutation — with offline queue fallback
+  // Save mutation — with retry + offline queue fallback (26.3)
   const saveMutation = useMutation({
     mutationFn: async (contentJson: string) => {
       try {
-        const res = await fetch(`/api/nodes/${nodeId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contentJson,
-          }),
-        });
+        // 26.3 — Retry save with exponential backoff before queuing offline
+        const result = await retryWithBackoff(
+          async () => {
+            const res = await fetch(`/api/nodes/${nodeId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contentJson,
+              }),
+            });
 
-        if (!res.ok) {
-          // Network/server error — queue for offline sync
-          throw new Error(`HTTP ${res.status}`);
-        }
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}`);
+            }
 
-        const responseData = await res.json();
-        if (!responseData.success) throw new Error(responseData.error);
-        return responseData.data;
+            const responseData = await res.json();
+            if (!responseData.success) throw new Error(responseData.error);
+            return responseData.data;
+          },
+          { maxRetries: 3, baseDelay: 1000 }
+        );
+        return result.data;
       } catch (error) {
-        // Queue the edit for offline sync
+        // All retries exhausted — queue the edit for offline sync
         await queueNoteEdit(nodeId, contentJson, new Date().toISOString());
         toast.warning('Saved locally — will sync when connection returns');
         throw error;
@@ -149,9 +157,17 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
       queryClient.invalidateQueries({ queryKey: ['nodes'] });
     },
     onError: (error) => {
+      // Report error to logging system (26.4)
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        userId,
+        action: 'save_note',
+        componentName: 'NoteEditor',
+        additionalData: { nodeId },
+      });
       // Only show error if it's not a queued offline edit
-      if (!error.message.includes('will sync')) {
-        toast.error(`Save failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('will sync')) {
+        toast.error(`Save failed: ${message}`);
       }
     },
   });

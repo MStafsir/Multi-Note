@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TreeNode, NodeType } from '@/types';
 import { useFileTreeStore } from '@/store/file-tree';
 import { toast } from 'sonner';
+import { retryWithBackoff } from '@/lib/retry';
+import { reportError } from '@/lib/error-reporter';
 
 // --- Query Keys (4.6) ---
 const NODE_KEYS = {
@@ -169,17 +171,23 @@ export function useMoveNode() {
   });
 }
 
-// --- DELETE: Soft-delete node (4.3) ---
+// --- DELETE: Soft-delete node (4.3) — with retry logic (26.3) ---
 export function useDeleteNode() {
   const queryClient = useQueryClient();
   const { optimisticDelete } = useFileTreeStore();
 
   return useMutation({
     mutationFn: async ({ nodeId }: { nodeId: string }) => {
-      const res = await fetch(`/api/nodes/${nodeId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      return data.data;
+      // 26.3 — Retry delete with exponential backoff (max 3 retries)
+      return retryWithBackoff(
+        async () => {
+          const res = await fetch(`/api/nodes/${nodeId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error);
+          return data.data;
+        },
+        { maxRetries: 3, baseDelay: 1000 }
+      ).then(result => result.data);
     },
     onMutate: async ({ nodeId }) => {
       optimisticDelete([nodeId]);
@@ -189,7 +197,11 @@ export function useDeleteNode() {
       toast.success('Deleted');
     },
     onError: (error) => {
-      toast.error(`Delete failed: ${error.message}`);
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        action: 'delete',
+        componentName: 'useDeleteNode',
+      });
+      toast.error(`Delete failed: ${error instanceof Error ? error.message : String(error)}`);
       // Force re-fetch for accurate rollback
       queryClient.invalidateQueries({ queryKey: NODE_KEYS.all });
     },

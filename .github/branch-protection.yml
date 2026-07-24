@@ -1,0 +1,67 @@
+# ============================================================
+# Branch Protection Rules Configuration
+# GitHub repository settings for branch protection
+# These rules are enforced via the CI pipeline above
+# ============================================================
+#
+# To apply these settings, configure in GitHub repository settings:
+# Settings → Branches → Branch protection rules → Add rule for "main"
+#
+# Required settings:
+#
+# 1. Branch name pattern: main
+#
+# 2. Protect matching branches:
+#    - Require a pull request before merging
+#    - Require approvals: 1 (for team repos)
+#    - Dismiss stale pull request approvals when new commits are pushed
+#    - Require review from Code Owners (if CODEOWNERS file exists)
+#
+# 3. Require status checks to pass before merging:
+#    - Lint
+#    - Type Check
+#    - Unit Tests
+#    - Integration Tests
+#    - Build
+#    - E2E Tests
+#    - Require branches to be up to date before merging
+#
+# 4. Require conversation resolution before merging
+#
+# 5. Do NOT allow:
+#    - Force pushes
+#    - Deletions
+#
+# 6. Restrictions (optional):
+#    - Restrict who can push to matching branches
+#
+# Apply similar rules for "develop" branch (relaxed):
+#    - Require status checks: Lint, Type Check, Unit Tests
+#    - Allow force pushes by admins only
+#
+# ============================================================
+# CODEOWNERS file (create at repository root):
+#
+# # Default owners for everything
+# * @team-lead @senior-dev
+#
+# # Frontend code
+# /src/components/ @frontend-team
+# /src/hooks/ @frontend-team
+#
+# # Backend/API code
+# /src/app/api/ @backend-team
+# /src/lib/ @backend-team
+#
+# # Database/Prisma
+# /prisma/ @database-team
+#
+# # Tests
+# /e2e/ @qa-team
+# /src/lib/__tests__/ @qa-team
+# /src/app/api/__tests__/ @qa-team
+#
+# # CI/CD
+# /.github/ @devops-team
+#
+# ============================================================

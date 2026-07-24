@@ -22,6 +22,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // MODUL 28 — Export download link route is public (token-based access)
+  // /api/export/[token] does NOT require auth — token serves as auth
+  if (pathname.match(/^\/api\/export\/[^/]+$/) && request.method === 'GET') {
+    return NextResponse.next();
+  }
+
   // Check for protected API routes
   if (
     pathname.startsWith('/api/nodes') ||
@@ -35,7 +41,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/activity') ||
     pathname.startsWith('/api/notifications') ||
     pathname.startsWith('/api/trash') ||
-    pathname.startsWith('/api/tags')
+    pathname.startsWith('/api/tags') ||
+    pathname.startsWith('/api/admin') ||
+    pathname === '/api/export' ||
+    pathname.startsWith('/api/import') ||
+    pathname.startsWith('/api/account')
   ) {
     const token = await getToken({
       req: request,
@@ -78,5 +88,9 @@ export const config = {
     '/api/notifications/:path*',
     '/api/trash/:path*',
     '/api/tags/:path*',
+    '/api/admin/:path*',
+    '/api/export/:path*',
+    '/api/import/:path*',
+    '/api/account/:path*',
   ],
 };

@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,8 @@ import { SearchDropdown } from '@/components/search/search-dropdown';
 import { TrashView } from '@/components/trash/trash-view';
 import { CommandPalette } from '@/components/command/command-palette';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
+import { DataPortabilitySettings } from '@/components/settings/data-portability';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 // Mobile breakpoint constant
 const MOBILE_BREAKPOINT = 640;
@@ -47,6 +49,9 @@ export function WorkspaceLayout() {
   // 22 — Create dialogs triggered from command palette
   const [paletteCreateDialogOpen, setPaletteCreateDialogOpen] = useState(false);
   const [paletteCreateType, setPaletteCreateType] = useState<'folder' | 'note'>('note');
+
+  // 28 — Settings dialog state
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   // Auto-open sidebar on desktop, auto-close on mobile
   useEffect(() => {
@@ -235,6 +240,14 @@ export function WorkspaceLayout() {
     <WorkspaceDndProvider>
       <TooltipProvider>
         <div className="min-h-screen flex flex-col bg-background">
+          {/* 29 — Skip-to-content link for keyboard users */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md focus:text-sm focus:font-medium focus:shadow-lg"
+          >
+            Skip to main content
+          </a>
+
           {/* Header */}
           <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex items-center h-14 px-4 gap-4">
@@ -325,7 +338,7 @@ export function WorkspaceLayout() {
                 {/* User menu dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 h-auto p-1 rounded-full min-h-[44px] min-w-[44px]">
+                    <Button variant="ghost" className="flex items-center gap-2 h-auto p-1 rounded-full min-h-[44px] min-w-[44px]" aria-label={`User menu for ${user?.name || user?.email || 'User'}`}>
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium">
                         {user?.name?.charAt(0) || user?.email?.charAt(0) || '?'}
                       </div>
@@ -339,6 +352,13 @@ export function WorkspaceLayout() {
                         <span className="text-xs text-muted-foreground">{user?.email}</span>
                       </div>
                     </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setSettingsDialogOpen(true)}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => {
@@ -358,6 +378,9 @@ export function WorkspaceLayout() {
 
           {/* Main content: sidebar + workspace */}
           <div className="flex-1 flex overflow-hidden relative">
+            {/* 29 — aria-live region for toast announcements */}
+            <div aria-live="polite" aria-atomic="true" className="sr-only" id="a11y-announcements" />
+
             {/* ===== Mobile: Bottom-sheet drawer pattern ===== */}
             {isMobile && (
               <AnimatePresence initial={false}>
@@ -373,11 +396,13 @@ export function WorkspaceLayout() {
                       onClick={closeSidebar}
                       role="button"
                       tabIndex={-1}
-                      aria-label="Close sidebar"
+                      aria-label="Close sidebar overlay"
                     />
 
                     {/* Bottom sheet */}
                     <motion.aside
+                      role="complementary"
+                      aria-label="Sidebar navigation"
                       initial={{ y: '100%' }}
                       animate={{ y: 0 }}
                       exit={{ y: '100%' }}
@@ -422,6 +447,8 @@ export function WorkspaceLayout() {
               <AnimatePresence initial={false}>
                 {sidebarOpen && (
                   <motion.aside
+                    role="complementary"
+                    aria-label="Sidebar navigation"
                     initial={{ width: 0 }}
                     animate={{ width: sidebarCollapsed ? 60 : 280 }}
                     exit={{ width: 0 }}
@@ -435,7 +462,7 @@ export function WorkspaceLayout() {
             )}
 
             {/* Content area */}
-            <main className="flex-1 overflow-auto min-w-0">
+            <main id="main-content" className="flex-1 overflow-auto min-w-0">
               {activeView === 'trash' ? (
                 <TrashView />
               ) : (
@@ -471,6 +498,19 @@ export function WorkspaceLayout() {
 
           {/* PWA Install Prompt */}
           <InstallPrompt />
+
+          {/* 28 — Settings Dialog (Data Portability) */}
+          <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+            <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Settings</DialogTitle>
+                <DialogDescription>
+                  Manage your data: export, import, or permanently delete your account.
+                </DialogDescription>
+              </DialogHeader>
+              <DataPortabilitySettings />
+            </DialogContent>
+          </Dialog>
         </div>
       </TooltipProvider>
     </WorkspaceDndProvider>

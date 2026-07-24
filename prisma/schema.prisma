@@ -231,7 +231,7 @@ model CalculationHistory {
 model Notification {
   id          String    @id @default(cuid())
   recipientId String
-  type        String    // "share_received" | "comment_added" | "mention" | "quota_warning"
+  type        String    // "share_received" | "comment_added" | "mention" | "quota_warning" | "monitoring_alert"
   payload     String?   // JSON string with notification details
   readAt      DateTime?
   createdAt   DateTime  @default(now())

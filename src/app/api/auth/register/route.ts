@@ -1,13 +1,16 @@
 // ============================================================
 // MODUL 3: Registration API Route
+// MODUL 27: Added traceHandler wrapper & structured logging
 // ============================================================
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hash } from '@/lib/password';
 import { registerSchema } from '@/lib/validators';
+import { logger } from '@/lib/logger';
+import { traceHandler } from '@/lib/request-tracer';
 
-export async function POST(request: Request) {
+async function handleRegister(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json();
     const validated = registerSchema.parse(body);
@@ -18,6 +21,7 @@ export async function POST(request: Request) {
     });
 
     if (existing) {
+      logger.info('register_duplicate_email', { email: validated.email }, null);
       return NextResponse.json(
         { success: false, error: 'Email already registered' },
         { status: 409 }
@@ -47,11 +51,14 @@ export async function POST(request: Request) {
       },
     });
 
+    logger.info('register_success', { user_id: user.id, email: user.email }, user.id);
+
     return NextResponse.json({
       success: true,
       data: user,
     });
   } catch (error: unknown) {
+    logger.error('register_failed', {}, error);
     const message = error instanceof Error ? error.message : 'Registration failed';
     return NextResponse.json(
       { success: false, error: message },
@@ -59,3 +66,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = traceHandler(handleRegister);

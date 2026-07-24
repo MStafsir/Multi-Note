@@ -43,6 +43,8 @@ import {
 import { UploadZone } from '@/components/upload/upload-zone';
 import { RenameDialog } from './rename-dialog';
 import { NoteEditor } from './note-editor';
+import { ErrorBoundary } from '@/components/error/error-boundary';
+import { NoteEditorError } from '@/components/error/note-editor-error';
 import { useDeleteNode } from '@/hooks/use-file-tree';
 import { buildTree } from '@/store/file-tree';
 import { toast } from 'sonner';
@@ -244,6 +246,7 @@ export function ContentArea() {
               variant="ghost"
               size="sm"
               className="min-h-[44px]"
+              aria-label="Back to folder view"
               onClick={() => {
                 setSelectedNodeId(null);
                 setShowRevisionSidebar(false);
@@ -259,13 +262,17 @@ export function ContentArea() {
               variant={showRevisionSidebar ? 'secondary' : 'ghost'}
               size="sm"
               className="min-h-[44px]"
+              aria-label="Toggle version history sidebar"
+              aria-expanded={showRevisionSidebar}
               onClick={() => setShowRevisionSidebar(!showRevisionSidebar)}
             >
               <History className="h-4 w-4 mr-1" />
               Version History
             </Button>
           </div>
-          <NoteEditor nodeId={selectedNode.id} />
+          <ErrorBoundary fallback={NoteEditorError} context={{ componentName: 'NoteEditor', action: 'render_note' }}>
+            <NoteEditor nodeId={selectedNode.id} />
+          </ErrorBoundary>
         </div>
 
         {/* Revision sidebar panel */}
@@ -294,7 +301,8 @@ export function ContentArea() {
       {/* Toolbar */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 py-3">
         <div className="flex items-center gap-4">
-          {/* Breadcrumb */}
+          {/* Breadcrumb — 29: wrapped in <nav> */}
+          <nav aria-label="Breadcrumb">
           <Breadcrumb className="flex-1 min-w-0">
             <BreadcrumbList>
               {currentFolderPath.map((segment, index) => (
@@ -322,6 +330,7 @@ export function ContentArea() {
               ))}
             </BreadcrumbList>
           </Breadcrumb>
+          </nav>
 
 
 
@@ -430,7 +439,7 @@ export function ContentArea() {
                 transition={{ duration: 0.15 }}
               >
                 {viewMode === 'grid' ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <ul role="list" aria-label="Folder contents grid" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {filteredItems.map((node) => {
                       // Folder items get DroppableFolder wrapper + DraggableItem
                       // Non-folder items just get DraggableItem
@@ -438,6 +447,7 @@ export function ContentArea() {
 
                       const cardContent = (
                         <Card
+                          role="listitem"
                           className={`cursor-pointer hover:border-accent transition-colors group relative
                             ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
                             ${isDragging ? 'pointer-events-none' : ''}
@@ -471,7 +481,7 @@ export function ContentArea() {
                           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" aria-label={`More actions for ${node.name}`}>
                                   <MoreHorizontal className="h-3.5 w-3.5" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -534,14 +544,15 @@ export function ContentArea() {
                         </DraggableItem>
                       );
                     })}
-                  </div>
+                  </ul>
                 ) : (
-                  <div className="space-y-1">
+                  <ul role="list" aria-label="Folder contents list" className="space-y-1">
                     {filteredItems.map((node) => {
                       const isSelected = multiSelectedIds.has(node.id);
 
                       const rowContent = (
-                        <div
+                        <li
+                          role="listitem"
                           className={`flex items-center gap-3 p-3 rounded-md hover:bg-accent/50 cursor-pointer group transition-colors
                             ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
                             ${isDragging ? 'pointer-events-none' : ''}
@@ -572,6 +583,7 @@ export function ContentArea() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 min-h-[44px] min-w-[44px] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                aria-label={`More actions for ${node.name}`}
                               >
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                               </Button>
@@ -604,7 +616,7 @@ export function ContentArea() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        </div>
+                        </li>
                       );
 
                       // Wrap folder rows with DroppableFolder
@@ -634,7 +646,7 @@ export function ContentArea() {
                         </DraggableItem>
                       );
                     })}
-                  </div>
+                  </ul>
                 )}
               </motion.div>
             </AnimatePresence>

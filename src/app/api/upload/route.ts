@@ -2,6 +2,7 @@
 // MODUL 5: File Upload API Route
 // Handles multipart file upload with quota validation
 // MODUL 15.2: Re-upload creates new FileVersion entry
+// MODUL 27: Added traceHandler wrapper & structured logging
 // ============================================================
 
 import { NextResponse } from 'next/server';
@@ -10,6 +11,8 @@ import { bigintToNumber } from '@/lib/bigint';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
+import { traceHandler } from '@/lib/request-tracer';
 
 // Max file size: 500MB
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
@@ -17,7 +20,7 @@ const MAX_FILE_SIZE = 500 * 1024 * 1024;
 // Max versions per file (15.3 — retention limit)
 const MAX_VERSIONS = 20;
 
-export async function POST(request: Request) {
+async function handleUpload(request: Request): Promise<NextResponse> {
   try {
     const userId = request.headers.get('x-user-id');
     if (!userId) {
@@ -29,11 +32,13 @@ export async function POST(request: Request) {
     const parentId = (formData.get('parentId') as string) || null;
 
     if (!file) {
+      logger.info('upload_no_file', { parentId }, userId);
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
+      logger.warn('upload_file_too_large', { fileName: file.name, sizeBytes: file.size, maxAllowed: MAX_FILE_SIZE }, userId);
       return NextResponse.json(
         { success: false, error: `File too large. Max size is ${MAX_FILE_SIZE / (1024 * 1024)}MB` },
         { status: 400 }
@@ -42,6 +47,7 @@ export async function POST(request: Request) {
 
     // Reject 0-byte files
     if (file.size === 0) {
+      logger.info('upload_empty_file', { fileName: file.name }, userId);
       return NextResponse.json(
         { success: false, error: 'Empty files (0 bytes) are not allowed' },
         { status: 400 }
@@ -54,6 +60,7 @@ export async function POST(request: Request) {
     const quotaLimitBytes = profile ? bigintToNumber(profile.quotaLimitBytes) ?? 5368709120 : 5368709120;
 
     if (currentUsedBytes + file.size > quotaLimitBytes) {
+      logger.warn('upload_quota_exceeded', { fileName: file.name, currentUsedBytes, quotaLimitBytes, requestedBytes: file.size }, userId);
       return NextResponse.json(
         { success: false, error: 'Storage quota exceeded. Cannot upload this file.' },
         { status: 400 }
@@ -190,6 +197,8 @@ export async function POST(request: Request) {
         },
       });
 
+      logger.info('upload_reupload_success', { fileName: file.name, nodeId: existingNode.id, versionNumber: newVersionNumber, sizeBytes: file.size }, userId);
+
       const metadata = updatedNode.metadata as Record<string, unknown> | null;
       return NextResponse.json({
         success: true,
@@ -262,6 +271,8 @@ export async function POST(request: Request) {
       },
     });
 
+    logger.info('upload_new_file_success', { fileName: file.name, nodeId: node.id, sizeBytes: file.size }, userId);
+
     const metadata = node.metadata as Record<string, unknown> | null;
     return NextResponse.json({
       success: true,
@@ -281,7 +292,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: unknown) {
+    logger.error('upload_failed', {}, error);
     const message = error instanceof Error ? error.message : 'Upload failed';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
+
+export const POST = traceHandler(handleUpload);

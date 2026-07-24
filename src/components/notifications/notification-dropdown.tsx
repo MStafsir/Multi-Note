@@ -43,6 +43,8 @@ function getNotificationIcon(type: NotificationType) {
       return <MessageSquare className="h-4 w-4 text-blue-500" />;
     case 'mention':
       return <AtSign className="h-4 w-4 text-emerald-500" />;
+    case 'monitoring_alert':
+      return <AlertTriangle className="h-4 w-4 text-orange-500" />;
     default:
       return <Bell className="h-4 w-4 text-muted-foreground" />;
   }
@@ -61,6 +63,8 @@ function buildNotificationMessage(entry: NotificationEntry): string {
       return `${payload.commenterName || 'Someone'} commented on "${payload.nodeName || 'a file'}"`;
     case 'mention':
       return `${payload.mentionerName || 'Someone'} mentioned you in "${payload.nodeName || 'a file'}"`;
+    case 'monitoring_alert':
+      return `⚠️ Monitoring Alert: ${payload.alertType || 'Unknown'} — ${payload.type === 'error_rate' ? `Error rate ${payload.error_rate || '0'}%` : `P99 latency ${payload.p99_latency_ms || '0'}ms`} detected`;
     default:
       return 'New notification';
   }
