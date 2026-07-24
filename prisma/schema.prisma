@@ -56,6 +56,8 @@ model User {
   nodes         Node[]
   profile       Profile?
   calculations  CalculationHistory[]
+  notifications Notification[]
+  notificationPreference NotificationPreference?
 }
 
 model VerificationToken {
@@ -97,6 +99,8 @@ model Node {
   shares     NodeShare[]
   tags       NodeTag[]
   activity   ActivityLog[]
+  versions   FileVersion[]
+  revisions  NoteRevision[]
 
   @@index([ownerId, parentId])
   @@index([ownerId, type])
@@ -161,7 +165,7 @@ model NodeTag {
   @@unique([nodeId, tagId])
 }
 
-// --- Activity Log (Modul 19 prep) ---
+// --- Activity Log (Modul 19: Activity Log & Audit Trail) ---
 model ActivityLog {
   id         String   @id @default(cuid())
   actorId    String
@@ -176,17 +180,35 @@ model ActivityLog {
   @@index([actorId, createdAt])
 }
 
-// --- File Versions (Modul 15 prep) ---
+// --- File Versions (Modul 15: Version History & Snapshot) ---
 model FileVersion {
-  id            String   @id @default(cuid())
-  nodeId        String
-  storagePath   String
-  versionNumber Int
-  sizeBytes     BigInt
+  id             String   @id @default(cuid())
+  nodeId         String
+  storagePath    String   // versioned file path in storage
+  versionNumber  Int      // auto-increment per node_id
+  sizeBytes      BigInt
   checksumSha256 String?
-  createdAt     DateTime @default(now())
+  createdById    String?  // user who uploaded this version
+  createdAt      DateTime @default(now())
+
+  node Node? @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 
   @@index([nodeId, versionNumber])
+}
+
+// --- Note Revisions (Modul 16: Version History & Revision Diffing) ---
+model NoteRevision {
+  id                  String   @id @default(cuid())
+  nodeId              String
+  contentJsonSnapshot String   // Tiptap ProseMirror JSON snapshot
+  revisionNumber      Int      // auto-increment per node_id
+  triggerType         String   // "autosave" | "manual" | "restore"
+  createdAt           DateTime @default(now())
+
+  node Node? @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId, revisionNumber])
+  @@index([nodeId, createdAt])
 }
 
 // --- Calculation History (Modul 11: Calculator Widget) ---
@@ -201,4 +223,33 @@ model CalculationHistory {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// --- Notifications (Modul 20: Notification System) ---
+model Notification {
+  id          String    @id @default(cuid())
+  recipientId String
+  type        String    // "share_received" | "comment_added" | "mention" | "quota_warning"
+  payload     String?   // JSON string with notification details
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, createdAt])
+  @@index([recipientId, readAt])
+}
+
+// --- Notification Preferences (Modul 20.5) ---
+model NotificationPreference {
+  id               String @id @default(cuid())
+  userId           String @unique
+  shareReceived    String @default("in_app") // "in_app" | "email" | "both" | "off"
+  commentAdded     String @default("in_app")
+  mention          String @default("in_app")
+  quotaWarning     String @default("both") // default: both in-app + email for critical
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -8,6 +8,7 @@ import { createFolderSchema, getFolderTreeSchema, nodeTypeSchema } from '@/lib/v
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
+import { logActivity } from '@/lib/activity-logger';
 
 // GET /api/nodes — List nodes in a folder (4.5)
 export async function GET(request: Request) {
@@ -119,8 +120,8 @@ export async function POST(request: Request) {
         include: { metadata: true, note: true },
       });
 
-      // 19 — Log activity
-      await logActivity(session.user.id, node.id, 'create', { type: 'folder', name: validated.name });
+      // 19 — Log activity using shared logger
+      await logActivity({ actorId: session.user.id, nodeId: node.id, actionType: 'create', metadata: { type: 'folder', name: validated.name } });
 
       return NextResponse.json({ success: true, data: formatNode(node) });
     }
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
         include: { metadata: true, note: true },
       });
 
-      await logActivity(session.user.id, node.id, 'create', { type: 'note', name: validated.name });
+      await logActivity({ actorId: session.user.id, nodeId: node.id, actionType: 'create', metadata: { type: 'note', name: validated.name } });
 
       return NextResponse.json({ success: true, data: formatNode(node) });
     }
@@ -196,14 +197,4 @@ function formatNode(node: Record<string, unknown>) {
   };
 }
 
-// 19 — Shared activity logging helper
-async function logActivity(actorId: string, nodeId: string | null, actionType: string, metadata: Record<string, unknown>) {
-  await db.activityLog.create({
-    data: {
-      actorId,
-      nodeId,
-      actionType,
-      metadata: JSON.stringify(metadata),
-    },
-  });
-}
+

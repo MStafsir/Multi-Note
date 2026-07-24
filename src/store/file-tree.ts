@@ -24,6 +24,9 @@ interface FileTreeState {
   isLoading: boolean;
   error: string | null;
 
+  // 17 — Active view state ('workspace' | 'trash')
+  activeView: 'workspace' | 'trash';
+
   // Actions
   setTree: (nodes: TreeNode[]) => void;
   setCurrentFolder: (folderId: string | null, path: { id: string | null; name: string }[]) => void;
@@ -32,6 +35,7 @@ interface FileTreeState {
   toggleFolderExpand: (folderId: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setActiveView: (view: 'workspace' | 'trash') => void;
 
   // Optimistic updates (4.2)
   optimisticRename: (nodeId: string, newName: string) => string | null; // returns old name for rollback
@@ -55,6 +59,7 @@ export const useFileTreeStore = create<FileTreeState>((set, get) => ({
   expandedFolderIds: new Set(),
   isLoading: false,
   error: null,
+  activeView: 'workspace',
 
   setTree: (nodes) => {
     const flatMap = new Map<string, TreeNode>();
@@ -63,7 +68,8 @@ export const useFileTreeStore = create<FileTreeState>((set, get) => ({
   },
 
   setCurrentFolder: (folderId, path) => {
-    set({ currentFolderId: folderId, currentFolderPath: path, selectedNodeIds: new Set() });
+    // 17 — Navigating to a folder always switches to workspace view
+    set({ currentFolderId: folderId, currentFolderPath: path, selectedNodeIds: new Set(), activeView: 'workspace' });
   },
 
   selectNode: (nodeId, mode) => {
@@ -99,6 +105,7 @@ export const useFileTreeStore = create<FileTreeState>((set, get) => ({
 
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
+  setActiveView: (view) => set({ activeView: view }),
 
   // Optimistic rename — returns old name for rollback
   optimisticRename: (nodeId, newName) => {

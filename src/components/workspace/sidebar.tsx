@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { FolderPlus, FileText, Star, HardDrive, ChevronDown, ChevronRight } from 'lucide-react';
+import { FolderPlus, FileText, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth';
 import { FileTreeView } from '@/components/file-tree/file-tree-view';
 import { CreateDialog } from './create-dialog';
 import { useStorageQuota } from '@/hooks/use-file-tree';
+import { ActivityTimeline } from '@/components/activity/activity-timeline';
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -21,9 +22,10 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createType, setCreateType] = useState<'folder' | 'note'>('folder');
-  const { currentFolderPath, setCurrentFolder } = useFileTreeStore();
+  const { currentFolderPath, setCurrentFolder, activeView, setActiveView, currentFolderId } = useFileTreeStore();
   const { user } = useAuthStore();
   const [favoritesExpanded, setFavoritesExpanded] = useState(false);
+  const [activityExpanded, setActivityExpanded] = useState(false);
 
   // Fetch storage quota
   const { data: quota } = useStorageQuota();
@@ -71,6 +73,15 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           aria-label="Favorites"
         >
           <Star className="h-5 w-5" />
+        </Button>
+        <Button
+          variant={activeView === 'trash' ? 'secondary' : 'ghost'}
+          size="icon"
+          className="h-10 w-10"
+          onClick={() => setActiveView('trash')}
+          aria-label="Trash"
+        >
+          <Trash2 className="h-5 w-5" />
         </Button>
         <Separator />
         <div className="flex-1" />
@@ -159,6 +170,48 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           </motion.div>
         )}
       </div>
+
+      <Separator />
+
+      {/* Activity (Modul 19) */}
+      <div className="px-3 py-1">
+        <button
+          onClick={() => setActivityExpanded(!activityExpanded)}
+          className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+        >
+          {activityExpanded ? (
+            <ChevronDown className="h-4 w-4 mr-1" />
+          ) : (
+            <ChevronRight className="h-4 w-4 mr-1" />
+          )}
+          <Activity className="h-4 w-4 mr-1" />
+          Activity
+        </button>
+        {activityExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <ActivityTimeline nodeId={currentFolderId} className="px-2 pt-2" />
+          </motion.div>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Trash (Modul 17) */}
+      <button
+        onClick={() => setActiveView('trash')}
+        className={`flex items-center w-full px-3 py-1.5 text-sm font-medium transition-colors rounded-sm
+          ${activeView === 'trash'
+            ? 'text-foreground bg-accent'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+          }`}
+      >
+        <Trash2 className="h-4 w-4 mr-2" />
+        Trash
+      </button>
 
       <Separator />
 

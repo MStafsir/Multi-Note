@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen, Calculator, Search } from 'lucide-react';
+import { NotificationBadge } from '@/components/notifications/notification-badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sidebar } from './sidebar';
@@ -18,6 +19,7 @@ import { useFileTreeStore } from '@/store/file-tree';
 import { WorkspaceDndProvider } from '@/components/dnd/dnd-context';
 import { CalculatorWidget } from '@/components/calculator/calculator-widget';
 import { SearchDropdown } from '@/components/search/search-dropdown';
+import { TrashView } from '@/components/trash/trash-view';
 
 export function WorkspaceLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -25,7 +27,7 @@ export function WorkspaceLayout() {
   const [headerSearchOpen, setHeaderSearchOpen] = useState(false);
   const { user } = useAuthStore();
   const { toggleOpen, isOpen } = useCalculatorStore();
-  const { setCurrentFolder, flatNodes } = useFileTreeStore();
+  const { setCurrentFolder, flatNodes, activeView } = useFileTreeStore();
 
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -155,6 +157,9 @@ export function WorkspaceLayout() {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* 20.3 — Notification badge + preferences */}
+                <NotificationBadge />
+
                 {/* Calculator toggle button */}
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -202,7 +207,11 @@ export function WorkspaceLayout() {
 
             {/* Content area */}
             <main className="flex-1 overflow-auto">
-              <ContentArea />
+              {activeView === 'trash' ? (
+                <TrashView />
+              ) : (
+                <ContentArea />
+              )}
             </main>
           </div>
 

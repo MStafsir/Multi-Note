@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
 import { checkNodeAccess } from '@/lib/permissions';
+import { logActivity } from '@/lib/activity-logger';
 
 // GET /api/nodes/[id] — Get single node details
 export async function GET(
@@ -116,7 +117,7 @@ export async function PATCH(
         include: { metadata: true, note: true },
       });
 
-      await logActivity(session.user.id, id, 'rename', { oldName: node.name, newName: validated.newName });
+      await logActivity({ actorId: session.user.id, nodeId: id, actionType: 'rename', metadata: { oldName: node.name, newName: validated.newName } });
 
       const renameMetadata = updated.metadata as Record<string, unknown> | null;
       return NextResponse.json({
@@ -161,10 +162,10 @@ export async function PATCH(
         include: { metadata: true, note: true },
       });
 
-      await logActivity(session.user.id, id, 'move', {
+      await logActivity({ actorId: session.user.id, nodeId: id, actionType: 'move', metadata: {
         oldParentId: node.parentId,
         newParentId: validated.newParentId,
-      });
+      } });
 
       const moveMetadata = updated.metadata as Record<string, unknown> | null;
       return NextResponse.json({
@@ -205,7 +206,7 @@ export async function PATCH(
         include: { metadata: true, note: true },
       });
 
-      await logActivity(session.user.id, id, 'edit', { type: 'note' });
+      await logActivity({ actorId: session.user.id, nodeId: id, actionType: 'edit', metadata: { type: 'note' } });
 
       const noteMetadata = updated.metadata as Record<string, unknown> | null;
       return NextResponse.json({
@@ -286,7 +287,7 @@ export async function DELETE(
       });
     }
 
-    await logActivity(session.user.id, id, 'delete', { type: node.type, name: node.name, childCount: descendantIds.length });
+    await logActivity({ actorId: session.user.id, nodeId: id, actionType: 'delete', metadata: { type: node.type, name: node.name, childCount: descendantIds.length } });
 
     return NextResponse.json({
       success: true,
@@ -322,14 +323,4 @@ async function getAllDescendants(parentId: string): string[] {
   return descendants;
 }
 
-// Activity logging helper
-async function logActivity(actorId: string, nodeId: string | null, actionType: string, metadata: Record<string, unknown>) {
-  await db.activityLog.create({
-    data: {
-      actorId,
-      nodeId,
-      actionType,
-      metadata: JSON.stringify(metadata),
-    },
-  });
-}
+

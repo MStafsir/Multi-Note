@@ -16,6 +16,7 @@ import {
   Pencil,
   Trash2,
   Share2,
+  History,
 } from 'lucide-react';
 import type { TreeNode, NodeType } from '@/types';
 import { useFileTreeStore } from '@/store/file-tree';
@@ -47,6 +48,9 @@ import { DroppableFolder } from '@/components/dnd/droppable-folder';
 import { useWorkspaceDnd } from '@/components/dnd/dnd-context';
 import { SearchDropdown } from '@/components/search/search-dropdown';
 import { ShareDialog } from '@/components/sharing/share-dialog';
+import { VersionListDialog } from '@/components/versions/version-list-dialog';
+import { RevisionSidebar } from '@/components/revisions/revision-sidebar';
+import { BulkActionToolbar } from '@/components/bulk/bulk-action-toolbar';
 
 export function ContentArea() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -57,6 +61,10 @@ export function ContentArea() {
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareNode, setShareNode] = useState<TreeNode | null>(null);
+  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+  const [versionNodeId, setVersionNodeId] = useState<string>('');
+  const [versionFileName, setVersionFileName] = useState<string>('');
+  const [showRevisionSidebar, setShowRevisionSidebar] = useState(false);
 
   const {
     tree,
@@ -161,6 +169,12 @@ export function ContentArea() {
     setShareDialogOpen(true);
   };
 
+  const handleVersionHistory = (node: TreeNode) => {
+    setVersionNodeId(node.id);
+    setVersionFileName(node.name);
+    setVersionDialogOpen(true);
+  };
+
   const formatBytes = (bytes: number): string => {
     if (!bytes || bytes < 0) return '—';
     const k = 1024;
@@ -189,24 +203,57 @@ export function ContentArea() {
     }
   };
 
-  // If a note is selected, show the note editor
+  // If a note is selected, show the note editor + optional revision sidebar
   const selectedNode = selectedNodeId ? flatNodes.get(selectedNodeId) : null;
   if (selectedNode && selectedNode.type === 'note') {
     return (
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedNodeId(null)}
-          >
-            <ArrowUp className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-          <Separator orientation="vertical" className="h-4" />
-          <h2 className="text-lg font-semibold">{selectedNode.name}</h2>
+      <div className="flex h-full">
+        {/* Main content area */}
+        <div className={showRevisionSidebar ? 'flex-1 flex flex-col p-6 transition-all min-w-0' : 'flex-1 flex flex-col p-6 transition-all'}>
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedNodeId(null);
+                setShowRevisionSidebar(false);
+              }}
+            >
+              <ArrowUp className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <Separator orientation="vertical" className="h-4" />
+            <h2 className="text-lg font-semibold">{selectedNode.name}</h2>
+            <Separator orientation="vertical" className="h-4" />
+            <Button
+              variant={showRevisionSidebar ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setShowRevisionSidebar(!showRevisionSidebar)}
+            >
+              <History className="h-4 w-4 mr-1" />
+              Version History
+            </Button>
+          </div>
+          <NoteEditor nodeId={selectedNode.id} />
         </div>
-        <NoteEditor nodeId={selectedNode.id} />
+
+        {/* Revision sidebar panel */}
+        <AnimatePresence>
+          {showRevisionSidebar && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="shrink-0 overflow-hidden"
+            >
+              <RevisionSidebar
+                nodeId={selectedNode.id}
+                onClose={() => setShowRevisionSidebar(false)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -245,12 +292,7 @@ export function ContentArea() {
             </BreadcrumbList>
           </Breadcrumb>
 
-          {/* Multi-select info */}
-          {multiSelectedIds.size > 0 && (
-            <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-1">
-              {multiSelectedIds.size} selected
-            </span>
-          )}
+
 
           {/* Search — 12.4: debounced dropdown */}
           <SearchDropdown
@@ -307,6 +349,14 @@ export function ContentArea() {
           </div>
         </div>
       </div>
+
+      {/* Bulk Action Toolbar — 18.2: appears when multi-select is active */}
+      {multiSelectedIds.size > 0 && (
+        <BulkActionToolbar
+          selectedIds={multiSelectedIds}
+          onClearSelection={() => setMultiSelectedIds(new Set())}
+        />
+      )}
 
       {/* Content */}
       <ScrollArea className="flex-1">
@@ -403,6 +453,12 @@ export function ContentArea() {
                                   <Share2 className="h-4 w-4 mr-2" />
                                   Share
                                 </DropdownMenuItem>
+                                {node.type === 'file' && (
+                                  <DropdownMenuItem onClick={() => handleVersionHistory(node)}>
+                                    <History className="h-4 w-4 mr-2" />
+                                    Version History
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(node.id)}
                                   className="text-destructive focus:text-destructive"
@@ -494,6 +550,12 @@ export function ContentArea() {
                                 <Share2 className="h-4 w-4 mr-2" />
                                 Share
                               </DropdownMenuItem>
+                              {node.type === 'file' && (
+                                <DropdownMenuItem onClick={() => handleVersionHistory(node)}>
+                                  <History className="h-4 w-4 mr-2" />
+                                  Version History
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onClick={() => handleDelete(node.id)}
                                 className="text-destructive focus:text-destructive"
@@ -554,6 +616,14 @@ export function ContentArea() {
         open={shareDialogOpen}
         onOpenChange={setShareDialogOpen}
         node={shareNode}
+      />
+
+      {/* Version History Dialog */}
+      <VersionListDialog
+        open={versionDialogOpen}
+        onOpenChange={setVersionDialogOpen}
+        nodeId={versionNodeId}
+        fileName={versionFileName}
       />
     </div>
   );

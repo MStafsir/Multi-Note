@@ -10,6 +10,7 @@ import { authOptions } from '@/lib/auth';
 import { QUOTA_TIERS, DEFAULT_TIER, getTierFromLimit, getTierInfo } from '@/lib/quota';
 import type { QuotaTierKey } from '@/lib/quota';
 import { bigintToNumber } from '@/lib/bigint';
+import { createNotification } from '@/lib/notification-sender';
 
 export async function GET() {
   try {
@@ -49,6 +50,19 @@ export async function GET() {
     // Determine tier from quota limit
     const tierKey: QuotaTierKey = getTierFromLimit(limitBytes);
     const tierInfo = getTierInfo(tierKey);
+
+    // 20 — Create quota_warning notification when usage >= 90%
+    if (percentage >= 90) {
+      await createNotification({
+        recipientId: session.user.id,
+        type: 'quota_warning',
+        payload: {
+          percentage,
+          usedBytes,
+          limitBytes,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

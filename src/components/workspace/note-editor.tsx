@@ -1,16 +1,17 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth';
 import { TiptapEditor } from '@/components/editor/tiptap-editor';
+import { useNoteRevisions } from '@/hooks/use-note-revisions';
 
 // ============================================================
 // NoteEditor — Wrapper that connects TiptapEditor to API + Collab
-// Replaces simple textarea with full Tiptap rich-text editor
-// Modul 10: Now also passes userId/userName for collab integration
+// Modul 10: userId/userName for collab integration
+// Modul 16.2: Revision snapshot interval management
 // ============================================================
 
 interface NoteEditorProps {
@@ -22,6 +23,14 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
   const { user } = useAuthStore();
   const userId = user?.id || '';
   const userName = user?.name || user?.email || 'Anonymous';
+
+  // Modul 16.2: Revision snapshot interval hook
+  const { checkRevisionInterval, resetRevisionTracking } = useNoteRevisions({ nodeId });
+
+  // Reset revision tracking when node changes
+  useEffect(() => {
+    resetRevisionTracking();
+  }, [nodeId, resetRevisionTracking]);
 
   // Fetch note content (returns the raw contentJson string)
   const { data: noteData, isLoading } = useQuery({
@@ -65,9 +74,12 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
   });
 
   // Save handler passed to TiptapEditor
+  // Modul 16.2: After each successful autosave, check if revision should be created
   const handleSave = useCallback(async (contentJson: string) => {
     await saveMutation.mutateAsync(contentJson);
-  }, [saveMutation]);
+    // Check revision interval after successful save (16.2)
+    checkRevisionInterval(contentJson);
+  }, [saveMutation, checkRevisionInterval]);
 
   if (isLoading) {
     return (

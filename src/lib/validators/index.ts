@@ -96,3 +96,13 @@ export const updateShareSchema = z.object({
 export const listSharesSchema = z.object({
   nodeId: z.string().min(1, 'Node ID is required'),
 });
+
+// --- Modul 15: File Version Validators ---
+export const restoreFileVersionSchema = z.object({
+  versionId: z.string().min(1, 'Version ID is required'),
+});
+
+// --- Modul 16: Note Revision Validators ---
+export const restoreNoteRevisionSchema = z.object({
+  revisionId: z.string().min(1, 'Revision ID is required'),
+});

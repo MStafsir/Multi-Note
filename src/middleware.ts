@@ -31,7 +31,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/search') ||
     pathname.startsWith('/api/calculator') ||
     pathname.startsWith('/api/shares') ||
-    pathname.startsWith('/api/users')
+    pathname.startsWith('/api/users') ||
+    pathname.startsWith('/api/activity') ||
+    pathname.startsWith('/api/notifications') ||
+    pathname.startsWith('/api/trash')
   ) {
     const token = await getToken({
       req: request,
@@ -70,5 +73,8 @@ export const config = {
     '/api/calculator/:path*',
     '/api/shares/:path*',
     '/api/users/:path*',
+    '/api/activity/:path*',
+    '/api/notifications/:path*',
+    '/api/trash/:path*',
   ],
 };

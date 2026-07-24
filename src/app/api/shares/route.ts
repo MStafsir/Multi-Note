@@ -10,6 +10,8 @@ import { authOptions } from '@/lib/auth';
 import { getAllDescendants } from '@/lib/permissions';
 import { bigintToNumber } from '@/lib/bigint';
 import { v4 as uuidv4 } from 'uuid';
+import { logActivity } from '@/lib/activity-logger';
+import { createNotification } from '@/lib/notification-sender';
 
 // POST /api/shares — Create a share (user share or public link)
 export async function POST(request: Request) {
@@ -112,20 +114,33 @@ export async function POST(request: Request) {
       }
     }
 
-    // Log activity
-    await db.activityLog.create({
-      data: {
-        actorId: session.user.id,
-        nodeId: validated.nodeId,
-        actionType: 'share',
-        metadata: JSON.stringify({
-          sharedWithUserId: validated.sharedWithUserId,
-          permissionLevel: validated.permissionLevel,
-          generateLink: validated.generateLink,
-          cascadedCount,
-        }),
+    // 19 — Log activity using shared logger
+    await logActivity({
+      actorId: session.user.id,
+      nodeId: validated.nodeId,
+      actionType: 'share',
+      metadata: {
+        sharedWithUserId: validated.sharedWithUserId,
+        permissionLevel: validated.permissionLevel,
+        generateLink: validated.generateLink,
+        cascadedCount,
       },
     });
+
+    // 20 — Create notification for the shared-with user
+    if (validated.sharedWithUserId) {
+      await createNotification({
+        recipientId: validated.sharedWithUserId,
+        type: 'share_received',
+        payload: {
+          nodeId: validated.nodeId,
+          nodeName: node.name,
+          permissionLevel: validated.permissionLevel,
+          sharedByUserId: session.user.id,
+          sharedByName: session.user.name,
+        },
+      });
+    }
 
     // Build response
     const responseData: Record<string, unknown> = {

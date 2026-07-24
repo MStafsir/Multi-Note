@@ -176,3 +176,43 @@ export interface ShareLinkAccessData {
   content?: string | null;
   metadata?: FileMetadata | null;
 }
+
+// --- Modul 15: File Version History Types ---
+export interface FileVersionInfo {
+  id: string;
+  versionNumber: number;
+  sizeBytes: number | null;
+  createdAt: string;
+  checksumSha256: string | null;
+}
+
+export interface FileVersionListData {
+  versions: FileVersionInfo[];
+  totalSizeBytes: number;
+}
+
+// --- Modul 16: Note Revision History Types ---
+export type RevisionTriggerType = 'autosave' | 'manual' | 'restore';
+
+export interface NoteRevisionInfo {
+  id: string;
+  revisionNumber: number;
+  triggerType: RevisionTriggerType;
+  createdAt: string;
+}
+
+export interface NoteRevisionListData {
+  revisions: NoteRevisionInfo[];
+}
+
+// --- Diff Types (shared by Modul 15 & 16) ---
+export type DiffLineType = 'add' | 'remove' | 'same';
+
+export interface DiffLine {
+  type: DiffLineType;
+  content: string;
+}
+
+export interface DiffData {
+  diff: DiffLine[];
+}
