@@ -24,8 +24,8 @@ interface FileTreeState {
   isLoading: boolean;
   error: string | null;
 
-  // 17 — Active view state ('workspace' | 'trash')
-  activeView: 'workspace' | 'trash';
+  // 17 — Active view state ('workspace' | 'trash' | 'admin')
+  activeView: 'workspace' | 'trash' | 'admin';
 
   // Actions
   setTree: (nodes: TreeNode[]) => void;
@@ -35,7 +35,7 @@ interface FileTreeState {
   toggleFolderExpand: (folderId: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setActiveView: (view: 'workspace' | 'trash') => void;
+  setActiveView: (view: 'workspace' | 'trash' | 'admin') => void;
 
   // Optimistic updates (4.2)
   optimisticRename: (nodeId: string, newName: string) => string | null; // returns old name for rollback

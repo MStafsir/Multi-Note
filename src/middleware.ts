@@ -1,31 +1,186 @@
 // ============================================================
 // MODUL 3.2: Next.js Middleware — Protected Route Check
-// Custom middleware to verify session without blocking API routes
-// MODUL 13: Added share routes — link access route is public (no auth)
+// MODUL 36.7: Admin routes require role=admin (defense-in-depth, 403)
+// MODUL 37.1: Security headers (CSP, HSTS, X-Content-Type-Options, etc.)
 // ============================================================
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { db } from '@/lib/db';
+
+// MODUL 37.2 — Rate limiting store (in-memory, per-IP)
+interface RateLimitEntry {
+  count: number;
+  resetTime: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+// Rate limit thresholds per action type (MODUL 37.7)
+const RATE_LIMITS: Record<string, { maxRequests: number; windowMs: number }> = {
+  default: { maxRequests: 100, windowMs: 60_000 },          // 100/min general
+  upload: { maxRequests: 10, windowMs: 60_000 },             // 10/min uploads
+  create: { maxRequests: 30, windowMs: 60_000 },             // 30/min creates
+  delete: { maxRequests: 20, windowMs: 60_000 },             // 20/min deletes
+  mutation: { maxRequests: 50, windowMs: 60_000 },           // 50/min mutations
+  auth: { maxRequests: 5, windowMs: 60_000 },                // 5/min auth attempts
+};
+
+function checkRateLimit(ip: string, actionType: string): { allowed: boolean; remaining: number } {
+  const limit = RATE_LIMITS[actionType] || RATE_LIMITS.default;
+  const key = `${ip}:${actionType}`;
+  const now = Date.now();
+
+  const entry = rateLimitStore.get(key);
+
+  if (!entry || now > entry.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + limit.windowMs });
+    return { allowed: true, remaining: limit.maxRequests - 1 };
+  }
+
+  if (entry.count >= limit.maxRequests) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: limit.maxRequests - entry.count };
+}
+
+// Cleanup rate limit store periodically (prevent memory leak)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitStore.entries()) {
+    if (now > entry.resetTime) {
+      rateLimitStore.delete(key);
+    }
+  }
+}, 60_000);
+
+// MODUL 36.1 — Check if user is admin via profile role
+async function isUserRole(userId: string, requiredRole: string): Promise<boolean> {
+  try {
+    const profile = await db.profile.findUnique({
+      where: { userId },
+      select: { role: true },
+    });
+    return profile?.role === requiredRole;
+  } catch {
+    // Fallback: if profile lookup fails, deny access (fail-closed)
+    return false;
+  }
+}
+
+// MODUL 37 — Security headers to add to every response
+function addSecurityHeaders(response: NextResponse): NextResponse {
+  // 37.2 — Strict-Transport-Security (HSTS)
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
+  // 37.2 — X-Content-Type-Options
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+
+  // 37.2 — Referrer-Policy
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // 37.2 — Permissions-Policy (restrict unused capabilities)
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  // 37.1 — CSP header (strict, nonce-based for inline scripts)
+  // Production CSP would be stricter; development allows eval for HMR
+  const isDev = process.env.NODE_ENV === 'development';
+  const cspDirectives = [
+    `default-src 'self'`,
+    `script-src 'self'${isDev ? " 'unsafe-eval'" : ''}`,  // nonce would be added per-request in production
+    `style-src 'self' 'unsafe-inline'`, // Tailwind requires inline styles
+    `img-src 'self' data: blob: https:`, // Allow images from storage/blobs
+    `media-src 'self' blob:`,
+    `font-src 'self'`,
+    `connect-src 'self' ws: wss:`, // WebSocket for collab + API
+    `frame-ancestors 'none'`, // Prevent embedding
+    `base-uri 'self'`,
+    `form-action 'self'`,
+  ].join('; ');
+
+  response.headers.set('Content-Security-Policy', cspDirectives);
+
+  // 37.2 — X-Frame-Options (legacy fallback for CSP frame-ancestors)
+  response.headers.set('X-Frame-Options', 'DENY');
+
+  return response;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Add security headers to ALL responses (MODUL 37)
+  let response = NextResponse.next();
+  response = addSecurityHeaders(response);
+
   // Only protect API routes (not auth routes)
   if (pathname.startsWith('/api/auth')) {
-    return NextResponse.next();
+    // MODUL 37.7 — Rate limit only credential login attempts (POST to callback)
+    // NOT session checks (GET to session) — useSession calls session endpoint frequently
+    if (pathname.includes('/api/auth/callback/credentials') && request.method === 'POST') {
+      const ip = request.headers.get('x-forwarded-for') || request.ip || 'unknown';
+      const { allowed } = checkRateLimit(ip, 'auth');
+      if (!allowed) {
+        return NextResponse.json(
+          { success: false, error: 'Rate limit exceeded. Please try again later.' },
+          { status: 429 }
+        );
+      }
+    }
+    return addSecurityHeaders(NextResponse.next());
   }
 
   // MODUL 13 — Share link access route does NOT require auth
-  // /api/shares/link/[token] is public access for view-level shares
   if (pathname.startsWith('/api/shares/link/')) {
-    return NextResponse.next();
+    return addSecurityHeaders(NextResponse.next());
   }
 
   // MODUL 28 — Export download link route is public (token-based access)
-  // /api/export/[token] does NOT require auth — token serves as auth
   if (pathname.match(/^\/api\/export\/[^/]+$/) && request.method === 'GET') {
-    return NextResponse.next();
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  // MODUL 36.7 — Admin routes: require role=admin (defense-in-depth)
+  // This is middleware-level check, NOT just UI hiding
+  if (pathname.startsWith('/api/admin')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+    });
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check role from JWT token (includes profile role from auth.ts callback)
+    const role = token.role as string;
+    if (role !== 'admin') {
+      // Defense-in-depth: also check profile in database (JWT could be stale)
+      const userId = token.id as string;
+      const isActuallyAdmin = await isUserRole(userId, 'admin');
+      if (!isActuallyAdmin) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden — Admin access required' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Admin user confirmed — add user info headers
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', token.id as string);
+    requestHeaders.set('x-user-email', token.email as string);
+    requestHeaders.set('x-user-role', role === 'admin' ? 'admin' : 'admin'); // confirmed admin
+
+    return addSecurityHeaders(NextResponse.next({
+      request: { headers: requestHeaders },
+    }));
   }
 
   // Check for protected API routes
@@ -42,7 +197,6 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/notifications') ||
     pathname.startsWith('/api/trash') ||
     pathname.startsWith('/api/tags') ||
-    pathname.startsWith('/api/admin') ||
     pathname === '/api/export' ||
     pathname.startsWith('/api/import') ||
     pathname.startsWith('/api/account') ||
@@ -63,19 +217,47 @@ export async function middleware(request: NextRequest) {
       );
     }
 
+    // MODUL 37.7 — Rate limiting for mutation endpoints
+    const ip = request.headers.get('x-forwarded-for') || request.ip || 'unknown';
+    let actionType = 'default';
+
+    // Classify action type for rate limiting
+    if (pathname.startsWith('/api/upload')) {
+      actionType = 'upload';
+    } else if (pathname.startsWith('/api/nodes') && request.method === 'POST') {
+      actionType = 'create';
+    } else if (pathname.startsWith('/api/nodes') && request.method === 'DELETE') {
+      actionType = 'delete';
+    } else if (pathname.startsWith('/api/trash') || pathname.startsWith('/api/account/delete')) {
+      actionType = 'delete';
+    } else if (request.method !== 'GET' && request.method !== 'HEAD') {
+      actionType = 'mutation';
+    }
+
+    // Only rate limit mutations (not GET requests, except upload)
+    if (request.method !== 'GET' || pathname.startsWith('/api/upload')) {
+      const { allowed, remaining } = checkRateLimit(ip, actionType);
+      if (!allowed) {
+        return NextResponse.json(
+          { success: false, error: 'Rate limit exceeded. Please try again later.' },
+          { status: 429 }
+        );
+      }
+    }
+
     // Add user info to headers for API routes to use
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', token.id as string);
     requestHeaders.set('x-user-email', token.email as string);
+    // MODUL 36 — Pass role from JWT to API routes
+    requestHeaders.set('x-user-role', (token.role as string) || 'user');
 
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
+    return addSecurityHeaders(NextResponse.next({
+      request: { headers: requestHeaders },
+    }));
   }
 
-  return NextResponse.next();
+  return addSecurityHeaders(NextResponse.next());
 }
 
 export const config = {
@@ -100,5 +282,6 @@ export const config = {
     '/api/templates/:path*',
     '/api/comments/:path*',
     '/api/graph',
+    '/api/auth/:path*',
   ],
 };

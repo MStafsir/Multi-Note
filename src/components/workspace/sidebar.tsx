@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity } from 'lucide-react';
+import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
@@ -131,6 +131,24 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             <p>Trash</p>
           </TooltipContent>
         </Tooltip>
+        {user?.role === 'admin' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={activeView === 'admin' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-10 w-10 min-h-[44px] min-w-[44px]"
+                onClick={() => setActiveView('admin')}
+                aria-label="Admin Dashboard"
+              >
+                <Shield className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Admin Dashboard</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
         <Separator />
         <div className="flex-1" />
         <div className="px-2">
@@ -311,6 +329,22 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         <Trash2 className="h-4 w-4 mr-2" />
         Trash
       </button>
+
+      {/* Admin Dashboard (Modul 36) — only visible for admin role */}
+      {user?.role === 'admin' && (
+        <button
+          onClick={() => setActiveView('admin')}
+          aria-label="Admin Dashboard"
+          className={`flex items-center w-full px-3 py-2 min-h-[44px] text-sm font-medium transition-colors rounded-sm
+            ${activeView === 'admin'
+              ? 'text-foreground bg-accent'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+            }`}
+        >
+          <Shield className="h-4 w-4 mr-2" />
+          Admin
+        </button>
+      )}
 
       <Separator />
 

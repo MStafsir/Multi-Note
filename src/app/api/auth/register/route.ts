@@ -31,6 +31,10 @@ async function handleRegister(request: Request): Promise<NextResponse> {
     // Hash password
     const passwordHash = await hash(validated.password);
 
+    // MODUL 36.1 — First registered user becomes admin
+    const totalUsers = await db.user.count();
+    const role = totalUsers === 0 ? 'admin' : 'user';
+
     // Create user + profile
     const user = await db.user.create({
       data: {
@@ -39,6 +43,7 @@ async function handleRegister(request: Request): Promise<NextResponse> {
         passwordHash,
         profile: {
           create: {
+            role,
             storageUsedBytes: 0,
             quotaLimitBytes: 5368709120, // 5GB
           },

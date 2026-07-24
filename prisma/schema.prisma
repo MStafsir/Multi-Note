@@ -71,9 +71,11 @@ model VerificationToken {
 }
 
 // --- User Profile with Storage Quota (Modul 6 prep) ---
+// MODUL 36: Added role column (enum: user/admin)
 model Profile {
   id             String @id @default(cuid())
   userId         String @unique
+  role           String @default("user") // "user" | "admin" — Modul 36.1
   storageUsedBytes BigInt @default(0)
   quotaLimitBytes  BigInt @default(5368709120) // 5GB default
   createdAt      DateTime @default(now())
@@ -375,4 +377,45 @@ model Comment {
   @@index([nodeId, createdAt])
   @@index([nodeId, resolvedAt])
   @@index([parentCommentId])
+}
+
+// ============================================================
+// MODUL 36: Analytics Snapshot — Materialized view equivalent
+// Pre-computed metrics to avoid heavy real-time queries on every load
+// Refreshed on scheduled basis (not real-time)
+// ============================================================
+
+model AnalyticsSnapshot {
+  id                String   @id @default(cuid())
+  snapshotDate      String   // YYYY-MM-DD format for daily snapshots
+  dauCount          Int      @default(0)    // Daily Active Users
+  mauCount          Int      @default(0)    // Monthly Active Users (snapshot day)
+  totalStorageBytes BigInt   @default(0)    // Platform-wide storage aggregation
+  totalUsers        Int      @default(0)
+  totalNodes        Int      @default(0)
+  uploadsPerDay     Int      @default(0)    // File uploads on snapshot day
+  notesCreatedPerDay Int     @default(0)    // Notes created on snapshot day
+  errorRate         Float    @default(0)    // Error rate from alert monitor
+  avgLatencyMs      Int      @default(0)    // Average latency from request tracer
+  createdAt         DateTime @default(now())
+
+  @@unique([snapshotDate])
+  @@index([snapshotDate])
+}
+
+// ============================================================
+// MODUL 39: Onboarding State — Per-user onboarding progress
+// ============================================================
+
+model OnboardingState {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  welcomeCompleted    Boolean  @default(false)  // Welcome slides completed or skipped
+  sampleContentLoaded Boolean  @default(false)  // Sample folder+note seeded
+  checklistProgress   String   @default("{}")   // JSON: {upload_file, create_note, use_calc, ...}
+  dismissedAt         DateTime? // Nullable: when user permanently dismissed onboarding
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
 }

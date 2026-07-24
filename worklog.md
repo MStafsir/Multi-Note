@@ -492,3 +492,146 @@ Stage Summary:
 - Module 35: Threaded Comments with selection-anchor, thread flattening, resolve/unresolve, @mention, realtime sync
 - All lint clean, all API routes properly protected by middleware
 - Browser verified: workspace, note editor, zero errors
+
+---
+Task ID: 36-4
+Agent: Subagent (fullstack-dev)
+Task: Module 36 — Admin Dashboard UI Component
+
+Work Log:
+- Updated file-tree store (`src/store/file-tree.ts`): extended `activeView` type from `'workspace' | 'trash'` to `'workspace' | 'trash' | 'admin'`, updated `setActiveView` action type accordingly
+- Created `src/components/admin/admin-dashboard.tsx`: comprehensive admin dashboard component with:
+  - Overview metric cards: DAU, MAU, Total Users, Total Nodes, Total Storage (MB), Error Rate (6 cards in responsive grid)
+  - Latency summary bar: p50, avg, p99 latency badges + request count
+  - DAU/MAU time-series AreaChart with 7d/30d/90d range selector tabs (using recharts via chart.tsx wrapper)
+  - Storage trend BarChart (daily storage usage in MB)
+  - Uploads & Notes BarChart (daily uploads and notes created side-by-side)
+  - CSV export buttons: Export Metrics, Users, Activity as CSV (triggers browser download via blob URL)
+  - Snapshot refresh button (POST /api/admin/snapshot with success feedback)
+  - "Back to Workspace" button to return to normal view
+  - User management table with click-to-expand drill-down (shows files/notes/folders count, storage limit, last action, recent nodes)
+  - Activity logs viewer with level filter (info/warn/error/debug) and action type filter
+  - Loading states, error states, responsive design (mobile-friendly)
+  - Uses shadcn/ui components: Card, Tabs, Button, Table, Badge, ScrollArea, Progress, Separator
+  - Uses recharts via ChartContainer/ChartTooltip/ChartTooltipContent wrapper
+  - Uses @tanstack/react-query for all data fetching (useQuery, useMutation)
+  - Uses lucide-react icons (Shield, Users, HardDrive, etc.)
+- Updated sidebar (`src/components/workspace/sidebar.tsx`):
+  - Added Shield icon import
+  - Added admin button in collapsed sidebar view (only visible when `user?.role === 'admin'`)
+  - Added admin button in expanded sidebar view (only visible when `user?.role === 'admin'`)
+  - Both buttons set `activeView('admin')` and show active state highlight
+- Updated workspace-layout (`src/components/workspace/workspace-layout.tsx`):
+  - Added `AdminDashboard` import from `@/components/admin/admin-dashboard`
+  - Updated content area rendering: `activeView === 'admin'` shows `<AdminDashboard />`, alongside existing `trash` and `workspace` views
+- Lint check: clean (0 errors)
+
+Stage Summary:
+- Admin Dashboard fully integrated into the workspace layout
+- Admin button visible in sidebar only for users with `role === 'admin'`
+- Dashboard includes 6 metric cards, 3 charts (DAU area, storage bar, uploads/notes bar), user drill-down table, activity logs with filters, CSV export, snapshot refresh
+- All data fetched via existing admin API endpoints (/api/admin/metrics, /api/admin/users, /api/admin/logs, /api/admin/snapshot, /api/admin/export)
+- Middleware handles auth header injection (x-user-id, x-user-role) for admin routes
+- Responsive design with mobile breakpoints
+- Zero lint errors
+
+---
+Task ID: 39-1
+Agent: Onboarding Agent
+Task: Create Onboarding & First-Run Experience components (Module 39 frontend)
+
+Work Log:
+- Read existing workspace-layout.tsx, content-area.tsx, sidebar.tsx, onboarding API, stores to understand current structure
+- Created 4 new onboarding component files:
+  1. `/src/components/onboarding/welcome-slides.tsx` (39.1) — 3-slide welcome experience:
+     - Slide 1: "File Storage" — upload/organize files with drag & drop
+     - Slide 2: "Notes" — rich text editor, backlinks, database blocks
+     - Slide 3: "Calculator & Command Palette" — Ctrl+K and Ctrl+Shift+K
+     - Progress bar, dot indicators, Skip and Next/Get Started buttons
+     - Animated transitions with framer-motion
+     - POSTs to /api/onboarding on complete (welcomeCompleted: true) or skip (dismiss: true)
+  2. `/src/components/onboarding/onboarding-checklist.tsx` (39.5) — floating checklist widget:
+     - 7 steps: upload_file, create_note, use_calculator, use_command_palette, create_folder, use_search, share_item
+     - Progress bar with completed/total counter
+     - Collapsible and dismissable (X button)
+     - Auto-dismisses with "You're all set!" when all steps completed
+     - Fetches onboarding state via React Query from /api/onboarding
+     - Exports `markOnboardingStep()` helper function for use by other components
+  3. `/src/components/onboarding/empty-state-cta.tsx` (39.2) — contextual CTAs for empty workspace:
+     - "Upload your first file" — triggers hidden file input dialog
+     - "Create your first note" — opens note creation dialog
+     - "Browse template gallery" — opens template gallery dialog
+     - "Explore sample content" — seeds sample folder+note via PUT /api/onboarding
+     - Friendly icon cards with hover effects, responsive grid layout
+  4. `/src/components/onboarding/progressive-tooltip.tsx` (39.4) — progressive disclosure tooltips:
+     - Command Palette: "Quick access to all actions — Press Ctrl+K"
+     - Database Block: "Create structured data tables inside your notes"
+     - Graph View: "Visualize connections between your notes"
+     - Shows only once per feature, auto-hides after 15 seconds
+     - Dismissible via X button, not blocking
+     - Exports FEATURE_TIPS definitions for convenience
+- Modified workspace-layout.tsx to integrate onboarding:
+  - Added React Query (useQuery, useMutation, useQueryClient) for onboarding state
+  - Shows WelcomeSlides overlay when welcomeCompleted is false and not dismissed
+  - Shows OnboardingChecklist floating widget after welcome slides are completed
+  - Tracks onboarding step completions from keyboard shortcuts:
+    - Ctrl+K → marks use_command_palette step
+    - Ctrl+Shift+K → marks use_calculator step
+    - Ctrl+Shift+F → marks use_search step
+  - Create note/folder from command palette → marks create_note/create_folder steps
+- Modified content-area.tsx to integrate empty state:
+  - Replaced plain "This folder is empty" text with EmptyStateCTA component
+  - Added hidden file input for "Upload your first file" CTA
+  - Added CreateDialog for "Create your first note" CTA
+  - Added TemplateGalleryDialog for "Browse template gallery" CTA
+  - Added onboarding step tracking for share_item when user shares
+  - Added useUploadFile hook for file upload from empty state CTA
+- All lint checks pass (zero errors)
+- Dev server running successfully on port 3000
+
+Stage Summary:
+- Complete onboarding & first-run experience implemented
+- Welcome slides appear on first login, can be skipped or completed
+- Checklist widget tracks feature adoption progress in bottom-right corner
+- Empty workspace shows helpful CTAs instead of blank screen
+- Progressive tooltips introduce advanced features contextually
+- All onboarding state tracked via React Query + /api/onboarding endpoints
+- Onboarding feels friendly and not pushy — users can skip/dismiss at any point
+---
+Task ID: 36-37-38-39
+Agent: Main Agent
+Task: Implement Modules 36-39 (Admin Dashboard, Security Hardening, Disaster Recovery, Onboarding)
+
+Work Log:
+- Updated Prisma schema: added `role` column to Profile (enum: user/admin), AnalyticsSnapshot model, OnboardingState model
+- Pushed schema to database with `bun run db:push`
+- Updated auth.ts JWT/session callbacks to include profile role in JWT token
+- Updated types/index.ts AuthUser to include `role: 'user' | 'admin'`
+- Updated auth store and auth form to pass role through
+- Updated register route to assign 'admin' role to first registered user
+- Created admin middleware with role-based check (defense-in-depth, 403 for non-admin)
+- Added rate limiting in middleware (per-IP, per-action-type thresholds)
+- Added CSP and security headers (HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, X-Frame-Options) in both middleware and next.config.ts
+- Created git-secrets pre-commit hook pattern (scripts/pre-commit-secret-scan.sh)
+- Updated admin metrics API to use role-based check (not first-user) + time-series data + range selector
+- Created admin per-user drill-down API (/api/admin/users) with privacy compliance (no content_json)
+- Created analytics snapshot refresh API (/api/admin/snapshot) for materialized-view equivalent
+- Created admin CSV export API (/api/admin/export) for metrics, users, activity reports
+- Created onboarding API (/api/onboarding) with state tracking, step completion, and sample content seeding
+- Subagent created Admin Dashboard UI with recharts charts, overview cards, user table, activity logs, CSV export buttons
+- Subagent created Onboarding components: WelcomeSlides (3 slides, skippable), OnboardingChecklist (floating widget), EmptyStateCTA (workspace empty state), ProgressiveTooltip
+- Fixed critical bug: "Cannot access 'user' before initialization" in workspace-layout.tsx (moved auth store destructuring before useQuery)
+- Fixed lint error: replaced setState-in-effect with derived state for showWelcomeSlides
+- Fixed rate limiting bug: auth session endpoint was being rate-limited (changed to only rate-limit credential login POST)
+- Set first registered user and admin@test.com as admin role in database
+- Created disaster recovery documentation (docs/disaster-recovery.md)
+- Created backup script (scripts/backup.sh), verification script (scripts/verify-backup.sh), restore test script (scripts/restore-test.sh)
+- Created input sanitization audit document (docs/input-sanitization-audit.md)
+
+Stage Summary:
+- Module 36: Complete — Admin dashboard with recharts charts, role-based access, DAU/MAU metrics, time-series, per-user drill-down, CSV export
+- Module 37: Complete — CSP headers, HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, rate limiting, git-secrets hook, input audit
+- Module 38: Complete — Disaster recovery runbook, backup scripts, restore test scripts, RTO/RPO documentation
+- Module 39: Complete — Welcome slides (3 slides), empty state CTAs, onboarding checklist widget, sample content seeding, progressive disclosure tooltips
+- All modules verified via Agent Browser: login works, workspace loads, admin dashboard shows, admin button in sidebar, empty state CTAs visible
+- Lint: Clean (0 errors)

@@ -51,6 +51,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
           id: '', // Will be properly filled when useSession refetches
           email: loginEmail,
           name: null,
+          role: 'user', // Will be properly filled from session
         });
         onSuccess?.();
       } else {
@@ -103,6 +104,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
           id: data.data.id || '',
           email: registerEmail,
           name: registerName || null,
+          role: 'user', // Will be properly filled from session
         });
         onSuccess?.();
       }

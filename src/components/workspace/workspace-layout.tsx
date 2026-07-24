@@ -13,6 +13,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,10 +30,13 @@ import { WorkspaceDndProvider } from '@/components/dnd/dnd-context';
 import { CalculatorWidget } from '@/components/calculator/calculator-widget';
 import { SearchDropdown } from '@/components/search/search-dropdown';
 import { TrashView } from '@/components/trash/trash-view';
+import { AdminDashboard } from '@/components/admin/admin-dashboard';
 import { CommandPalette } from '@/components/command/command-palette';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { DataPortabilitySettings } from '@/components/settings/data-portability';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { WelcomeSlides } from '@/components/onboarding/welcome-slides';
+import { OnboardingChecklist, markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
 
 // Mobile breakpoint constant
 const MOBILE_BREAKPOINT = 640;
@@ -53,6 +57,77 @@ export function WorkspaceLayout() {
   // 28 — Settings dialog state
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
+  // Auth state — must be defined before queries that reference user
+  const { user } = useAuthStore();
+  const { toggleOpen, isOpen } = useCalculatorStore();
+  const { setCurrentFolder, flatNodes, activeView, selectedNodeIds } = useFileTreeStore();
+  const { popAction } = useUndoStore();
+  const deleteMutation = useDeleteNode();
+
+  // 39 — Onboarding state
+  const [welcomeSlidesDismissed, setWelcomeSlidesDismissed] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: onboardingData, isLoading: onboardingLoading } = useQuery({
+    queryKey: ['onboarding'],
+    queryFn: async () => {
+      const res = await fetch('/api/onboarding');
+      const data = await res.json();
+      return data.data as {
+        welcomeCompleted: boolean;
+        sampleContentLoaded: boolean;
+        checklistProgress: Record<string, boolean>;
+        dismissedAt: string | null;
+        steps: string[];
+      };
+    },
+    enabled: !!user,
+  });
+
+  // 39 — Derived: show welcome slides when onboarding data indicates it's needed
+  const showWelcomeSlides = onboardingData && !onboardingData.welcomeCompleted && !onboardingData.dismissedAt && !welcomeSlidesDismissed;
+
+  const onboardingCompleteMutation = useMutation({
+    mutationFn: async (payload: { welcomeCompleted?: boolean; dismiss?: boolean }) => {
+      const res = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+    },
+  });
+
+  const handleWelcomeComplete = useCallback(() => {
+    setWelcomeSlidesDismissed(true);
+    onboardingCompleteMutation.mutate({ welcomeCompleted: true });
+  }, [onboardingCompleteMutation]);
+
+  const handleWelcomeDismiss = useCallback(() => {
+    setWelcomeSlidesDismissed(true);
+    onboardingCompleteMutation.mutate({ dismiss: true });
+  }, [onboardingCompleteMutation]);
+
+  const handleOnboardingDismiss = useCallback(() => {
+    // Checklist was dismissed — no further action needed, state is already updated via mutation
+  }, []);
+
+  // 39 — Track onboarding step completions from user actions
+  const handlePaletteCreateNote = useCallback(() => {
+    setPaletteCreateType('note');
+    setPaletteCreateDialogOpen(true);
+    markOnboardingStep('create_note');
+  }, []);
+
+  const handlePaletteCreateFolder = useCallback(() => {
+    setPaletteCreateType('folder');
+    setPaletteCreateDialogOpen(true);
+    markOnboardingStep('create_folder');
+  }, []);
+
   // Auto-open sidebar on desktop, auto-close on mobile
   useEffect(() => {
     const handleResize = () => {
@@ -69,12 +144,6 @@ export function WorkspaceLayout() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  const { user } = useAuthStore();
-  const { toggleOpen, isOpen } = useCalculatorStore();
-  const { setCurrentFolder, flatNodes, activeView, selectedNodeIds } = useFileTreeStore();
-  const { popAction } = useUndoStore();
-  const deleteMutation = useDeleteNode();
 
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +167,7 @@ export function WorkspaceLayout() {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'k') {
         e.preventDefault();
         setCommandPaletteOpen(true);
+        markOnboardingStep('use_command_palette');
         return;
       }
 
@@ -105,6 +175,7 @@ export function WorkspaceLayout() {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
         e.preventDefault();
         toggleOpen();
+        markOnboardingStep('use_calculator');
         return;
       }
 
@@ -112,6 +183,7 @@ export function WorkspaceLayout() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
         e.preventDefault();
         setHeaderSearchOpen(true);
+        markOnboardingStep('use_search');
         setTimeout(() => {
           const input = searchRef.current?.querySelector('input');
           if (input) input.focus();
@@ -225,16 +297,7 @@ export function WorkspaceLayout() {
     }
   }, [closeSidebar]);
 
-  // Command palette: handlers for creating note/folder
-  const handlePaletteCreateNote = useCallback(() => {
-    setPaletteCreateType('note');
-    setPaletteCreateDialogOpen(true);
-  }, []);
 
-  const handlePaletteCreateFolder = useCallback(() => {
-    setPaletteCreateType('folder');
-    setPaletteCreateDialogOpen(true);
-  }, []);
 
   return (
     <WorkspaceDndProvider>
@@ -465,6 +528,8 @@ export function WorkspaceLayout() {
             <main id="main-content" className="flex-1 overflow-auto min-w-0">
               {activeView === 'trash' ? (
                 <TrashView />
+              ) : activeView === 'admin' ? (
+                <AdminDashboard />
               ) : (
                 <ContentArea />
               )}
@@ -495,6 +560,21 @@ export function WorkspaceLayout() {
             onOpenChange={setPaletteCreateDialogOpen}
             type={paletteCreateType}
           />
+
+          {/* 39 — Onboarding: Welcome Slides */}
+          <AnimatePresence>
+            {showWelcomeSlides && (
+              <WelcomeSlides
+                onComplete={handleWelcomeComplete}
+                onDismiss={handleWelcomeDismiss}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* 39 — Onboarding: Checklist Widget */}
+          {onboardingData && !onboardingData.dismissedAt && !showWelcomeSlides && (
+            <OnboardingChecklist onDismiss={handleOnboardingDismiss} />
+          )}
 
           {/* PWA Install Prompt */}
           <InstallPrompt />

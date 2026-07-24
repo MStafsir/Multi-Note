@@ -1,0 +1,682 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { Fragment, useState } from 'react';
+     4→     4→
+     5→     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→     6→import {
+     7→     7→  Folder,
+     8→     8→  File,
+     9→     9→  FileText,
+    10→    10→  ChevronRight,
+    11→    11→  Grid3X3,
+    12→    12→  List,
+    13→    13→  ArrowUp,
+    14→    14→  Loader2,
+    15→    15→  MoreHorizontal,
+    16→    16→  Pencil,
+    17→    17→  Trash2,
+    18→    18→  Share2,
+    19→    19→  History,
+    20→    20→  Star,
+    21→    21→} from 'lucide-react';
+    22→    22→import type { TreeNode, NodeType } from '@/types';
+    23→    23→import { useFileTreeStore } from '@/store/file-tree';
+    24→    24→import { Button } from '@/components/ui/button';
+    25→    25→
+    26→    26→import { Card, CardContent } from '@/components/ui/card';
+    27→    27→import { ScrollArea } from '@/components/ui/scroll-area';
+    28→    28→import { Separator } from '@/components/ui/separator';
+    29→    29→import {
+    30→    30→  Breadcrumb,
+    31→    31→  BreadcrumbItem,
+    32→    32→  BreadcrumbLink,
+    33→    33→  BreadcrumbList,
+    34→    34→  BreadcrumbPage,
+    35→    35→  BreadcrumbSeparator,
+    36→    36→} from '@/components/ui/breadcrumb';
+    37→    37→import {
+    38→    38→  DropdownMenu,
+    39→    39→  DropdownMenuContent,
+    40→    40→  DropdownMenuItem,
+    41→    41→  DropdownMenuTrigger,
+    42→    42→} from '@/components/ui/dropdown-menu';
+    43→    43→import { UploadZone } from '@/components/upload/upload-zone';
+    44→    44→import { RenameDialog } from './rename-dialog';
+    45→    45→import { NoteEditor } from './note-editor';
+    46→    46→import { ErrorBoundary } from '@/components/error/error-boundary';
+    47→    47→import { NoteEditorError } from '@/components/error/note-editor-error';
+    48→    48→import { useDeleteNode } from '@/hooks/use-file-tree';
+    49→    49→import { buildTree } from '@/store/file-tree';
+    50→    50→import { toast } from 'sonner';
+    51→    51→import { DraggableItem } from '@/components/dnd/draggable-item';
+    52→    52→import { DroppableFolder } from '@/components/dnd/droppable-folder';
+    53→    53→import { useWorkspaceDnd } from '@/components/dnd/dnd-context';
+    54→    54→import { SearchDropdown } from '@/components/search/search-dropdown';
+    55→    55→import { ShareDialog } from '@/components/sharing/share-dialog';
+    56→    56→import { VersionListDialog } from '@/components/versions/version-list-dialog';
+    57→    57→import { RevisionSidebar } from '@/components/revisions/revision-sidebar';
+    58→    58→import { BulkActionToolbar } from '@/components/bulk/bulk-action-toolbar';
+    59→    59→
+    60→    60→export function ContentArea() {
+    61→    61→  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    62→    62→  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    63→    63→  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+    64→    64→  const [renameNodeId, setRenameNodeId] = useState<string>('');
+    65→    65→  const [renameNodeName, setRenameNodeName] = useState<string>('');
+    66→    66→  const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
+    67→    67→  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+    68→    68→  const [shareNode, setShareNode] = useState<TreeNode | null>(null);
+    69→    69→  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+    70→    70→  const [versionNodeId, setVersionNodeId] = useState<string>('');
+    71→    71→  const [versionFileName, setVersionFileName] = useState<string>('');
+    72→    72→  const [showRevisionSidebar, setShowRevisionSidebar] = useState(false);
+    73→    73→
+    74→    74→  const {
+    75→    75→    tree,
+    76→    76→    flatNodes,
+    77→    77→    currentFolderId,
+    78→    78→    currentFolderPath,
+    79→    79→    setCurrentFolder,
+    80→    80→    isLoading,
+    81→    81→    selectedNodeIds,
+    82→    82→    selectNode,
+    83→    83→  } = useFileTreeStore();
+    84→    84→
+    85→    85→  const { isDragging } = useWorkspaceDnd();
+    86→    86→
+    87→    87→  const deleteMutation = useDeleteNode();
+    88→    88→
+    89→    89→  // 21 — Favorite toggle: We use a lazy approach to avoid creating a mutation per node
+    90→    90→  // since nodeId varies per item click
+    91→    91→  const handleFavoriteToggle = async (nodeId: string) => {
+    92→    92→    const node = flatNodes.get(nodeId);
+    93→    93→    if (!node) return;
+    94→    94→    const res = await fetch(`/api/nodes/${nodeId}/favorite`, {
+    95→    95→      method: 'PATCH',
+    96→    96→      headers: { 'Content-Type': 'application/json' },
+    97→    97→      body: JSON.stringify({ isFavorite: !node.isFavorite }),
+    98→    98→    });
+    99→    99→    const data = await res.json();
+   100→   100→    if (data.success) {
+   101→   101→      // Optimistic update: toggle isFavorite in the local tree
+   102→   102→      const flatNodesUpdate = new Map(flatNodes);
+   103→   103→      const existing = flatNodesUpdate.get(nodeId);
+   104→   104→      if (existing) {
+   105→   105→        flatNodesUpdate.set(nodeId, { ...existing, isFavorite: !existing.isFavorite });
+   106→   106→      }
+   107→   107→      // Force refresh from store
+   108→   108→      const storeNodes = Array.from(flatNodesUpdate.values());
+   109→   109→      const newTree = buildTree(storeNodes);
+   110→   110→      useFileTreeStore.getState().setTree(newTree);
+   111→   111→      toast.success(data.data.isFavorite ? 'Added to favorites' : 'Removed from favorites');
+   112→   112→    }
+   113→   113→  };
+   114→   114→
+   115→   115→  // Get items in the current folder
+   116→   116→  const currentFolder = flatNodes.get(currentFolderId || '');
+   117→   117→  const itemsInFolder = currentFolder?.children || tree;
+   118→   118→
+   119→   119→  // Search is now handled by SearchDropdown — items display is unfiltered locally
+   120→   120→  const filteredItems = itemsInFolder;
+   121→   121→
+   122→   122→  // Multi-select: get selected nodes for drag operations
+   123→   123→  const getSelectedNodes = (draggedNode: TreeNode): TreeNode[] => {
+   124→   124→    if (multiSelectedIds.size > 0 && multiSelectedIds.has(draggedNode.id)) {
+   125→   125→      return Array.from(multiSelectedIds)
+   126→   126→        .map(id => flatNodes.get(id))
+   127→   127→        .filter(Boolean) as TreeNode[];
+   128→   128→    }
+   129→   129→    return [draggedNode];
+   130→   130→  };
+   131→   131→
+   132→   132→  // Handle multi-select click (Ctrl/Cmd + click)
+   133→   133→  const handleItemClick = (node: TreeNode, e?: React.MouseEvent) => {
+   134→   134→    if (e && (e.metaKey || e.ctrlKey)) {
+   135→   135→      // Multi-select
+   136→   136→      const newSelection = new Set(multiSelectedIds);
+   137→   137→      if (newSelection.has(node.id)) {
+   138→   138→        newSelection.delete(node.id);
+   139→   139→      } else {
+   140→   140→        newSelection.add(node.id);
+   141→   141→      }
+   142→   142→      setMultiSelectedIds(newSelection);
+   143→   143→      return;
+   144→   144→    }
+   145→   145→
+   146→   146→    // Clear multi-selection on regular click
+   147→   147→    setMultiSelectedIds(new Set());
+   148→   148→
+   149→   149→    if (node.type === 'folder') {
+   150→   150→      navigateToFolder(node.id, node.name);
+   151→   151→    } else if (node.type === 'note') {
+   152→   152→      openNote(node.id);
+   153→   153→    } else {
+   154→   154→      setSelectedNodeId(node.id);
+   155→   155→    }
+   156→   156→  };
+   157→   157→
+   158→   158→  // Navigate to folder
+   159→   159→  const navigateToFolder = (folderId: string, folderName: string) => {
+   160→   160→    const newPath = [...currentFolderPath, { id: folderId, name: folderName }];
+   161→   161→    setCurrentFolder(folderId, newPath);
+   162→   162→    setSelectedNodeId(null);
+   163→   163→  };
+   164→   164→
+   165→   165→  // Navigate up
+   166→   166→  const navigateUp = () => {
+   167→   167→    if (currentFolderPath.length > 1) {
+   168→   168→      const parentPath = currentFolderPath.slice(0, -1);
+   169→   169→      const parentFolder = parentPath[parentPath.length - 1];
+   170→   170→      setCurrentFolder(parentFolder.id, parentPath);
+   171→   171→      setSelectedNodeId(null);
+   172→   172→    }
+   173→   173→  };
+   174→   174→
+   175→   175→  // Navigate via breadcrumb
+   176→   176→  const navigateBreadcrumb = (index: number) => {
+   177→   177→    const newPath = currentFolderPath.slice(0, index + 1);
+   178→   178→    const target = newPath[newPath.length - 1];
+   179→   179→    setCurrentFolder(target.id, newPath);
+   180→   180→    setSelectedNodeId(null);
+   181→   181→  };
+   182→   182→
+   183→   183→  // Open note editor
+   184→   184→  const openNote = (noteId: string) => {
+   185→   185→    setSelectedNodeId(noteId);
+   186→   186→  };
+   187→   187→
+   188→   188→  const handleRename = (nodeId: string, currentName: string) => {
+   189→   189→    setRenameNodeId(nodeId);
+   190→   190→    setRenameNodeName(currentName);
+   191→   191→    setRenameDialogOpen(true);
+   192→   192→  };
+   193→   193→
+   194→   194→  const handleDelete = (nodeId: string) => {
+   195→   195→    deleteMutation.mutate({ nodeId });
+   196→   196→  };
+   197→   197→
+   198→   198→  const handleShare = (node: TreeNode) => {
+   199→   199→    setShareNode(node);
+   200→   200→    setShareDialogOpen(true);
+   201→   201→  };
+   202→   202→
+   203→   203→  const handleVersionHistory = (node: TreeNode) => {
+   204→   204→    setVersionNodeId(node.id);
+   205→   205→    setVersionFileName(node.name);
+   206→   206→    setVersionDialogOpen(true);
+   207→   207→  };
+   208→   208→
+   209→   209→  const formatBytes = (bytes: number): string => {
+   210→   210→    if (!bytes || bytes < 0) return '—';
+   211→   211→    const k = 1024;
+   212→   212→    const sizes = ['B', 'KB', 'MB', 'GB'];
+   213→   213→    const i = Math.floor(Math.log(bytes) / Math.log(k));
+   214→   214→    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+   215→   215→  };
+   216→   216→
+   217→   217→  const formatDate = (dateStr: string): string => {
+   218→   218→    try {
+   219→   219→      const date = new Date(dateStr);
+   220→   220→      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+   221→   221→    } catch {
+   222→   222→      return '—';
+   223→   223→    }
+   224→   224→  };
+   225→   225→
+   226→   226→  const getIcon = (type: NodeType) => {
+   227→   227→    switch (type) {
+   228→   228→      case 'folder':
+   229→   229→        return <Folder className="h-5 w-5 text-orange-500" />;
+   230→   230→      case 'file':
+   231→   231→        return <File className="h-5 w-5 text-muted-foreground" />;
+   232→   232→      case 'note':
+   233→   233→        return <FileText className="h-5 w-5 text-emerald-600" />;
+   234→   234→    }
+   235→   235→  };
+   236→   236→
+   237→   237→  // If a note is selected, show the note editor + optional revision sidebar
+   238→   238→  const selectedNode = selectedNodeId ? flatNodes.get(selectedNodeId) : null;
+   239→   239→  if (selectedNode && selectedNode.type === 'note') {
+   240→   240→    return (
+   241→   241→      <div className="flex h-full">
+   242→   242→        {/* Main content area */}
+   243→   243→        <div className={showRevisionSidebar ? 'flex-1 flex flex-col p-6 transition-all min-w-0' : 'flex-1 flex flex-col p-6 transition-all'}>
+   244→   244→          <div className="flex items-center gap-2 mb-4">
+   245→   245→            <Button
+   246→   246→              variant="ghost"
+   247→   247→              size="sm"
+   248→   248→              className="min-h-[44px]"
+   249→   249→              aria-label="Back to folder view"
+   250→   250→              onClick={() => {
+   251→   251→                setSelectedNodeId(null);
+   252→   252→                setShowRevisionSidebar(false);
+   253→   253→              }}
+   254→   254→            >
+   255→   255→              <ArrowUp className="h-4 w-4 mr-1" />
+   256→   256→              Back
+   257→   257→            </Button>
+   258→   258→            <Separator orientation="vertical" className="h-4" />
+   259→   259→            <h2 className="text-lg font-semibold">{selectedNode.name}</h2>
+   260→   260→            <Separator orientation="vertical" className="h-4" />
+   261→   261→            <Button
+   262→   262→              variant={showRevisionSidebar ? 'secondary' : 'ghost'}
+   263→   263→              size="sm"
+   264→   264→              className="min-h-[44px]"
+   265→   265→              aria-label="Toggle version history sidebar"
+   266→   266→              aria-expanded={showRevisionSidebar}
+   267→   267→              onClick={() => setShowRevisionSidebar(!showRevisionSidebar)}
+   268→   268→            >
+   269→   269→              <History className="h-4 w-4 mr-1" />
+   270→   270→              Version History
+   271→   271→            </Button>
+   272→   272→          </div>
+   273→   273→          <ErrorBoundary fallback={NoteEditorError} context={{ componentName: 'NoteEditor', action: 'render_note' }}>
+   274→   274→            <NoteEditor nodeId={selectedNode.id} />
+   275→   275→          </ErrorBoundary>
+   276→   276→        </div>
+   277→   277→
+   278→   278→        {/* Revision sidebar panel */}
+   279→   279→        <AnimatePresence>
+   280→   280→          {showRevisionSidebar && (
+   281→   281→            <motion.div
+   282→   282→              initial={{ width: 0, opacity: 0 }}
+   283→   283→              animate={{ width: 320, opacity: 1 }}
+   284→   284→              exit={{ width: 0, opacity: 0 }}
+   285→   285→              transition={{ duration: 0.2 }}
+   286→   286→              className="shrink-0 overflow-hidden"
+   287→   287→            >
+   288→   288→              <RevisionSidebar
+   289→   289→                nodeId={selectedNode.id}
+   290→   290→                onClose={() => setShowRevisionSidebar(false)}
+   291→   291→              />
+   292→   292→            </motion.div>
+   293→   293→          )}
+   294→   294→        </AnimatePresence>
+   295→   295→      </div>
+   296→   296→    );
+   297→   297→  }
+   298→   298→
+   299→   299→  return (
+   300→   300→    <div className="flex flex-col h-full">
+   301→   301→      {/* Toolbar */}
+   302→   302→      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 py-3">
+   303→   303→        <div className="flex items-center gap-4">
+   304→   304→          {/* Breadcrumb — 29: wrapped in <nav> */}
+   305→   305→          <nav aria-label="Breadcrumb">
+   306→   306→          <Breadcrumb className="flex-1 min-w-0">
+   307→   307→            <BreadcrumbList>
+   308→   308→              {currentFolderPath.map((segment, index) => (
+   309→   309→                <Fragment key={`bc-${index}`}>
+   310→   310→                  {index > 0 && (
+   311→   311→                    <BreadcrumbSeparator>
+   312→   312→                      <ChevronRight className="h-3 w-3" />
+   313→   313→                    </BreadcrumbSeparator>
+   314→   314→                  )}
+   315→   315→                  <BreadcrumbItem>
+   316→   316→                    {index === currentFolderPath.length - 1 ? (
+   317→   317→                      <BreadcrumbPage className="text-sm truncate">
+   318→   318→                        {segment.name}
+   319→   319→                      </BreadcrumbPage>
+   320→   320→                    ) : (
+   321→   321→                      <BreadcrumbLink
+   322→   322→                        onClick={() => navigateBreadcrumb(index)}
+   323→   323→                        className="text-sm cursor-pointer truncate"
+   324→   324→                      >
+   325→   325→                        {segment.name}
+   326→   326→                      </BreadcrumbLink>
+   327→   327→                    )}
+   328→   328→                  </BreadcrumbItem>
+   329→   329→                </Fragment>
+   330→   330→              ))}
+   331→   331→            </BreadcrumbList>
+   332→   332→          </Breadcrumb>
+   333→   333→          </nav>
+   334→   334→
+   335→   335→
+   336→   336→
+   337→   337→          {/* Search — 12.4: debounced dropdown */}
+   338→   338→          <SearchDropdown
+   339→   339→            className="hidden sm:block w-48"
+   340→   340→            onNavigateToNode={(nodeId, nodeType, parentId) => {
+   341→   341→              setMultiSelectedIds(new Set());
+   342→   342→              if (nodeType === 'folder') {
+   343→   343→                const folderNode = flatNodes.get(nodeId);
+   344→   344→                if (folderNode) {
+   345→   345→                  navigateToFolder(nodeId, folderNode.name);
+   346→   346→                }
+   347→   347→              } else if (nodeType === 'note') {
+   348→   348→                // Navigate to parent folder then open note
+   349→   349→                if (parentId) {
+   350→   350→                  const parentFolder = flatNodes.get(parentId);
+   351→   351→                  if (parentFolder) {
+   352→   352→                    setCurrentFolder(parentId, []);
+   353→   353→                  }
+   354→   354→                }
+   355→   355→                openNote(nodeId);
+   356→   356→              } else {
+   357→   357→                // File — navigate to parent folder
+   358→   358→                if (parentId) {
+   359→   359→                  const parentFolder = flatNodes.get(parentId);
+   360→   360→                  if (parentFolder) {
+   361→   361→                    setCurrentFolder(parentId, []);
+   362→   362→                  }
+   363→   363→                }
+   364→   364→                setSelectedNodeId(nodeId);
+   365→   365→              }
+   366→   366→            }}
+   367→   367→          />
+   368→   368→
+   369→   369→          {/* View mode toggle */}
+   370→   370→          <div className="flex items-center border rounded-md">
+   371→   371→            <Button
+   372→   372→              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+   373→   373→              size="icon"
+   374→   374→              className="h-8 w-8 min-h-[44px] min-w-[44px]"
+   375→   375→              onClick={() => setViewMode('grid')}
+   376→   376→              aria-label="Grid view"
+   377→   377→            >
+   378→   378→              <Grid3X3 className="h-4 w-4" />
+   379→   379→            </Button>
+   380→   380→            <Button
+   381→   381→              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+   382→   382→              size="icon"
+   383→   383→              className="h-8 w-8 min-h-[44px] min-w-[44px]"
+   384→   384→              onClick={() => setViewMode('list')}
+   385→   385→              aria-label="List view"
+   386→   386→            >
+   387→   387→              <List className="h-4 w-4" />
+   388→   388→            </Button>
+   389→   389→          </div>
+   390→   390→        </div>
+   391→   391→      </div>
+   392→   392→
+   393→   393→      {/* Bulk Action Toolbar — 18.2: appears when multi-select is active */}
+   394→   394→      {multiSelectedIds.size > 0 && (
+   395→   395→        <BulkActionToolbar
+   396→   396→          selectedIds={multiSelectedIds}
+   397→   397→          onClearSelection={() => setMultiSelectedIds(new Set())}
+   398→   398→        />
+   399→   399→      )}
+   400→   400→
+   401→   401→      {/* Content */}
+   402→   402→      <ScrollArea className="flex-1">
+   403→   403→        <div className="p-6">
+   404→   404→          {/* Upload Zone */}
+   405→   405→          <UploadZone />
+   406→   406→
+   407→   407→          {/* Loading state */}
+   408→   408→          {isLoading && (
+   409→   409→            <div className="flex items-center justify-center py-12">
+   410→   410→              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   411→   411→            </div>
+   412→   412→          )}
+   413→   413→
+   414→   414→          {/* Empty state */}
+   415→   415→          {!isLoading && filteredItems.length === 0 && (
+   416→   416→            <motion.div
+   417→   417→              initial={{ opacity: 0 }}
+   418→   418→              animate={{ opacity: 1 }}
+   419→   419→              className="text-center py-16"
+   420→   420→            >
+   421→   421→              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+   422→   422→                <Folder className="h-8 w-8 text-muted-foreground" />
+   423→   423→              </div>
+   424→   424→              <h3 className="text-lg font-medium">This folder is empty</h3>
+   425→   425→              <p className="text-sm text-muted-foreground mt-1">
+   426→   426→                Drag files here or create a new folder/note
+   427→   427→              </p>
+   428→   428→            </motion.div>
+   429→   429→          )}
+   430→   430→
+   431→   431→          {/* Items */}
+   432→   432→          {!isLoading && filteredItems.length > 0 && (
+   433→   433→            <AnimatePresence mode="wait">
+   434→   434→              <motion.div
+   435→   435→                key={viewMode}
+   436→   436→                initial={{ opacity: 0 }}
+   437→   437→                animate={{ opacity: 1 }}
+   438→   438→                exit={{ opacity: 0 }}
+   439→   439→                transition={{ duration: 0.15 }}
+   440→   440→              >
+   441→   441→                {viewMode === 'grid' ? (
+   442→   442→                  <ul role="list" aria-label="Folder contents grid" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+   443→   443→                    {filteredItems.map((node) => {
+   444→   444→                      // Folder items get DroppableFolder wrapper + DraggableItem
+   445→   445→                      // Non-folder items just get DraggableItem
+   446→   446→                      const isSelected = multiSelectedIds.has(node.id);
+   447→   447→
+   448→   448→                      const cardContent = (
+   449→   449→                        <Card
+   450→   450→                          role="listitem"
+   451→   451→                          className={`cursor-pointer hover:border-accent transition-colors group relative
+   452→   452→                            ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
+   453→   453→                            ${isDragging ? 'pointer-events-none' : ''}
+   454→   454→                          `}
+   455→   455→                          onClick={(e) => handleItemClick(node, e)}
+   456→   456→                        >
+   457→   457→                          <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+   458→   458→                            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+   459→   459→                              {getIcon(node.type)}
+   460→   460→                            </div>
+   461→   461→                            <span className="text-sm font-medium truncate max-w-full">
+   462→   462→                              {node.name}
+   463→   463→                            </span>
+   464→   464→                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+   465→   465→                              {node.type === 'folder' && (
+   466→   466→                                <span>{node.children?.length || 0} items</span>
+   467→   467→                              )}
+   468→   468→                              {node.type === 'file' && node.metadata && (
+   469→   469→                                <span>{formatBytes(node.metadata.sizeBytes)}</span>
+   470→   470→                              )}
+   471→   471→                              {node.type === 'note' && (
+   472→   472→                                <span>Note</span>
+   473→   473→                              )}
+   474→   474→                            </div>
+   475→   475→                            <span className="text-xs text-muted-foreground">
+   476→   476→                              {formatDate(node.updatedAt)}
+   477→   477→                            </span>
+   478→   478→                          </CardContent>
+   479→   479→
+   480→   480→                          {/* Actions overlay */}
+   481→   481→                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+   482→   482→                            <DropdownMenu>
+   483→   483→                              <DropdownMenuTrigger asChild>
+   484→   484→                                <Button variant="ghost" size="icon" className="h-7 w-7 min-h-[44px] min-w-[44px]" aria-label={`More actions for ${node.name}`}>
+   485→   485→                                  <MoreHorizontal className="h-3.5 w-3.5" />
+   486→   486→                                </Button>
+   487→   487→                              </DropdownMenuTrigger>
+   488→   488→                              <DropdownMenuContent align="end">
+   489→   489→                                <DropdownMenuItem onClick={() => handleFavoriteToggle(node.id)}>
+   490→   490→                                  <Star className={`h-4 w-4 mr-2 ${node.isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+   491→   491→                                  {node.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+   492→   492→                                </DropdownMenuItem>
+   493→   493→                                <DropdownMenuItem onClick={() => handleRename(node.id, node.name)}>
+   494→   494→                                  <Pencil className="h-4 w-4 mr-2" />
+   495→   495→                                  Rename
+   496→   496→                                </DropdownMenuItem>
+   497→   497→                                <DropdownMenuItem onClick={() => handleShare(node)}>
+   498→   498→                                  <Share2 className="h-4 w-4 mr-2" />
+   499→   499→                                  Share
+   500→   500→                                </DropdownMenuItem>
+   501→   501→                                {node.type === 'file' && (
+   502→   502→                                  <DropdownMenuItem onClick={() => handleVersionHistory(node)}>
+   503→   503→                                    <History className="h-4 w-4 mr-2" />
+   504→   504→                                    Version History
+   505→   505→                                  </DropdownMenuItem>
+   506→   506→                                )}
+   507→   507→                                <DropdownMenuItem
+   508→   508→                                  onClick={() => handleDelete(node.id)}
+   509→   509→                                  className="text-destructive focus:text-destructive"
+   510→   510→                                >
+   511→   511→                                  <Trash2 className="h-4 w-4 mr-2" />
+   512→   512→                                  Delete
+   513→   513→                                </DropdownMenuItem>
+   514→   514→                              </DropdownMenuContent>
+   515→   515→                            </DropdownMenu>
+   516→   516→                          </div>
+   517→   517→                        </Card>
+   518→   518→                      );
+   519→   519→
+   520→   520→                      // Wrap folder cards with DroppableFolder for drop targets
+   521→   521→                      if (node.type === 'folder') {
+   522→   522→                        return (
+   523→   523→                          <DraggableItem
+   524→   524→                            key={node.id}
+   525→   525→                            id={node.id}
+   526→   526→                            node={node}
+   527→   527→                            selectedNodes={getSelectedNodes(node)}
+   528→   528→                          >
+   529→   529→                            <DroppableFolder id={node.id} node={node}>
+   530→   530→                              {cardContent}
+   531→   531→                            </DroppableFolder>
+   532→   532→                          </DraggableItem>
+   533→   533→                        );
+   534→   534→                      }
+   535→   535→
+   536→   536→                      return (
+   537→   537→                        <DraggableItem
+   538→   538→                          key={node.id}
+   539→   539→                          id={node.id}
+   540→   540→                          node={node}
+   541→   541→                          selectedNodes={getSelectedNodes(node)}
+   542→   542→                        >
+   543→   543→                          {cardContent}
+   544→   544→                        </DraggableItem>
+   545→   545→                      );
+   546→   546→                    })}
+   547→   547→                  </ul>
+   548→   548→                ) : (
+   549→   549→                  <ul role="list" aria-label="Folder contents list" className="space-y-1">
+   550→   550→                    {filteredItems.map((node) => {
+   551→   551→                      const isSelected = multiSelectedIds.has(node.id);
+   552→   552→
+   553→   553→                      const rowContent = (
+   554→   554→                        <li
+   555→   555→                          role="listitem"
+   556→   556→                          className={`flex items-center gap-3 p-3 rounded-md hover:bg-accent/50 cursor-pointer group transition-colors
+   557→   557→                            ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
+   558→   558→                            ${isDragging ? 'pointer-events-none' : ''}
+   559→   559→                          `}
+   560→   560→                          onClick={(e) => handleItemClick(node, e)}
+   561→   561→                        >
+   562→   562→                          <div className="w-8 h-8 rounded flex items-center justify-center shrink-0">
+   563→   563→                            {getIcon(node.type)}
+   564→   564→                          </div>
+   565→   565→                          <span className="text-sm font-medium truncate flex-1 min-w-0">
+   566→   566→                            {node.name}
+   567→   567→                          </span>
+   568→   568→                          <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
+   569→   569→                            {node.type === 'folder' && (
+   570→   570→                              <span>{node.children?.length || 0} items</span>
+   571→   571→                            )}
+   572→   572→                            {node.type === 'file' && node.metadata && (
+   573→   573→                              <span>{formatBytes(node.metadata.sizeBytes)}</span>
+   574→   574→                            )}
+   575→   575→                            {node.type === 'note' && (
+   576→   576→                              <span>Note</span>
+   577→   577→                            )}
+   578→   578→                            <span>{formatDate(node.updatedAt)}</span>
+   579→   579→                          </div>
+   580→   580→                          <DropdownMenu>
+   581→   581→                            <DropdownMenuTrigger asChild>
+   582→   582→                              <Button
+   583→   583→                                variant="ghost"
+   584→   584→                                size="icon"
+   585→   585→                                className="h-7 w-7 min-h-[44px] min-w-[44px] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+   586→   586→                                aria-label={`More actions for ${node.name}`}
+   587→   587→                              >
+   588→   588→                                <MoreHorizontal className="h-3.5 w-3.5" />
+   589→   589→                              </Button>
+   590→   590→                            </DropdownMenuTrigger>
+   591→   591→                            <DropdownMenuContent align="end">
+   592→   592→                              <DropdownMenuItem onClick={() => handleFavoriteToggle(node.id)}>
+   593→   593→                                <Star className={`h-4 w-4 mr-2 ${node.isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+   594→   594→                                {node.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+   595→   595→                              </DropdownMenuItem>
+   596→   596→                              <DropdownMenuItem onClick={() => handleRename(node.id, node.name)}>
+   597→   597→                                <Pencil className="h-4 w-4 mr-2" />
+   598→   598→                                Rename
+   599→   599→                              </DropdownMenuItem>
+   600→   600→                              <DropdownMenuItem onClick={() => handleShare(node)}>
+   601→   601→                                <Share2 className="h-4 w-4 mr-2" />
+   602→   602→                                Share
+   603→   603→                              </DropdownMenuItem>
+   604→   604→                              {node.type === 'file' && (
+   605→   605→                                <DropdownMenuItem onClick={() => handleVersionHistory(node)}>
+   606→   606→                                  <History className="h-4 w-4 mr-2" />
+   607→   607→                                  Version History
+   608→   608→                                </DropdownMenuItem>
+   609→   609→                              )}
+   610→   610→                              <DropdownMenuItem
+   611→   611→                                onClick={() => handleDelete(node.id)}
+   612→   612→                                className="text-destructive focus:text-destructive"
+   613→   613→                              >
+   614→   614→                                <Trash2 className="h-4 w-4 mr-2" />
+   615→   615→                                Delete
+   616→   616→                              </DropdownMenuItem>
+   617→   617→                            </DropdownMenuContent>
+   618→   618→                          </DropdownMenu>
+   619→   619→                        </li>
+   620→   620→                      );
+   621→   621→
+   622→   622→                      // Wrap folder rows with DroppableFolder
+   623→   623→                      if (node.type === 'folder') {
+   624→   624→                        return (
+   625→   625→                          <DraggableItem
+   626→   626→                            key={node.id}
+   627→   627→                            id={node.id}
+   628→   628→                            node={node}
+   629→   629→                            selectedNodes={getSelectedNodes(node)}
+   630→   630→                          >
+   631→   631→                            <DroppableFolder id={node.id} node={node}>
+   632→   632→                              {rowContent}
+   633→   633→                            </DroppableFolder>
+   634→   634→                          </DraggableItem>
+   635→   635→                        );
+   636→   636→                      }
+   637→   637→
+   638→   638→                      return (
+   639→   639→                        <DraggableItem
+   640→   640→                          key={node.id}
+   641→   641→                          id={node.id}
+   642→   642→                          node={node}
+   643→   643→                          selectedNodes={getSelectedNodes(node)}
+   644→   644→                        >
+   645→   645→                          {rowContent}
+   646→   646→                        </DraggableItem>
+   647→   647→                      );
+   648→   648→                    })}
+   649→   649→                  </ul>
+   650→   650→                )}
+   651→   651→              </motion.div>
+   652→   652→            </AnimatePresence>
+   653→   653→          )}
+   654→   654→        </div>
+   655→   655→      </ScrollArea>
+   656→   656→
+   657→   657→      {/* Rename Dialog */}
+   658→   658→      <RenameDialog
+   659→   659→        open={renameDialogOpen}
+   660→   660→        onOpenChange={setRenameDialogOpen}
+   661→   661→        nodeId={renameNodeId}
+   662→   662→        currentName={renameNodeName}
+   663→   663→      />
+   664→   664→
+   665→   665→      {/* Share Dialog */}
+   666→   666→      <ShareDialog
+   667→   667→        open={shareDialogOpen}
+   668→   668→        onOpenChange={setShareDialogOpen}
+   669→   669→        node={shareNode}
+   670→   670→      />
+   671→   671→
+   672→   672→      {/* Version History Dialog */}
+   673→   673→      <VersionListDialog
+   674→   674→        open={versionDialogOpen}
+   675→   675→        onOpenChange={setVersionDialogOpen}
+   676→   676→        nodeId={versionNodeId}
+   677→   677→        fileName={versionFileName}
+   678→   678→      />
+   679→   679→    </div>
+   680→   680→  );
+   681→   681→}
+   682→   682→

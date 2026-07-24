@@ -1,8 +1,7 @@
 // ============================================================
-// MODUL 27: Admin Metrics Dashboard API
-// Returns: totalActiveUsers, totalStorageUsed, uploadsPerDay,
-//          errorRate, p99Latency — business monitoring only
-// Protected by admin check (first registered user)
+// MODUL 36: Admin Metrics Dashboard API
+// Role-based access: requires profile.role = admin (36.7 middleware defense-in-depth)
+// Metrics: DAU/MAU, total storage, uploads/day, time-series data
 // ============================================================
 
 import { NextResponse } from 'next/server';
@@ -12,77 +11,150 @@ import { alertMonitor } from '@/lib/alert-monitor';
 import { traceHandler } from '@/lib/request-tracer';
 import { bigintToNumber } from '@/lib/bigint';
 
-/**
- * Check if the requesting user is an admin.
- * Admin = first registered user (lowest createdAt)
- */
-async function isAdmin(userId: string): Promise<boolean> {
-  const firstUser = await db.user.findFirst({
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  });
-  return firstUser?.id === userId;
-}
-
 async function handleMetricsRequest(request: Request): Promise<NextResponse> {
   const userId = request.headers.get('x-user-id');
+  const userRole = request.headers.get('x-user-role');
+
   if (!userId) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Admin check
-  const isUserAdmin = await isAdmin(userId);
-  if (!isUserAdmin) {
-    logger.warn('admin_access_denied', { path: '/api/admin/metrics', attempted_by: userId }, userId);
-    return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+  // MODUL 36.7 — Defense-in-depth: middleware already checks role, but verify again here
+  if (userRole !== 'admin') {
+    // Double-check from database (JWT could be stale)
+    const profile = await db.profile.findUnique({
+      where: { userId },
+      select: { role: true },
+    });
+    if (profile?.role !== 'admin') {
+      logger.warn('admin_access_denied', { path: '/api/admin/metrics', attempted_by: userId }, userId);
+      return NextResponse.json({ success: false, error: 'Forbidden — Admin access required' }, { status: 403 });
+    }
   }
 
-  // 1. Total active users (users with activity in last 24h)
+  const { searchParams } = new URL(request.url);
+  const range = searchParams.get('range') || '7d'; // '7d' | '30d' | '90d'
+
+  // 1. DAU — Daily Active Users (users with activity in last 24h)
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const activeUsers = await db.activityLog.findMany({
+  const activeUsers24h = await db.activityLog.findMany({
     where: { createdAt: { gte: twentyFourHoursAgo } },
     select: { actorId: true },
     distinct: ['actorId'],
   });
-  const totalActiveUsers = activeUsers.length;
+  const dauCount = activeUsers24h.length;
 
-  // 2. Total storage used platform-wide (sum of storageUsedBytes from all profiles)
+  // 2. MAU — Monthly Active Users (users with activity in last 30 days)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const activeUsers30d = await db.activityLog.findMany({
+    where: { createdAt: { gte: thirtyDaysAgo } },
+    select: { actorId: true },
+    distinct: ['actorId'],
+  });
+  const mauCount = activeUsers30d.length;
+
+  // 3. Total storage used platform-wide
   const profiles = await db.profile.findMany({
     select: { storageUsedBytes: true },
   });
-  const totalStorageUsed = profiles.reduce((sum, p) => sum + bigintToNumber(p.storageUsedBytes) ?? 0, 0);
+  const totalStorageUsed = profiles.reduce((sum, p) => sum + (bigintToNumber(p.storageUsedBytes) ?? 0), 0);
 
-  // 3. Uploads per day (count of file-type nodes created today)
+  // 4. Uploads and notes created per day
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const uploadsToday = await db.node.count({
-    where: {
-      type: 'file',
-      createdAt: { gte: todayStart },
-      deletedAt: null,
-    },
+    where: { type: 'file', createdAt: { gte: todayStart }, deletedAt: null },
+  });
+  const notesCreatedToday = await db.node.count({
+    where: { type: 'note', createdAt: { gte: todayStart }, deletedAt: null },
   });
 
-  // 4. Error rate and p99 latency from alert monitor
+  // 5. Time-series data: get recent AnalyticsSnapshots for charts
+  const daysBack = range === '90d' ? 90 : range === '30d' ? 30 : 7;
+  const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+  const startDateStr = startDate.toISOString().split('T')[0];
+
+  const snapshots = await db.analyticsSnapshot.findMany({
+    where: { snapshotDate: { gte: startDateStr } },
+    orderBy: { snapshotDate: 'asc' },
+  });
+
+  // Build time-series array (fill gaps with computed data if no snapshot)
+  const timeSeries: Array<{
+    date: string;
+    dau: number;
+    mau: number;
+    totalStorageMB: number;
+    uploads: number;
+    notesCreated: number;
+    errorRate: number;
+    avgLatency: number;
+  }> = [];
+
+  for (let i = 0; i < daysBack; i++) {
+    const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+    const dateStr = date.toISOString().split('T')[0];
+    const snapshot = snapshots.find(s => s.snapshotDate === dateStr);
+
+    if (snapshot) {
+      timeSeries.push({
+        date: dateStr,
+        dau: snapshot.dauCount,
+        mau: snapshot.mauCount,
+        totalStorageMB: Math.round(bigintToNumber(snapshot.totalStorageBytes) / (1024 * 1024)),
+        uploads: snapshot.uploadsPerDay,
+        notesCreated: snapshot.notesCreatedPerDay,
+        errorRate: snapshot.errorRate,
+        avgLatency: snapshot.avgLatencyMs,
+      });
+    } else {
+      // No snapshot for this date — compute on-the-fly (lighter than full scan)
+      const dayStart = date;
+      const dayEnd = new Date(date.getTime() + 24 * 60 * 60 * 1000);
+      const dayActiveUsers = await db.activityLog.findMany({
+        where: { createdAt: { gte: dayStart, lt: dayEnd } },
+        select: { actorId: true },
+        distinct: ['actorId'],
+      });
+      const dayUploads = await db.node.count({
+        where: { type: 'file', createdAt: { gte: dayStart, lt: dayEnd }, deletedAt: null },
+      });
+      const dayNotes = await db.node.count({
+        where: { type: 'note', createdAt: { gte: dayStart, lt: dayEnd }, deletedAt: null },
+      });
+
+      timeSeries.push({
+        date: dateStr,
+        dau: dayActiveUsers.length,
+        mau: mauCount, // approximate — use current MAU
+        totalStorageMB: Math.round(totalStorageUsed / (1024 * 1024)),
+        uploads: dayUploads,
+        notesCreated: dayNotes,
+        errorRate: 0,
+        avgLatency: 0,
+      });
+    }
+  }
+
+  // 6. Error rate and latency from alert monitor (current)
   const metricsSummary = alertMonitor.getMetricsSummary();
 
-  // 5. Total users on platform
+  // 7. Total users & nodes
   const totalUsers = await db.user.count();
+  const totalNodes = await db.node.count({ where: { deletedAt: null } });
 
-  // 6. Total nodes on platform
-  const totalNodes = await db.node.count({
-    where: { deletedAt: null },
-  });
-
-  logger.info('admin_metrics_viewed', { totalActiveUsers, totalStorageUsed, uploadsToday }, userId);
+  logger.info('admin_metrics_viewed', { dauCount, mauCount, totalStorageUsed, range }, userId);
 
   return NextResponse.json({
     success: true,
     data: {
-      totalActiveUsers,
+      // Current snapshot
+      dauCount,
+      mauCount,
       totalStorageUsed,
       totalStorageUsedMB: Math.round(totalStorageUsed / (1024 * 1024)),
       uploadsPerDay: uploadsToday,
+      notesCreatedPerDay: notesCreatedToday,
       errorRate: metricsSummary.errorRate,
       errorCount: metricsSummary.errorCount,
       p99LatencyMs: metricsSummary.p99LatencyMs,
@@ -91,6 +163,9 @@ async function handleMetricsRequest(request: Request): Promise<NextResponse> {
       requestCount5min: metricsSummary.requestCount,
       totalUsers,
       totalNodes,
+      // Time-series for charts
+      timeSeries,
+      range,
     },
   });
 }

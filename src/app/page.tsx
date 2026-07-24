@@ -22,6 +22,7 @@ export default function Home() {
         id: session.user.id as string,
         email: session.user.email as string,
         name: session.user.name as string | null,
+        role: (session.user as Record<string, unknown>).role as 'user' | 'admin' || 'user', // MODUL 36.1
       });
     } else if (status === 'unauthenticated') {
       // Only clear auth if Zustand doesn't already have authenticated user

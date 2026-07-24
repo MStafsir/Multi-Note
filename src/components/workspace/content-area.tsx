@@ -45,7 +45,7 @@ import { RenameDialog } from './rename-dialog';
 import { NoteEditor } from './note-editor';
 import { ErrorBoundary } from '@/components/error/error-boundary';
 import { NoteEditorError } from '@/components/error/note-editor-error';
-import { useDeleteNode } from '@/hooks/use-file-tree';
+import { useDeleteNode, useUploadFile, useCreateFolder } from '@/hooks/use-file-tree';
 import { buildTree } from '@/store/file-tree';
 import { toast } from 'sonner';
 import { DraggableItem } from '@/components/dnd/draggable-item';
@@ -56,6 +56,11 @@ import { ShareDialog } from '@/components/sharing/share-dialog';
 import { VersionListDialog } from '@/components/versions/version-list-dialog';
 import { RevisionSidebar } from '@/components/revisions/revision-sidebar';
 import { BulkActionToolbar } from '@/components/bulk/bulk-action-toolbar';
+import { EmptyStateCTA } from '@/components/onboarding/empty-state-cta';
+import { TemplateGalleryDialog } from '@/components/template/template-gallery-dialog';
+import { markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
+import { CreateDialog } from './create-dialog';
+import { useAuthStore } from '@/store/auth';
 
 export function ContentArea() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -70,6 +75,18 @@ export function ContentArea() {
   const [versionNodeId, setVersionNodeId] = useState<string>('');
   const [versionFileName, setVersionFileName] = useState<string>('');
   const [showRevisionSidebar, setShowRevisionSidebar] = useState(false);
+  // 39 — Onboarding empty state: template gallery dialog
+  const [templateGalleryOpen, setTemplateGalleryOpen] = useState(false);
+  // 39 — Onboarding empty state: create dialog for note/folder
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createType, setCreateType] = useState<'folder' | 'note'>('note');
+  // 39 — File upload
+  const uploadMutation = useUploadFile();
+  const createMutation = useCreateFolder();
+  const { user } = useAuthStore();
+  // 39 — Hidden file input ref for empty state CTA
+  const fileInputRef = useState<HTMLInputElement | null>(null);
+  const [fileInputEl, setFileInputEl] = fileInputRef;
 
   const {
     tree,
@@ -198,6 +215,7 @@ export function ContentArea() {
   const handleShare = (node: TreeNode) => {
     setShareNode(node);
     setShareDialogOpen(true);
+    markOnboardingStep('share_item');
   };
 
   const handleVersionHistory = (node: TreeNode) => {
@@ -411,22 +429,40 @@ export function ContentArea() {
             </div>
           )}
 
-          {/* Empty state */}
+          {/* 39 — Empty state with onboarding CTAs */}
           {!isLoading && filteredItems.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
-            >
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
-                <Folder className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-medium">This folder is empty</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Drag files here or create a new folder/note
-              </p>
-            </motion.div>
+            <EmptyStateCTA
+              onUploadFile={() => {
+                fileInputEl?.click();
+              }}
+              onCreateNote={() => {
+                setCreateType('note');
+                setCreateDialogOpen(true);
+                markOnboardingStep('create_note');
+              }}
+              onOpenTemplateGallery={() => {
+                setTemplateGalleryOpen(true);
+              }}
+              parentId={currentFolderId}
+            />
           )}
+          {/* Hidden file input for upload CTA */}
+          <input
+            ref={setFileInputEl}
+            type="file"
+            multiple
+            className="hidden"
+            aria-hidden="true"
+            onChange={(e) => {
+              if (e.target.files) {
+                for (const file of Array.from(e.target.files)) {
+                  uploadMutation.mutate({ file, parentId: currentFolderId });
+                }
+                markOnboardingStep('upload_file');
+              }
+              e.target.value = ''; // Reset input
+            }}
+          />
 
           {/* Items */}
           {!isLoading && filteredItems.length > 0 && (
@@ -675,6 +711,25 @@ export function ContentArea() {
         onOpenChange={setVersionDialogOpen}
         nodeId={versionNodeId}
         fileName={versionFileName}
+      />
+
+      {/* 39 — Create Dialog (for note creation from empty state CTA) */}
+      <CreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        type={createType}
+      />
+
+      {/* 39 — Template Gallery Dialog (from empty state CTA) */}
+      <TemplateGalleryDialog
+        open={templateGalleryOpen}
+        onOpenChange={setTemplateGalleryOpen}
+        parentId={currentFolderId}
+        userId={user?.id}
+        onTemplateUsed={(newNoteId, noteName) => {
+          // Mark onboarding step
+          markOnboardingStep('create_note');
+        }}
       />
     </div>
   );

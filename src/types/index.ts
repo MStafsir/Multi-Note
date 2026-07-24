@@ -114,6 +114,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string | null;
+  role: 'user' | 'admin'; // MODUL 36.1
 }
 
 // Selection state types

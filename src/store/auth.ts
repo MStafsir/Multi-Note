@@ -1,5 +1,6 @@
 // ============================================================
 // Zustand Store — Auth state (for client-side auth tracking)
+// MODUL 36.1: Added role tracking for admin detection
 // ============================================================
 
 import { create } from 'zustand';

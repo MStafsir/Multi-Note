@@ -55,6 +55,12 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
+        // MODUL 36.1: Include role from profile in JWT token
+        const profile = await db.profile.findUnique({
+          where: { userId: user.id },
+          select: { role: true },
+        });
+        token.role = profile?.role || 'user';
       }
       return token;
     },
@@ -63,6 +69,8 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
+        // MODUL 36.1: Include role in session for client-side admin detection
+        (session.user as Record<string, unknown>).role = token.role as string;
       }
       return session;
     },
