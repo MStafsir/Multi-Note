@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "katex/dist/katex.min.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -137,4 +138,31 @@
   .dark :focus-visible {
     outline-color: oklch(0.85 0 0);
   }
+}
+
+/* ============================================================
+   MODUL 45: KaTeX MathBlock styles
+   Custom styles for math block rendering in Tiptap editor
+   ============================================================ */
+
+.math-block-node-block {
+  position: relative;
+}
+
+.math-block-node-block .ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.math-block-inline-output .katex {
+  font-size: 1.05em;
+}
+
+.math-block-block-output .katex {
+  font-size: 1.2em;
+}
+
+.math-block-preview .katex-display {
+  margin: 0;
 }

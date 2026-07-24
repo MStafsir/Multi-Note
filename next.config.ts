@@ -33,7 +33,7 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval'", // 'unsafe-eval' needed for dev HMR; production should use nonce
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // 'unsafe-inline' required for Next.js RSC flight data (__next_f.push); 'unsafe-eval' needed for dev HMR
       "style-src 'self' 'unsafe-inline'", // Tailwind requires inline styles
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",

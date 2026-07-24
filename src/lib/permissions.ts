@@ -17,8 +17,10 @@ const PERMISSION_HIERARCHY: Record<PermissionLevel, number> = {
 /**
  * Check if a user has at least `requiredLevel` access to a node.
  * 1. Checks if user is the owner → always has full access.
- * 2. Checks NodeShare table for direct share on this node.
- * 3. Checks ancestor nodes for cascaded share (recursive parent lookup).
+ * 2. MODUL 40.3 — Checks workspace membership (if node has workspaceId).
+ *    Union condition: owner_id = userId OR (workspaceId exists AND user is workspace member with appropriate role)
+ * 3. Checks NodeShare table for direct share on this node.
+ * 4. Checks ancestor nodes for cascaded share (recursive parent lookup).
  */
 export async function checkNodeAccess(
   userId: string,
@@ -28,7 +30,7 @@ export async function checkNodeAccess(
   // 1. Check ownership
   const node = await db.node.findUnique({
     where: { id: nodeId },
-    select: { ownerId: true },
+    select: { ownerId: true, workspaceId: true },
   });
 
   if (!node) {
@@ -39,7 +41,36 @@ export async function checkNodeAccess(
     return { hasAccess: true, permissionLevel: 'edit', viaOwnerId: true };
   }
 
-  // 2. Check direct share on this node
+  // 2. MODUL 40.3 — Workspace member check (RLS equivalent)
+  // If node belongs to a workspace, check if user is a workspace member with appropriate role
+  if (node.workspaceId) {
+    const membership = await db.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: { workspaceId: node.workspaceId, userId },
+      },
+      select: { role: true, joinedAt: true },
+    });
+
+    if (membership && membership.joinedAt) {
+      // Workspace role → permission mapping:
+      // owner/admin = edit, member = edit, viewer = view
+      const rolePermissionMap: Record<string, PermissionLevel> = {
+        owner: 'edit',
+        admin: 'edit',
+        member: 'edit',
+        viewer: 'view',
+      };
+
+      const memberPermission = rolePermissionMap[membership.role] || 'view';
+
+      // Check if member's permission level satisfies required level
+      if (PERMISSION_HIERARCHY[memberPermission] >= PERMISSION_HIERARCHY[requiredLevel]) {
+        return { hasAccess: true, permissionLevel: memberPermission, viaOwnerId: false };
+      }
+    }
+  }
+
+  // 3. Check direct share on this node
   const directShare = await db.nodeShare.findFirst({
     where: {
       nodeId,
@@ -52,7 +83,7 @@ export async function checkNodeAccess(
     return { hasAccess: true, permissionLevel: directShare.permissionLevel as PermissionLevel, viaOwnerId: false };
   }
 
-  // 3. Check ancestor nodes for cascaded share (folder inheritance)
+  // 4. Check ancestor nodes for cascaded share (folder inheritance)
   const ancestorIds = await getAncestorIds(nodeId);
 
   for (const ancestorId of ancestorIds) {

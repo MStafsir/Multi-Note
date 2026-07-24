@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, WifiOff } from 'lucide-react';
 import { EditorToolbar } from './editor-toolbar';
 import { EmbeddedFileNode } from './embedded-file-node';
+import { MathBlockNode } from './math-block-node';
 import { PresenceIndicator } from './presence-indicator';
 import { useNoteCollab } from '@/hooks/use-collab';
 
@@ -116,6 +117,7 @@ export function TiptapEditor({
         placeholder: 'Start writing... Type / for commands',
       }),
       EmbeddedFileNode,
+      MathBlockNode,
     ],
     content: parsedContent(),
     editorProps: {

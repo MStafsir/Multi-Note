@@ -90,7 +90,7 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   const isDev = process.env.NODE_ENV === 'development';
   const cspDirectives = [
     `default-src 'self'`,
-    `script-src 'self'${isDev ? " 'unsafe-eval'" : ''}`,  // nonce would be added per-request in production
+    `script-src 'self'${isDev ? " 'unsafe-eval' 'unsafe-inline'" : " 'unsafe-inline'"}`,  // 37.1 — 'unsafe-inline' required for Next.js RSC flight data (__next_f.push); nonce would replace in strict prod CSP
     `style-src 'self' 'unsafe-inline'`, // Tailwind requires inline styles
     `img-src 'self' data: blob: https:`, // Allow images from storage/blobs
     `media-src 'self' blob:`,
@@ -136,6 +136,62 @@ export async function middleware(request: NextRequest) {
   // MODUL 13 — Share link access route does NOT require auth
   if (pathname.startsWith('/api/shares/link/')) {
     return addSecurityHeaders(NextResponse.next());
+  }
+
+  // MODUL 40.6 — Workspace invitation GET is public (no auth required for viewing invite)
+  // POST (accept) and PATCH (decline) require auth, handled below in protected routes
+  if (pathname.match(/^\/api\/workspaces\/invitations\/[^/]+$/) && request.method === 'GET') {
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  // MODUL 42.2 — Billing webhook is PUBLIC (billing provider sends events, no auth)
+  if (pathname.match(/^\/api\/workspaces\/[^/]+\/subscription\/webhook$/) && request.method === 'POST') {
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  // MODUL 43 — Public API v1 routes authenticate via x-api-key header (not session)
+  // Middleware should NOT block these — auth is handled within route handlers
+  if (pathname.startsWith('/api/v1')) {
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  // MODUL 43 — API key routes need session auth
+  if (pathname.startsWith('/api/api-keys')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+    });
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', token.id as string);
+    requestHeaders.set('x-user-email', token.email as string);
+    requestHeaders.set('x-user-role', (token.role as string) || 'user');
+
+    return addSecurityHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
+  }
+
+  // MODUL 44 — Webhook subscription routes need session auth for CRUD
+  // Process-deliveries uses cron-secret or x-user-id header
+  if (pathname.startsWith('/api/webhooks')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+    });
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', token.id as string);
+    requestHeaders.set('x-user-email', token.email as string);
+    requestHeaders.set('x-user-role', (token.role as string) || 'user');
+
+    return addSecurityHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
   // MODUL 28 — Export download link route is public (token-based access)
@@ -203,7 +259,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/databases') ||
     pathname.startsWith('/api/templates') ||
     pathname.startsWith('/api/comments') ||
-    pathname.startsWith('/api/graph')
+    pathname.startsWith('/api/graph') ||
+    pathname.startsWith('/api/workspaces')
   ) {
     const token = await getToken({
       req: request,
@@ -282,6 +339,10 @@ export const config = {
     '/api/templates/:path*',
     '/api/comments/:path*',
     '/api/graph',
+    '/api/workspaces/:path*',
     '/api/auth/:path*',
+    '/api/api-keys/:path*',
+    '/api/v1/:path*',
+    '/api/webhooks/:path*',
   ],
 };

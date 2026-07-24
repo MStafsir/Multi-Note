@@ -280,3 +280,88 @@ export const updateCommentSchema = z.object({
   content: z.string().min(1).max(2000).optional(),
   resolvedAt: z.string().nullable().optional(), // toggle resolve/unresolve
 });
+
+// ============================================================
+// MODUL 40-41: Workspace Validators
+// ============================================================
+
+export const workspaceRoleSchema = z.enum(['owner', 'admin', 'member', 'viewer']);
+export const workspacePlanTierSchema = z.enum(['free', 'pro', 'enterprise']);
+
+export const createWorkspaceSchema = z.object({
+  name: z.string().min(1, 'Workspace name is required').max(100, 'Workspace name too long'),
+});
+
+export const updateWorkspaceSchema = z.object({
+  name: z.string().min(1, 'Workspace name is required').max(100, 'Workspace name too long').optional(),
+  planTier: workspacePlanTierSchema.optional(),
+});
+
+export const inviteMemberSchema = z.object({
+  email: z.string().email('Invalid email format'),
+  role: workspaceRoleSchema.default('member'),
+});
+
+export const updateMemberRoleSchema = z.object({
+  role: workspaceRoleSchema,
+});
+
+export const transferOwnershipSchema = z.object({
+  targetMemberId: z.string().min(1, 'Target member ID is required'),
+});
+
+// ============================================================
+// MODUL 42: Billing & Subscription Validators
+// ============================================================
+
+export const billingProviderSchema = z.enum(['stripe', 'midtrans']);
+
+export const createSubscriptionSchema = z.object({
+  provider: billingProviderSchema,
+  planTier: workspacePlanTierSchema,
+});
+
+export const billingWebhookEventSchema = z.object({
+  type: z.enum(['invoice.paid', 'invoice.payment_failed', 'subscription.deleted']),
+  id: z.string().min(1), // idempotency key from provider
+  data: z.object({
+    object: z.object({
+      subscription_id: z.string().optional(),
+      customer_id: z.string().optional(),
+      workspace_id: z.string().optional(),
+    }).passthrough(),
+  }).passthrough(),
+});
+
+// ============================================================
+// MODUL 43: API Key Validators
+// ============================================================
+
+export const apiKeyScopeSchema = z.enum(['read_only', 'read_write', 'admin']);
+
+export const createApiKeySchema = z.object({
+  scopes: z.array(apiKeyScopeSchema).min(1, 'At least one scope is required'),
+  workspaceId: z.string().optional(),
+});
+
+export const updateApiKeySchema = z.object({
+  scopes: z.array(apiKeyScopeSchema).min(1, 'At least one scope required').optional(),
+});
+
+// ============================================================
+// MODUL 44: Webhook Dispatch Validators
+// ============================================================
+
+export const webhookEventTypeSchema = z.enum(['node.created', 'node.deleted', 'note.updated', 'file.uploaded']);
+
+export const createWebhookSubscriptionSchema = z.object({
+  targetUrl: z.string().url('Must be a valid URL'),
+  eventTypes: z.array(webhookEventTypeSchema).min(1, 'At least one event type required'),
+  workspaceId: z.string().optional(),
+});
+
+export const updateWebhookSubscriptionSchema = z.object({
+  targetUrl: z.string().url('Must be a valid URL').optional(),
+  eventTypes: z.array(webhookEventTypeSchema).min(1, 'At least one event type required').optional(),
+  isActive: z.boolean().optional(),
+});

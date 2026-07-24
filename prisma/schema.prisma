@@ -60,6 +60,10 @@ model User {
   notificationPreference NotificationPreference?
   comments      Comment[]
   noteTemplates NoteTemplate[]
+  workspaceMemberships WorkspaceMember[]
+  ownedWorkspaces      Workspace[]
+  apiKeys              ApiKey[]
+  webhookSubscriptions WebhookSubscription[]
 }
 
 model VerificationToken {
@@ -85,20 +89,23 @@ model Profile {
 }
 
 // --- Core Node Table (Modul 2.2) ---
+// MODUL 40.1: Added workspaceId (nullable) — backward-compatible, null = personal workspace
 model Node {
-  id         String    @id @default(cuid())
-  ownerId    String
-  parentId   String?
-  type       String    // "file" | "folder" | "note" — discriminated union
-  name       String
-  isFavorite Boolean   @default(false) // Modul 21.3 — direct column for high-frequency access
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime? // soft-delete (Modul 4.3)
+  id           String    @id @default(cuid())
+  ownerId      String
+  parentId     String?
+  workspaceId  String?   // MODUL 40.1 — nullable FK, null = personal (individual) workspace
+  type         String    // "file" | "folder" | "note" — discriminated union
+  name         String
+  isFavorite   Boolean   @default(false) // Modul 21.3 — direct column for high-frequency access
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime? // soft-delete (Modul 4.3)
 
   owner      User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   parent     Node?          @relation("NodeTree", fields: [parentId], references: [id], onDelete: Cascade)
   children   Node[]         @relation("NodeTree")
+  workspace  Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   metadata   FileMetadata?
   note       NoteContent?
   shares        NodeShare[]
@@ -115,6 +122,7 @@ model Node {
   @@index([ownerId, type])
   @@index([deletedAt])
   @@index([ownerId, isFavorite]) // Modul 21.4 — favorites filter
+  @@index([workspaceId]) // MODUL 40.3 — workspace-scoped queries
 }
 
 // --- File Metadata (Modul 2.6) ---
@@ -418,4 +426,190 @@ model OnboardingState {
   updatedAt           DateTime @updatedAt
 
   @@index([userId])
+}
+
+// ============================================================
+// MODUL 40: Multi-Tenancy — Organization & Workspace Data Model
+// ============================================================
+
+// 40.1 — Workspace: optional layer above individual ownership
+// workspace_id null on nodes = personal workspace (backward-compatible)
+model Workspace {
+  id         String   @id @default(cuid())
+  name       String
+  ownerId    String   // original creator, can be transferred (41.5)
+  planTier   String   @default("free") // "free" | "pro" | "enterprise" — connected to quota engine (41.1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members         WorkspaceMember[]
+  invitations     WorkspaceInvitation[]
+  nodes           Node[]
+  subscriptions   WorkspaceSubscription[]
+  invoices        Invoice[]
+  apiKeys         ApiKey[]
+  webhookSubscriptions WebhookSubscription[]
+
+  @@index([ownerId])
+}
+
+// 40.2 — Workspace members with role enum
+// 40.4 — Role-permission matrix: owner (full+billing), admin (manage member+content),
+//         member (CRUD per Modul 4/5/9), viewer (read-only = permission_level=view per 13.1)
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   @default("member") // "owner" | "admin" | "member" | "viewer"
+  invitedAt   DateTime @default(now())
+  joinedAt    DateTime? // null until invitation accepted
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+// 40.6 — Invitation tokens for email-based workspace invitations
+model WorkspaceInvitation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  email       String   // invitee email
+  role        String   @default("member") // role they'll get upon joining
+  token       String   @unique // UUID token for accept/decline
+  invitedBy   String   // user who sent the invitation
+  expiresAt   DateTime // 7-day expiry per 40.6
+  acceptedAt  DateTime? // null until accepted
+  declinedAt  DateTime? // null until declined
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([workspaceId])
+  @@index([email])
+}
+
+// ============================================================
+// MODUL 42: Billing & Subscription — Payment Provider Integration
+// ============================================================
+
+// 42.1 — Subscription lifecycle tracking (Stripe/Midtrans)
+// Status enum follows provider documentation: trialing/active/past_due/canceled
+model WorkspaceSubscription {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  provider          String   // "stripe" | "midtrans" — billing provider
+  providerCustomerId String?  // external customer ID from provider
+  providerSubscriptionId String? // external subscription ID from provider
+  status            String   @default("active") // "trialing" | "active" | "past_due" | "canceled" | "grace_period"
+  currentPeriodStart DateTime? // billing period start
+  currentPeriodEnd   DateTime? // billing period end
+  cancelAtPeriodEnd  Boolean  @default(false) // scheduled cancellation
+  gracePeriodEnd    DateTime? // 42.3 — 3-day retry window before downgrade enforcement
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invoices  Invoice[]
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
+  @@index([providerSubscriptionId])
+}
+
+// 42.4 — Invoice history per workspace (owner-only access)
+model Invoice {
+  id                   String   @id @default(cuid())
+  subscriptionId       String
+  workspaceId          String
+  providerInvoiceId    String?  // external invoice ID from provider
+  amount               Int      // amount in smallest currency unit (cents/sen)
+  currency             String   @default("usd") // "usd" | "idr"
+  status               String   // "paid" | "pending" | "failed" | "refunded"
+  paidAt               DateTime?
+  dueDate              DateTime?
+  pdfUrl               String?  // URL to invoice PDF from provider
+  createdAt            DateTime @default(now())
+
+  subscription WorkspaceSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  workspace    Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([workspaceId])
+}
+
+// ============================================================
+// MODUL 43: Public API — API Key & Third-Party Authentication
+// ============================================================
+
+// 43.1 — API key generation per-user/workspace
+// key_hash stored (NOT plaintext), scopes array, revoked_at for soft-disable
+model ApiKey {
+  id           String    @id @default(cuid())
+  ownerId      String?   // personal API key — FK to users.id
+  workspaceId  String?   // workspace API key — FK to workspaces.id
+  keyPrefix    String    // first 8 chars of key for identification display
+  keyHash      String    @unique // SHA-256 hash of the full API key
+  scopes       String    // JSON array: ["read_only"] | ["read_write"] | ["admin"]
+  lastUsedAt   DateTime?
+  revokedAt    DateTime? // null = active, set = revoked
+  createdAt    DateTime  @default(now())
+
+  owner      User?      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workspace  Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([keyHash])
+  @@index([ownerId])
+  @@index([workspaceId])
+}
+
+// ============================================================
+// MODUL 44: Webhook Dispatch — Outbound Event Subscription
+// ============================================================
+
+// 44.1 — Webhook subscription: owner registers target_url + event_types + secret
+model WebhookSubscription {
+  id           String   @id @default(cuid())
+  ownerId      String?  // personal webhook
+  workspaceId  String?  // workspace webhook
+  targetUrl    String   // endpoint URL to receive payloads
+  eventTypes   String   // JSON array: ["node.created", "node.deleted", "note.updated", "file.uploaded"]
+  secret       String   // HMAC-SHA256 signing secret (44.3)
+  isActive     Boolean  @default(true) // can be toggled off
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner      User?      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workspace  Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([ownerId])
+  @@index([workspaceId])
+  @@index([isActive])
+}
+
+// 44.2-44.4 — Webhook delivery log: track each dispatch attempt
+// Retry policy: exponential backoff, max 5 attempts, then dead-letter
+model WebhookDelivery {
+  id               String   @id @default(cuid())
+  subscriptionId   String
+  eventType        String   // e.g. "node.created"
+  payload          String   // JSON payload sent to target_url
+  responseStatus   Int?     // HTTP status code from target
+  responseBody     String?  // response body (truncated)
+  attemptCount     Int      @default(0)
+  nextAttemptAt    DateTime? // next retry time (null = no more retries)
+  status           String   @default("pending") // "pending" | "success" | "failed" | "dead_letter"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([nextAttemptAt])
 }

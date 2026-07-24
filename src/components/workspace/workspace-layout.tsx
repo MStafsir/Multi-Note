@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings, Building2, Mail } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
@@ -21,7 +21,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Sidebar } from './sidebar';
 import { ContentArea } from './content-area';
 import { CreateDialog } from './create-dialog';
+import { WorkspaceSwitcher } from './workspace-switcher';
+import { WorkspaceSettingsDialog } from './workspace-settings-dialog';
+import { WorkspaceInvitationView } from './workspace-invitation-view';
 import { useAuthStore } from '@/store/auth';
+import { useWorkspaceStore } from '@/store/workspace';
+import { useWorkspaces } from '@/hooks/use-workspace';
 import { useCalculatorStore } from '@/store/calculator';
 import { useFileTreeStore } from '@/store/file-tree';
 import { useUndoStore } from '@/store/undo';
@@ -33,7 +38,7 @@ import { TrashView } from '@/components/trash/trash-view';
 import { AdminDashboard } from '@/components/admin/admin-dashboard';
 import { CommandPalette } from '@/components/command/command-palette';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
-import { DataPortabilitySettings } from '@/components/settings/data-portability';
+import { WorkspaceAdvancedSettings } from './workspace-advanced-settings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { WelcomeSlides } from '@/components/onboarding/welcome-slides';
 import { OnboardingChecklist, markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
@@ -57,12 +62,20 @@ export function WorkspaceLayout() {
   // 28 — Settings dialog state
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
+  // 40-41 — Workspace settings & invitation dialog state
+  const [workspaceSettingsOpen, setWorkspaceSettingsOpen] = useState(false);
+  const [invitationViewOpen, setInvitationViewOpen] = useState(false);
+
   // Auth state — must be defined before queries that reference user
   const { user } = useAuthStore();
+  const { currentWorkspaceId, currentWorkspaceRole, workspaces } = useWorkspaceStore();
   const { toggleOpen, isOpen } = useCalculatorStore();
   const { setCurrentFolder, flatNodes, activeView, selectedNodeIds } = useFileTreeStore();
   const { popAction } = useUndoStore();
   const deleteMutation = useDeleteNode();
+
+  // 40-41 — Fetch workspaces list (populates workspace store)
+  useWorkspaces();
 
   // 39 — Onboarding state
   const [welcomeSlidesDismissed, setWelcomeSlidesDismissed] = useState(false);
@@ -328,12 +341,8 @@ export function WorkspaceLayout() {
                 )}
               </Button>
 
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900">
-                  <span className="text-xs font-bold">UW</span>
-                </div>
-                <span className="font-semibold text-sm truncate hidden sm:inline">Unified Workspace</span>
-              </div>
+              {/* 40-41 — Workspace Switcher replaces static logo */}
+              <WorkspaceSwitcher />
 
               <div className="flex-1" />
 
@@ -416,6 +425,20 @@ export function WorkspaceLayout() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    {currentWorkspaceId && (currentWorkspaceRole === 'owner' || currentWorkspaceRole === 'admin') && (
+                      <DropdownMenuItem
+                        onClick={() => setWorkspaceSettingsOpen(true)}
+                      >
+                        <Building2 className="h-4 w-4 mr-2" />
+                        Workspace Settings
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => setInvitationViewOpen(true)}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Invitations
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setSettingsDialogOpen(true)}
                     >
@@ -579,16 +602,31 @@ export function WorkspaceLayout() {
           {/* PWA Install Prompt */}
           <InstallPrompt />
 
-          {/* 28 — Settings Dialog (Data Portability) */}
+          {/* 40-41 — Workspace Settings Dialog */}
+          <WorkspaceSettingsDialog
+            open={workspaceSettingsOpen}
+            onOpenChange={setWorkspaceSettingsOpen}
+          />
+
+          {/* 40-41 — Workspace Invitation View */}
+          <WorkspaceInvitationView
+            open={invitationViewOpen}
+            onOpenChange={setInvitationViewOpen}
+          />
+
+          {/* 28/42-44 — Settings Dialog (Data Portability + Billing + API Keys + Webhooks) */}
           <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
-            <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Settings</DialogTitle>
                 <DialogDescription>
-                  Manage your data: export, import, or permanently delete your account.
+                  Manage your data, billing, API keys, and webhook subscriptions.
                 </DialogDescription>
               </DialogHeader>
-              <DataPortabilitySettings />
+              <WorkspaceAdvancedSettings
+                workspaceId={currentWorkspaceId}
+                planTier={currentWorkspaceId ? (workspaces.find(w => w.id === currentWorkspaceId)?.planTier || 'free') : undefined}
+              />
             </DialogContent>
           </Dialog>
         </div>

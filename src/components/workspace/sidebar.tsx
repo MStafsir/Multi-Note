@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity, Shield } from 'lucide-react';
+import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity, Shield, Building2, Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
@@ -17,8 +17,12 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFileTreeStore } from '@/store/file-tree';
 import { useAuthStore } from '@/store/auth';
+import { useWorkspaceStore } from '@/store/workspace';
 import { FileTreeView } from '@/components/file-tree/file-tree-view';
 import { CreateDialog } from './create-dialog';
+import { WorkspaceSettingsDialog } from './workspace-settings-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { WorkspaceMemberList } from './workspace-member-list';
 import { useStorageQuota } from '@/hooks/use-file-tree';
 import { useFavorites } from '@/hooks/use-tags';
 import { ActivityTimeline } from '@/components/activity/activity-timeline';
@@ -32,6 +36,11 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   const [createType, setCreateType] = useState<'folder' | 'note'>('folder');
   const { currentFolderPath, setCurrentFolder, activeView, setActiveView, currentFolderId } = useFileTreeStore();
   const { user } = useAuthStore();
+  const { currentWorkspaceId, currentWorkspaceName, currentWorkspaceRole } = useWorkspaceStore();
+
+  // 40-41 — Workspace settings state
+  const [workspaceSettingsOpen, setWorkspaceSettingsOpen] = useState(false);
+  const [workspaceMembersOpen, setWorkspaceMembersOpen] = useState(false);
   const [favoritesExpanded, setFavoritesExpanded] = useState(false);
   const [activityExpanded, setActivityExpanded] = useState(false);
 
@@ -99,6 +108,43 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             <p>New Note (N)</p>
           </TooltipContent>
         </Tooltip>
+        {/* 40-41 — Workspace context icons */}
+        {currentWorkspaceId && (currentWorkspaceRole === 'owner' || currentWorkspaceRole === 'admin') && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 min-h-[44px] min-w-[44px]"
+                onClick={() => setWorkspaceSettingsOpen(true)}
+                aria-label="Workspace settings"
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Workspace Settings</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {currentWorkspaceId && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 min-h-[44px] min-w-[44px]"
+                onClick={() => setWorkspaceMembersOpen(true)}
+                aria-label="Workspace members"
+              >
+                <Users className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Members</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
         <Separator />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -160,6 +206,51 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
 
   return (
     <div className="flex flex-col h-full">
+      {/* 40-41 — Workspace context indicator */}
+      {currentWorkspaceId && (
+        <div className="px-4 py-2 bg-primary/5 border-b border-primary/10">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-medium truncate">{currentWorkspaceName}</span>
+            <span className="text-xs text-muted-foreground capitalize shrink-0">({currentWorkspaceRole})</span>
+          </div>
+        </div>
+      )}
+
+      {/* 40-41 — Workspace quick links (when in workspace context) */}
+      {currentWorkspaceId && (currentWorkspaceRole === 'owner' || currentWorkspaceRole === 'admin') && (
+        <div className="px-3 py-1 flex gap-1">
+          <button
+            onClick={() => setWorkspaceSettingsOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm"
+            aria-label="Workspace settings"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Settings
+          </button>
+          <button
+            onClick={() => setWorkspaceMembersOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm"
+            aria-label="Workspace members"
+          >
+            <Users className="h-3.5 w-3.5" />
+            Members
+          </button>
+        </div>
+      )}
+      {currentWorkspaceId && currentWorkspaceRole !== 'owner' && currentWorkspaceRole !== 'admin' && (
+        <div className="px-3 py-1 flex gap-1">
+          <button
+            onClick={() => setWorkspaceMembersOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm"
+            aria-label="Workspace members"
+          >
+            <Users className="h-3.5 w-3.5" />
+            Members
+          </button>
+        </div>
+      )}
+
       {/* Quick Actions — 29: semantic <section> */}
       <section aria-label="Quick actions" className="p-4 space-y-2">
         <div className="flex items-center gap-2">
@@ -378,6 +469,34 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         onOpenChange={setCreateDialogOpen}
         type={createType}
       />
+
+      {/* 40-41 — Workspace Settings Dialog */}
+      <WorkspaceSettingsDialog
+        open={workspaceSettingsOpen}
+        onOpenChange={setWorkspaceSettingsOpen}
+      />
+
+      {/* 40-41 — Workspace Members Dialog */}
+      <Dialog open={workspaceMembersOpen} onOpenChange={setWorkspaceMembersOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Workspace Members
+            </DialogTitle>
+            <DialogDescription>
+              Manage workspace membership and roles.
+            </DialogDescription>
+          </DialogHeader>
+          {currentWorkspaceId ? (
+            <WorkspaceMemberList workspaceId={currentWorkspaceId} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Select a workspace to manage members.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

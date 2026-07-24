@@ -473,3 +473,164 @@ export interface CommentThread {
   root: CommentInfo;
   replies: CommentInfo[];
 }
+
+// ============================================================
+// MODUL 40: Multi-Tenancy — Organization & Workspace Types
+// ============================================================
+
+// 40.4 — Workspace role-permission matrix
+export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+// 40.1 — Workspace info
+export interface WorkspaceInfo {
+  id: string;
+  name: string;
+  ownerId: string;
+  planTier: 'free' | 'pro' | 'enterprise';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 40.2 — Workspace member info
+export interface WorkspaceMemberInfo {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+  invitedAt: string;
+  joinedAt: string | null;
+  userName?: string | null;
+  userEmail?: string;
+}
+
+// 40.6 — Workspace invitation info
+export interface WorkspaceInvitationInfo {
+  id: string;
+  workspaceId: string;
+  workspaceName: string;
+  email: string;
+  role: WorkspaceRole;
+  token: string;
+  invitedBy: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  createdAt: string;
+}
+
+// ============================================================
+// MODUL 42: Billing & Subscription Types
+// ============================================================
+
+// 42.1 — Subscription status lifecycle
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'grace_period';
+
+// 42.1 — Workspace subscription info
+export interface WorkspaceSubscriptionInfo {
+  id: string;
+  workspaceId: string;
+  provider: 'stripe' | 'midtrans';
+  providerCustomerId: string | null;
+  providerSubscriptionId: string | null;
+  status: SubscriptionStatus;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  gracePeriodEnd: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 42.4 — Invoice info (owner-only access)
+export type InvoiceStatus = 'paid' | 'pending' | 'failed' | 'refunded';
+
+export interface InvoiceInfo {
+  id: string;
+  subscriptionId: string;
+  workspaceId: string;
+  providerInvoiceId: string | null;
+  amount: number;
+  currency: string;
+  status: InvoiceStatus;
+  paidAt: string | null;
+  dueDate: string | null;
+  pdfUrl: string | null;
+  createdAt: string;
+}
+
+// ============================================================
+// MODUL 43: Public API — API Key & Third-Party Auth Types
+// ============================================================
+
+// 43.3 — API key scope enum
+export type ApiKeyScope = 'read_only' | 'read_write' | 'admin';
+
+// 43.1 — API key info (key plaintext only shown once at creation)
+export interface ApiKeyInfo {
+  id: string;
+  ownerId: string | null;
+  workspaceId: string | null;
+  keyPrefix: string;
+  scopes: ApiKeyScope[];
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+// 43.1 — API key creation response (includes plaintext key — shown once)
+export interface ApiKeyCreateResponse extends ApiKeyInfo {
+  key: string; // full plaintext key — only returned on creation
+}
+
+// ============================================================
+// MODUL 44: Webhook Dispatch — Outbound Event Subscription Types
+// ============================================================
+
+// 44.1 — Webhook event type enum
+export type WebhookEventType = 'node.created' | 'node.deleted' | 'note.updated' | 'file.uploaded';
+
+// 44.1 — Webhook subscription info
+export interface WebhookSubscriptionInfo {
+  id: string;
+  ownerId: string | null;
+  workspaceId: string | null;
+  targetUrl: string;
+  eventTypes: WebhookEventType[];
+  secret: string; // shown once at creation, then masked
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 44.2 — Webhook delivery info
+export type WebhookDeliveryStatus = 'pending' | 'success' | 'failed' | 'dead_letter';
+
+export interface WebhookDeliveryInfo {
+  id: string;
+  subscriptionId: string;
+  eventType: string;
+  payload: string;
+  responseStatus: number | null;
+  responseBody: string | null;
+  attemptCount: number;
+  nextAttemptAt: string | null;
+  status: WebhookDeliveryStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// MODUL 45: LaTeX/Math Rendering — MathBlock Types
+// ============================================================
+
+// 45.1 — Math block display mode
+export type MathDisplayMode = 'inline' | 'block';
+
+// 45.1 — Math block source/rendered toggle
+export type MathRenderState = 'source' | 'rendered' | 'live_preview';
+
+// 45.4 — Math error state
+export interface MathErrorState {
+  hasError: boolean;
+  message: string | null;
+}

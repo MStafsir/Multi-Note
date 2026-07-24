@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, WifiOff } from 'lucide-react';
 import { EditorToolbar } from './editor-toolbar';
 import { EmbeddedFileNode } from './embedded-file-node';
+import { MathBlockNode } from './math-block-node';
 import { NoteLinkMentionNode, NoteLinkAutocomplete, createNoteLinkSuggestionPlugin } from './note-link-mention';
 import { PresenceIndicator } from './presence-indicator';
 import { BacklinkPanel } from '@/components/backlink/backlink-panel';
@@ -167,6 +168,7 @@ export function TiptapEditorEnhanced({
         placeholder: 'Start writing... Type / for commands, [[ to link a note',
       }),
       EmbeddedFileNode,
+      MathBlockNode,
       NoteLinkMentionNode,
     ],
     content: parsedContent(),

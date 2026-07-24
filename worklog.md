@@ -635,3 +635,277 @@ Stage Summary:
 - Module 39: Complete — Welcome slides (3 slides), empty state CTAs, onboarding checklist widget, sample content seeding, progressive disclosure tooltips
 - All modules verified via Agent Browser: login works, workspace loads, admin dashboard shows, admin button in sidebar, empty state CTAs visible
 - Lint: Clean (0 errors)
+---
+Task ID: 7
+Agent: full-stack-developer
+Task: Module 45 — KaTeX MathBlock Tiptap Node with Live Preview & Error State
+
+Work Log:
+- Read worklog.md to understand previous agents' work (Modules 1-6 covered)
+- Read existing Tiptap editor files (tiptap-editor.tsx, tiptap-editor-enhanced.tsx, slash-command.tsx, embedded-file-node.tsx, note-link-mention.tsx) to understand patterns
+- Created /src/lib/katex-renderer.ts — KaTeX render engine using katex.renderToString() (synchronous, no CLS), with graceful error handling per 45.4
+- Created /src/components/editor/math-block-preview.tsx — Live Preview Component with 3 view modes (rendered/source/live_preview), inline & block display support, error state handling per 45.4
+- Created /src/components/editor/math-block-node.tsx — Custom Tiptap Node extension using Node.create() with proper ProseMirror node spec, ReactNodeViewRenderer, insertMathBlock command
+- Updated slash-command.tsx — Added Sigma icon import and "Math" (inline) and "Math Block" (block) slash command items
+- Updated tiptap-editor-enhanced.tsx — Added MathBlockNode import and extension to editor extensions list
+- Updated tiptap-editor.tsx — Added MathBlockNode import and extension to editor extensions list
+- Added KaTeX CSS import (@import 'katex/dist/katex.min.css') to globals.css
+- Added custom MathBlock CSS styles in globals.css (outline, font-size overrides)
+- Ran lint check — all passing with no errors
+
+Stage Summary:
+- KaTeX MathBlock Tiptap Node fully implemented with all required features:
+  - Custom node extension (math-block-node.tsx) registered with Tiptap using Node.create()
+  - KaTeX render engine (katex-renderer.ts) with synchronous rendering and graceful error handling
+  - Live Preview Component (math-block-preview.tsx) with 3 view modes: rendered, source, live_preview
+  - Error state handling: shows raw source with inline error indicator, never crashes
+  - Slash command integration: "Math" and "Math Block" commands added to slash command menu
+  - Both tiptap-editor.tsx and tiptap-editor-enhanced.tsx updated with MathBlockNode extension
+  - KaTeX CSS properly imported and custom styles added
+  - All lint checks passing
+
+---
+Task ID: 4-6-a
+Agent: full-stack-developer
+Task: Module 42-44 Backend APIs — Billing, API Keys, Webhooks
+
+Work Log:
+- Read worklog.md to understand previous agents' work (full project context)
+- Read prisma schema, existing API routes, lib files, types, validators, middleware to understand patterns
+- Created /src/lib/api-key-auth.ts — API Key authentication middleware helper with authenticateApiKey() and hasScope() functions
+- Created /src/lib/webhook-dispatch.ts — Webhook dispatch engine with dispatchWebhooks(), signPayload(), processPendingDeliveries() (exponential backoff, max 5 retries, dead_letter + notification)
+- Created /src/app/api/workspaces/[id]/subscription/route.ts — GET (owner/admin) and POST (owner) subscription endpoints with Zod validation
+- Created /src/app/api/workspaces/[id]/subscription/webhook/route.ts — PUBLIC billing webhook handler (no auth) with idempotency key check, handles invoice.paid, invoice.payment_failed, subscription.deleted
+- Created /src/app/api/workspaces/[id]/invoices/route.ts — GET invoices list (owner-only, sorted desc with subscription info)
+- Created /src/app/api/api-keys/route.ts — GET list and POST create (uw_ prefix, SHA-256 hash storage, plaintext shown once)
+- Created /src/app/api/api-keys/[id]/route.ts — PATCH update scopes and DELETE revoke (immediate invalidation via revokedAt)
+- Created /src/app/api/v1/nodes/route.ts — GET list nodes (API key auth, scope >= read_only, pagination, workspace/personal filtering)
+- Created /src/app/api/v1/nodes/[id]/route.ts — GET single node detail (API key auth, access verification)
+- Created /src/app/api/v1/upload/route.ts — POST upload file (API key auth, scope >= read_write, reuses upload flow with quota checks)
+- Created /src/app/api/v1/notes/route.ts — GET list notes and POST create note (API key auth, webhook dispatch on creation)
+- Created /src/app/api/v1/notes/[id]/route.ts — GET read content and PATCH update content (API key auth, revision snapshots on update)
+- Created /src/app/api/webhooks/route.ts — GET list and POST create webhook subscriptions (HMAC secret generated, masked in list view)
+- Created /src/app/api/webhooks/[id]/route.ts — GET detail, PATCH update, DELETE webhook subscriptions
+- Created /src/app/api/webhooks/[id]/deliveries/route.ts — GET delivery audit trail with pagination and status filter
+- Created /src/app/api/webhooks/process-deliveries/route.ts — POST cron endpoint to process pending/failed deliveries
+- Updated /src/middleware.ts — Added routes for api-keys (session auth), v1 (pass-through, auth handled in route), webhooks (session auth), billing webhook (public)
+- Updated /src/lib/validators/index.ts — Added Zod schemas for Module 42 (billing), Module 43 (API keys), Module 44 (webhooks)
+- Ran lint check — all passing cleanly (no errors)
+
+Stage Summary:
+- All 16 files specified in the task have been created
+- Middleware updated with proper auth handling for all new routes (session auth for api-keys/webhooks/workspaces, API key auth for v1, public for billing webhook)
+- Zod validators added for all Module 42-44 schemas
+- Consistent { success: true/false, data/error } response format throughout
+- Uses db from @/lib/db, logActivity from @/lib/activity-logger, createNotification from @/lib/notification-sender, logger from @/lib/logger
+- API key hashing uses SHA-256, HMAC signing uses SHA-256, key prefix uw_
+- BigInt serialization handled via bigintToNumber helper
+- Lint passes cleanly
+
+---
+Task ID: 3-a
+Agent: full-stack-developer
+Task: Module 40-41 Backend APIs — Workspace CRUD, Members, Invitations, Seat Management, Role Audit, Ownership Transfer
+
+Work Log:
+- Read worklog.md and previous agent work records to understand project context
+- Read Prisma schema, db.ts, permissions.ts, activity-logger.ts, notification-sender.ts, logger.ts, quota.ts, middleware.ts, validators/index.ts, and existing API route patterns
+- Created workspace Zod validators in src/lib/validators/index.ts: workspaceRoleSchema, workspacePlanTierSchema, createWorkspaceSchema, updateWorkspaceSchema, inviteMemberSchema, updateMemberRoleSchema, transferOwnershipSchema
+- Created src/lib/workspace-permissions.ts: getWorkspaceRole, requireWorkspaceRole, checkWorkspaceAccess, checkNodeWorkspaceAccess, isWorkspaceOwner, getUserWorkspaceIds — all helper functions for workspace-level access checks
+- Created src/lib/workspace-quota.ts: SEAT_LIMITS (free=3, pro=10, enterprise=50 per 41.2), WORKSPACE_STORAGE_LIMITS (extends Module 6.3 quota engine), getCurrentSeatCount, canAddSeat, getWorkspaceStorageLimit, getWorkspaceStorageUsed, canDowngradePlan (41.3 downgrade guard with blockers)
+- Updated src/lib/permissions.ts checkNodeAccess: added step 2 (MODUL 40.3) — workspace member check after ownership check. If node has workspaceId, checks WorkspaceMember for user membership and role → permission mapping (owner/admin/member=edit, viewer=view). Union condition: ownerId=userId OR (workspaceId exists AND user is workspace member)
+- Created src/app/api/workspaces/route.ts: GET (list workspaces where user is owner/member, includes member info, node count, user's role) + POST (create workspace with name validation, user becomes owner, plan_tier='free', auto-creates WorkspaceMember with role='owner')
+- Created src/app/api/workspaces/[id]/route.ts: GET (workspace detail, member+ access) + PATCH (update name/planTier, owner/admin only, 41.3 downgrade guard check) + DELETE (owner only, cascade deletes)
+- Created src/app/api/workspaces/[id]/members/route.ts: GET (list members, viewer+ access) + POST (invite member, owner/admin only, 41.2 seat limit check, creates WorkspaceInvitation with 7-day expiry token, creates pending WorkspaceMember, sends createNotification type='share_received', logs activity)
+- Created src/app/api/workspaces/[id]/members/[memberId]/route.ts: PATCH (change role, owner/admin only, cannot change owner's role, cannot assign 'owner' role via this endpoint, 41.4 role-change audit with old_role/new_role metadata) + DELETE (remove member, owner/admin can remove any, member can remove self, 41.5 owner cannot leave without transferring first — returns 403 "Owner must transfer ownership before leaving workspace")
+- Created src/app/api/workspaces/invitations/[token]/route.ts: GET (view invitation details — public, no auth required for viewing) + POST (accept invitation — authenticated user with matching email, creates/updates WorkspaceMember with joinedAt, sets invitation acceptedAt) + PATCH (decline invitation — authenticated user with matching email, sets declinedAt, removes pending WorkspaceMember)
+- Created src/app/api/workspaces/[id]/transfer/route.ts: POST (transfer ownership, 41.5 — only current owner can initiate, target must be existing admin member with joinedAt, old owner becomes 'admin', new owner becomes 'owner', updates workspace ownerId, logs activity with actionType='edit' metadata {type: 'ownership_transfer', from, to})
+- Updated src/middleware.ts: added workspace API routes to protected routes list (pathname check + matcher config), added public GET exception for /api/workspaces/invitations/[token] (40.6 — no auth required for viewing invitations)
+- Updated src/lib/db.ts: modified PrismaClient singleton pattern to ensure fresh client creation on module re-evaluation in development (fixes stale client after prisma generate schema changes)
+- Ran bun run db:push — database already in sync, Prisma client regenerated
+- Ran bun run lint — 0 errors, clean
+- Verified API endpoints: invitation GET returns correct "Invitation not found" for invalid token (public access works), workspace POST returns "Unauthorized" for unauthenticated requests (middleware protection works)
+
+Stage Summary:
+- 8 new API route files created for workspace CRUD, members, invitations, role management, and ownership transfer
+- 2 new lib files created: workspace-permissions.ts (6 helper functions) and workspace-quota.ts (seat limits, storage limits, downgrade guard)
+- 1 lib file updated: permissions.ts (added workspace member check for 40.3 RLS)
+- 1 lib file updated: db.ts (improved development-mode Prisma client handling)
+- Middleware updated with workspace route protection + public invitation GET
+- Validators extended with 7 workspace-specific Zod schemas
+- All lint checks pass, all API routes respond correctly
+- Full Module 40-41 backend API coverage: Workspace CRUD (40.1), Members CRUD (40.2/40.4), Invitations (40.6), Seat Management (41.1/41.2), Downgrade Guard (41.3), Role Audit (41.4), Ownership Transfer (41.5)
+
+---
+Task ID: 3-b
+Agent: full-stack-developer
+Task: Module 40-41 Frontend UI — Workspace Switcher, Invitation Flow, Member Management, Workspace Settings
+
+Work Log:
+- Read worklog.md and all existing workspace-layout.tsx, sidebar.tsx, types/index.ts, store files, API routes, validators, and permission helpers to understand project architecture
+- Created 7 new frontend files and updated 2 existing files
+
+New Files Created:
+1. `/src/store/workspace.ts` — Zustand store for workspace context (currentWorkspaceId, currentWorkspaceName, currentWorkspaceRole, workspaces list, workspaceRoles map). Includes `invalidateWorkspaceCaches()` helper for React Query cache invalidation per 40.5
+2. `/src/hooks/use-workspace.ts` — 15 React Query hooks: useWorkspaces, useWorkspace, useWorkspaceMembers, useWorkspaceInvitations, useInvitationDetails, useCreateWorkspace, useInviteMember, useUpdateMemberRole, useRemoveMember, useTransferOwnership, useAcceptInvitation, useDeclineInvitation, useUpdateWorkspace, useDeleteWorkspace
+3. `/src/components/workspace/workspace-switcher.tsx` — Header dropdown showing Personal/workspace name, workspace list with role badges, Create Workspace dialog inline
+4. `/src/components/workspace/workspace-member-list.tsx` — Member list with avatars, role badges (owner=gold, admin=blue, member=default, viewer=gray), change role dropdown, remove member confirmation, invite member dialog
+5. `/src/components/workspace/workspace-invite-dialog.tsx` — Invite dialog with email input, role selector, seat limit display, error handling for seat limit reached
+6. `/src/components/workspace/workspace-invitation-view.tsx` — Accept/Decline invitation modal showing workspace name, inviter, role, expiry date. Accept switches workspace context
+7. `/src/components/workspace/workspace-settings-dialog.tsx` — Settings dialog with name editing, plan tier display, seat usage, ownership transfer (41.5), delete workspace (owner only)
+
+Updated Files:
+8. `/src/components/workspace/workspace-layout.tsx` — Replaced static logo with WorkspaceSwitcher, added Workspace Settings and Invitations options to user dropdown, added WorkspaceSettingsDialog and WorkspaceInvitationView components
+9. `/src/components/workspace/sidebar.tsx` — Added workspace context indicator, Settings/Members quick links, workspace settings dialog and member list dialog integration
+
+Key Design Decisions:
+- Zustand store for workspace context (not just React Query) — allows reading without refetch
+- invalidateWorkspaceCaches() called from React components (not inside Zustand) since useQueryClient is a React hook
+- Role badge colors: gold=owner, blue=admin, neutral=member, gray=viewer
+- 44px touch targets maintained throughout
+- Responsive: switcher shows icon-only on mobile
+- All API calls use relative paths
+
+Lint: All passing ✓
+
+Stage Summary:
+- Complete Module 40-41 frontend UI: Workspace Switcher, Member Management, Invitation Flow, Settings Dialog
+- 7 new component files, 2 updated files
+- Workspace Switcher integrated into header replacing static logo
+- Sidebar updated with workspace context awareness
+- All React Query hooks with proper cache invalidation (40.5)
+- Seat limit handling and downgrade guard integrated into frontend
+- Ownership transfer UI (41.5) with admin member selection
+- All lint checks pass
+
+---
+Task ID: 4-6-b
+Agent: Module 42-44 Frontend Agent
+Task: Module 42-44 Frontend UI — Subscription/Billing, API Key Management, Webhook Management
+
+Work Log:
+- Read worklog.md and project structure to understand existing patterns and conventions
+- Examined existing hooks (use-notifications.ts, etc.) for React Query pattern conventions
+- Examined existing components (data-portability.tsx) for UI pattern conventions (Card, Badge, AlertDialog, min-h-[44px], etc.)
+- Examined backend API routes for billing (42), API keys (43), and webhooks (44) to align frontend hooks with endpoint signatures
+
+Files Created:
+1. `/home/z/my-project/src/hooks/use-billing.ts` — React Query hooks for billing:
+   - useWorkspaceSubscription(workspaceId) — GET /api/workspaces/[id]/subscription
+   - useWorkspaceInvoices(workspaceId) — GET /api/workspaces/[id]/invoices
+   - useCreateSubscription(workspaceId) — POST mutation with provider/planTier payload
+   - useCancelSubscription(workspaceId) — PATCH mutation (calls billing webhook handler to simulate provider cancellation)
+
+2. `/home/z/my-project/src/hooks/use-api-keys.ts` — React Query hooks for API keys:
+   - useApiKeys() — GET /api/api-keys (list user's keys)
+   - useCreateApiKey() — POST mutation, returns ApiKeyCreateResponse (includes plaintext key shown once)
+   - useRevokeApiKey() — DELETE mutation (immediate invalidation via revokedAt)
+   - useUpdateApiKeyScopes() — PATCH mutation for scope updates
+
+3. `/home/z/my-project/src/hooks/use-webhooks.ts` — React Query hooks for webhooks:
+   - useWebhookSubscriptions() — GET /api/webhooks (list user's subscriptions)
+   - useCreateWebhook() — POST mutation (returns full secret at creation)
+   - useUpdateWebhook() — PATCH mutation (targetUrl, eventTypes, isActive toggle)
+   - useDeleteWebhook() — DELETE mutation
+   - useWebhookDeliveries(subscriptionId, statusFilter?) — GET deliveries with pagination + status filter
+
+4. `/home/z/my-project/src/components/workspace/workspace-billing-panel.tsx` — Billing/Subscription panel:
+   - Current plan tier display (Free/Pro/Enterprise) with features list and icons
+   - Subscription status badge (active/past_due/grace_period/canceled/trialing) with color mapping
+   - 42.3 — Grace period warning banner for past_due status with countdown date
+   - Upgrade plan buttons (Pro $9/month, Enterprise $29/month) with feature comparison
+   - "Manage Billing" link placeholder for Stripe/Midtrans customer portal
+   - Cancel subscription button with confirmation AlertDialog (owner only)
+   - Already-canceled notice with downgrade date
+
+5. `/home/z/my-project/src/components/workspace/workspace-invoice-history.tsx` — Invoice history panel:
+   - Table of invoices: date, amount (formatted with Intl.NumberFormat), currency, status badge, PDF download
+   - Status badges: paid=green, pending=yellow, failed=red, refunded=gray
+   - Pagination controls (page size 10) with ChevronLeft/ChevronRight
+   - Empty state with FileText icon for no-invoices scenario
+   - Owner-only access (enforced by backend API)
+
+6. `/home/z/my-project/src/components/workspace/api-key-manager.tsx` — API Key management panel:
+   - List of API keys: key prefix (e.g. "uw_a1b2..."), scopes badges (read_only=emerald, read_write=amber, admin=red), created date, last used, revoked status
+   - "Create New API Key" button — opens creation dialog
+   - Create dialog: scope selector checkboxes with descriptions
+   - After creation: plaintext key shown ONCE in copy-to-clipboard field with AlertTriangle warning
+   - "Revoke" button per key — with AlertDialog confirmation
+   - "Update Scopes" button per key — opens dialog with checkboxes
+   - All touch targets min-h-[44px]
+
+7. `/home/z/my-project/src/components/workspace/webhook-manager.tsx` — Webhook subscription manager:
+   - List of webhooks: target URL, event types badges (node.created/node.deleted/note.updated/file.uploaded), active/inactive Switch toggle, masked secret, created date
+   - "Create Webhook" button — opens creation dialog with URL input + event type checkboxes
+   - After creation: signing secret shown ONCE with copy-to-clipboard + warning
+   - Toggle active/inactive with Switch component
+   - "View Deliveries" button — opens WebhookDeliveryDialog
+   - "Delete" button with AlertDialog confirmation
+   - max-h-96 overflow-y-auto scrollable list
+
+8. `/home/z/my-project/src/components/workspace/webhook-delivery-dialog.tsx` — Webhook delivery audit trail dialog:
+   - Table: timestamp, event type badge, HTTP status (green for 2xx, red for others), attempt count (with retry indicator), status badge (pending=yellow, success=green, failed=red, dead_letter=gray), next retry time
+   - Retry info display: "Attempt X/5, next retry at [time]"
+   - Filter by status with Select dropdown (all/pending/success/failed/dead_letter)
+   - Refresh button for manual data refresh
+   - Pagination info display
+
+9. `/home/z/my-project/src/components/workspace/workspace-advanced-settings.tsx` — Unified settings panel:
+   - Tabs: "Data" | "Billing" | "API Keys" | "Webhooks" using shadcn/ui Tabs
+   - Billing tab only shown when workspaceId is provided (owner-only context)
+   - Data tab: reuses existing DataPortabilitySettings component
+   - Billing tab: WorkspaceBillingPanel + WorkspaceInvoiceHistory
+   - API Keys tab: ApiKeyManager (personal keys)
+   - Webhooks tab: WebhookManager (personal webhooks)
+   - Responsive: icon-only tabs on mobile, icon+text on larger screens
+
+10. Updated `/home/z/my-project/src/components/workspace/workspace-layout.tsx`:
+    - Replaced simple DataPortabilitySettings-only Settings dialog with WorkspaceAdvancedSettings
+    - Added `workspaces` to useWorkspaceStore destructured values for planTier lookup
+    - Settings dialog now shows: Data | Billing | API Keys | Webhooks tabs
+    - workspaceId and planTier passed from workspace store context
+    - Dialog width increased to sm:max-w-3xl for tabbed content
+
+All mutations invalidate relevant React Query caches on success.
+All copy-to-clipboard uses navigator.clipboard.writeText() with sonner toast feedback.
+All secrets/keys shown with "shown once, copy now" warning.
+All touch targets min-h-[44px].
+All components use shadcn/ui (Card, Badge, Button, Dialog, AlertDialog, Tabs, Table, Switch, Checkbox, Select, Input).
+Lucide icons used throughout (CreditCard, Key, Webhook, Receipt, etc.).
+
+Lint: All passing
+TypeScript: No errors in any of the new/modified files
+Dev server: Running and responding (HTTP 200)
+
+Stage Summary:
+- Complete Module 42-44 frontend UI: Billing/Subscription, Invoice History, API Key Management, Webhook Management, Delivery History
+- 8 new component files, 3 new hook files, 1 updated layout file
+- Unified settings panel replaces simple Data Portability-only dialog
+- All owner-only restrictions enforced via backend API (frontend shows billing tab only in workspace context)
+- All "shown once" secrets properly handled with copy-to-clipboard + warning
+- All lint checks pass, no TypeScript errors in new files
+---
+Task ID: final
+Agent: Main Agent
+Task: Modules 40-45 Implementation — Final Integration & CSP Fix
+
+Work Log:
+- Updated Prisma schema with new tables: Workspace, WorkspaceMember, WorkspaceInvitation, WorkspaceSubscription, Invoice, ApiKey, WebhookSubscription, WebhookDelivery
+- Added workspaceId nullable column to Node table (backward-compatible)
+- Added all new type definitions to types/index.ts
+- Pushed schema to database (SQLite)
+- Installed KaTeX dependency
+- Dispatched 5 subagents for backend and frontend implementation
+- Module 40-41 Backend: workspace CRUD, members, invitations, seat management, role audit, ownership transfer, workspace permissions, workspace quota
+- Module 42-44 Backend: billing/subscriptions, webhook handlers, API keys, /api/v1/* public endpoints, webhook dispatch engine with HMAC-SHA256
+- Module 45 Backend: KaTeX math renderer, MathBlock Tiptap node, math block preview component, slash command integration
+- Module 40-41 Frontend: workspace switcher, member list, invite dialog, invitation view, settings dialog, workspace store, workspace hooks
+- Module 42-44 Frontend: billing panel, invoice history, API key manager, webhook manager, webhook delivery dialog, advanced settings tabs
+- Fixed critical CSP issue: Content-Security-Policy was blocking inline scripts needed by Next.js RSC flight data (__next_f.push()), causing React hydration failure and page stuck at "Loading...". Added 'unsafe-inline' to script-src in next.config.ts.
+- Browser verification: page loads correctly, shows auth form, registration/login works, workspace layout renders with workspace switcher, empty state CTAs, command palette, sidebar, footer
+- All lint checks pass (0 errors)
+
+Stage Summary:
+- Modules 40-45 fully implemented: backend APIs, frontend UI, database schema, types, middleware
+- Critical CSP fix applied to allow Next.js RSC inline scripts
+- App fully functional: auth, workspace, workspace switcher, all new features accessible via Settings dialog (Data | Billing | API Keys | Webhooks)

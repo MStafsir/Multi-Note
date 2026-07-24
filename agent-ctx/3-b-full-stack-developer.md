@@ -1,89 +1,101 @@
-# Task 3-b: Backend API Routes for Module 17 (Trash & Restore) and Module 18 (Bulk Operations)
+# Task 3-b: Module 40-41 Frontend UI — Workspace Switcher, Invitation Flow, Member Management, Workspace Settings
 
-## Work Done
+## Agent: full-stack-developer
 
-### Module 17: Trash & Restore API
+## Work Summary
 
-1. **`/src/app/api/trash/route.ts`** — GET: List all trashed nodes
-   - Finds nodes where ownerId = userId AND deletedAt IS NOT NULL
-   - Sorted by deletedAt descending
-   - Includes node metadata (file metadata with BigInt serialization), type, name, parentId, deletedAt
-   - Returns `{ success: true, data: { nodes: [...] } }`
+Implemented the complete Module 40-41 frontend UI for workspace management, including:
 
-2. **`/src/app/api/trash/restore/route.ts`** — POST: Restore from trash
-   - Body: `{ nodeId: string }` (Zod validated)
-   - Sets deletedAt = null on node AND all descendants (recursive via getAllDescendants)
-   - Parent validity check: if original parent was deleted/missing, restores to root with warning
-   - Quota check (17.5): Before restoring, checks if restored file sizes would exceed quota → 403 if exceeded
-   - Updates storage quota by incrementing storageUsedBytes
-   - Logs activity with logActivity({ actionType: 'restore' })
+### Files Created:
 
-3. **`/src/app/api/trash/purge/route.ts`** — POST: Empty trash (hard delete)
-   - Body: `{ confirm: boolean, confirmText: string }` (Zod validated)
-   - Must have confirm=true AND confirmText === "I understand this is permanent"
-   - Hard deletes all trashed nodes: deletes storage files from disk, FileMetadata, NoteContent, FileVersions, NoteRevisions, NodeShares, NodeTags, ActivityLog references (SetNull)
-   - Re-calculates storageUsedBytes after removing files for accuracy
-   - Partial failure handling (18.6): continues processing when individual node fails
-   - Logs activity with logActivity({ actionType: 'delete', metadata: { bulk: true, count: N } })
+1. **`/src/store/workspace.ts`** — Zustand store for workspace context management
+   - Tracks `currentWorkspaceId`, `currentWorkspaceName`, `currentWorkspaceRole`
+   - `workspaces` array and `workspaceRoles` map for available workspaces
+   - `setCurrentWorkspace()` / `clearWorkspace()` actions
+   - `invalidateWorkspaceCaches()` helper function for React Query cache invalidation (40.5 — prevents data-leak from old workspace)
 
-4. **`/src/app/api/trash/auto-purge/route.ts`** — POST: Auto-prune old items (17.3)
-   - Finds nodes where deletedAt > 30 days ago
-   - Hard deletes them same as purge logic (same hardDeleteNode helper)
-   - Can be called manually or via scheduled task
-   - Returns thresholdDays, deletedCount, freedBytes
+2. **`/src/hooks/use-workspace.ts`** — React Query hooks for workspace data
+   - `useWorkspaces()` — GET /api/workspaces + syncs with Zustand store
+   - `useWorkspace(id)` — GET /api/workspaces/[id]
+   - `useWorkspaceMembers(id)` — GET /api/workspaces/[id]/members
+   - `useWorkspaceInvitations()` — Filters notifications for pending invitations
+   - `useInvitationDetails(token)` — GET /api/workspaces/invitations/[token]
+   - `useCreateWorkspace()` — POST mutation
+   - `useInviteMember(workspaceId)` — POST mutation (with seat limit handling)
+   - `useUpdateMemberRole(workspaceId)` — PATCH mutation
+   - `useRemoveMember(workspaceId)` — DELETE mutation
+   - `useTransferOwnership(workspaceId)` — POST mutation (41.5)
+   - `useAcceptInvitation()` — POST mutation (switches workspace context after accept)
+   - `useDeclineInvitation()` — PATCH mutation
+   - `useUpdateWorkspace(workspaceId)` — PATCH mutation (name/planTier)
+   - `useDeleteWorkspace()` — DELETE mutation (owner only)
 
-### Module 18: Bulk Operations API
+3. **`/src/components/workspace/workspace-switcher.tsx`** — Header dropdown component
+   - Shows "Personal" when currentWorkspaceId is null (default)
+   - Shows workspace name + icon when in workspace context
+   - Dropdown: "Personal Workspace" + list of workspaces with role badges
+   - Each workspace item shows name + role badge (owner=gold, admin=blue, member=default, viewer=gray)
+   - "Create Workspace" option at bottom of dropdown (opens inline dialog)
+   - Uses shadcn/ui DropdownMenu, Dialog components
+   - Switching triggers `invalidateWorkspaceCaches()` per 40.5
 
-5. **`/src/app/api/nodes/bulk-delete/route.ts`** — POST: Bulk soft-delete (18.3)
-   - Body: `{ nodeIds: string[] }` (Zod validated, max 100)
-   - Verifies ownership, filters already-trashed nodes
-   - Collects all IDs including descendants of folders (deduplicated)
-   - Single batch updateMany: `WHERE id IN nodeIds AND ownerId = userId AND deletedAt = null`
-   - Logs activity with bulk metadata
+4. **`/src/components/workspace/workspace-member-list.tsx`** — Member management component
+   - Table/list of members: avatar, name, email, role badge, joined date
+   - Role badges with colors: owner=gold, admin=blue, member=default, viewer=gray
+   - Pending invitations shown with amber "Pending" badge
+   - "Change Role" dropdown for admin/owner (3 options: admin, member, viewer)
+   - "Remove Member" button — AlertDialog confirmation
+   - "Invite Member" button — opens WorkspaceInviteDialog
+   - Current user marked as "(you)", cannot remove themselves or change own role
+   - Owner's role cannot be changed (41.4)
 
-6. **`/src/app/api/nodes/bulk-move/route.ts`** — POST: Bulk move (18.2)
-   - Body: `{ nodeIds: string[], targetFolderId: string | null }` (Zod validated)
-   - Validates target folder (must be active, user-owned folder)
-   - Cycle detection: target can't be descendant of any moved folder node
-   - Batch updateMany for parentId update
-   - Logs activity with move metadata
+5. **`/src/components/workspace/workspace-invite-dialog.tsx`** — Invitation dialog
+   - Email input field (validated)
+   - Role selector dropdown (member/viewer/admin)
+   - "Send Invitation" button — POST to /api/workspaces/[id]/members
+   - Seat limit info display: "3 of 10 seats used"
+   - Error state: "Seat limit reached — upgrade plan to add more members" (41.2)
 
-7. **`/src/app/api/nodes/bulk-download/route.ts`** — POST: Bulk download as ZIP (18.4)
-   - Body: `{ nodeIds: string[] }` (Zod validated, max 50)
-   - Uses archiver npm package for ZIP creation
-   - For folders, includes all descendant files (with folder name prefix)
-   - Notes exported as .json files
-   - Content-Type: application/zip, Content-Disposition: attachment; filename="workspace-export.zip"
-   - Streams response (archiver → buffer → NextResponse)
+6. **`/src/components/workspace/workspace-invitation-view.tsx`** — Accept/Decline invitations view
+   - Modal/dialog for pending workspace invitations
+   - Shows: workspace name, inviter email, role offered, expiry date
+   - "Accept" and "Decline" buttons per invitation
+   - Detailed view on click: shows inviter details, expiry, role badge
+   - After accept → switches to that workspace context via store
+   - Fetches invitation details from /api/workspaces/invitations/[token]
 
-8. **`/src/app/api/nodes/bulk-share/route.ts`** — POST: Bulk share (18.2)
-   - Body: `{ nodeIds: string[], sharedWithUserId: string, permissionLevel: 'view'|'comment'|'edit' }`
-   - Creates NodeShare entries for all selected nodes
-   - Partial failure handling: continues if share already exists (unique constraint)
-   - Sends share_received notification via createNotification
-   - Logs activity with share metadata
+7. **`/src/components/workspace/workspace-settings-dialog.tsx`** — Workspace settings dialog
+   - Workspace name editing (admin/owner only)
+   - Plan tier display with upgrade button (links to billing Module 42)
+   - Seat usage display
+   - Ownership transfer section (41.5) — select from existing admin members
+   - "Delete Workspace" button (owner only, with AlertDialog confirmation)
+   - Personal workspace message when no workspace selected
 
-9. **`/src/app/api/nodes/bulk-tag/route.ts`** — POST: Bulk tag (18.2)
-   - Body: `{ nodeIds: string[], tagId: string }`
-   - Validates tag exists and belongs to user
-   - Creates NodeTag entries, skips if already tagged (unique constraint)
-   - Logs activity with tag metadata
+### Files Modified:
 
-### Infrastructure Updates
+8. **`/src/components/workspace/workspace-layout.tsx`** — Updated header
+   - Replaced static "Unified Workspace" logo with `<WorkspaceSwitcher />` component
+   - Added "Workspace Settings" option in user dropdown (for workspace context, owner/admin only)
+   - Added "Invitations" option in user dropdown
+   - Added `<WorkspaceSettingsDialog>` and `<WorkspaceInvitationView>` dialog components
+   - Imported `useWorkspaceStore` and `useWorkspaces` hook
+   - Workspaces are auto-fetched on layout mount
 
-10. **Middleware** — Updated `/src/middleware.ts`:
-    - Added `/api/trash` route protection in pathname check
-    - Added `/api/trash/:path*` in matcher config
-    - Ensures x-user-id header is set for all trash API routes
+9. **`/src/components/workspace/sidebar.tsx`** — Updated sidebar
+   - Added workspace context indicator at top (workspace name + role)
+   - Added "Settings" and "Members" quick links when in workspace context
+   - Collapsed sidebar: workspace settings icon and members icon
+   - Added `<WorkspaceSettingsDialog>` and member list dialog integration
+   - Imported `useWorkspaceStore` and workspace-related components
 
-11. **Dependencies** — Installed archiver + @types/archiver for ZIP streaming
+### Key Design Decisions:
 
-## Technical Decisions
+- **Zustand store** for workspace context (not just React Query) — allows components to read current workspace without refetching
+- **`invalidateWorkspaceCaches()`** is called from React components (not inside Zustand) because `useQueryClient()` is a React hook
+- **Role badges** use distinct color coding for visual hierarchy: gold for owner, blue for admin, neutral for member, gray for viewer
+- **44px touch targets** maintained throughout (min-h-[44px] min-w-[44px])
+- **Responsive design**: workspace switcher shows icon-only on mobile, name on desktop
+- **All API calls** use relative paths as required (e.g., `/api/workspaces/...`)
 
-- Used `x-user-id` header for auth (consistent with middleware pattern) instead of getServerSession
-- Reused `getAllDescendants` from `@/lib/permissions` for recursive descendant lookup
-- Reused `logActivity` from `@/lib/activity-logger` and `createNotification` from `@/lib/notification-sender`
-- Reused `bigintToNumber` from `@/lib/bigint` for BigInt serialization
-- Purge/auto-purge hard-delete logic uses per-node processing with partial failure handling
-- Storage re-calculated via full reconciliation (sum of active file sizes) rather than decrement for accuracy
-- Bulk-move cycle detection checks each folder's descendants against target
+### Lint: All passing ✓

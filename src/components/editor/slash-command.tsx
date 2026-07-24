@@ -22,6 +22,7 @@ import {
   Quote,
   FileText,
   Calculator,
+  Sigma,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCalculatorStore } from '@/store/calculator';
@@ -144,6 +145,22 @@ const slashCommands: SlashCommandItem[] = [
       }
     },
   },
+  {
+    title: 'Math',
+    description: 'Inline math expression ($...$)',
+    icon: 'mathInline',
+    command: (editor, range) => {
+      editor.chain().focus().deleteRange(range).insertMathBlock({ source: '', displayMode: 'inline' }).run();
+    },
+  },
+  {
+    title: 'Math Block',
+    description: 'Block math expression ($$...$$)',
+    icon: 'mathBlock',
+    command: (editor, range) => {
+      editor.chain().focus().deleteRange(range).insertMathBlock({ source: '', displayMode: 'block' }).run();
+    },
+  },
 ];
 
 // Icon component for slash command menu
@@ -161,6 +178,8 @@ function CommandIcon({ name }: { name: string }) {
     horizontalRule: <Minus className="h-4 w-4 text-muted-foreground" />,
     paragraph: <FileText className="h-4 w-4 text-muted-foreground" />,
     calculator: <Calculator className="h-4 w-4 text-orange-500" />,
+    mathInline: <Sigma className="h-4 w-4 text-emerald-600" />,
+    mathBlock: <Sigma className="h-4 w-4 text-emerald-600" />,
   };
 
   return <span className="shrink-0">{iconMap[name] || <FileText className="h-4 w-4" />}</span>;
