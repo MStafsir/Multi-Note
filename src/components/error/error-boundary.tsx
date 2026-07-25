@@ -46,12 +46,16 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return {
-      hasError: false,
+      hasError: true,
       error,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    // Log the actual error for debugging
+    console.error('[ErrorBoundary] Caught error:', error.message, error.stack);
+    console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
+
     // Update state to show fallback UI
     this.setState({ hasError: true, error });
 

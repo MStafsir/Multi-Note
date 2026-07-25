@@ -15,7 +15,7 @@ interface NoteEdit {
   nodeId: string;
   contentJson: string;
   updatedAt: string; // local timestamp when edit was made
-  synced: boolean;
+  synced: number; // 0 = unsynced, 1 = synced
   createdAt: string; // when this edit was queued
 }
 
@@ -25,13 +25,13 @@ interface UwOfflineDB extends DBSchema {
     value: NoteEdit;
     indexes: {
       'by-nodeId': string;
-      'by-synced': boolean;
+      'by-synced': number; // 0 = unsynced, 1 = synced (booleans are not valid IDB keys)
     };
   };
 }
 
 const DB_NAME = 'uw-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance: IDBPDatabase<UwOfflineDB> | null = null;
 
@@ -39,10 +39,21 @@ async function getDB(): Promise<IDBPDatabase<UwOfflineDB>> {
   if (dbInstance) return dbInstance;
 
   dbInstance = await openDB<UwOfflineDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      const store = db.createObjectStore('note-edits', { keyPath: 'id' });
-      store.createIndex('by-nodeId', 'nodeId');
-      store.createIndex('by-synced', 'synced');
+    upgrade(db, oldVersion) {
+      // Migrate from boolean keys (v1) to number keys (v2)
+      // Booleans are not valid IDB keys, so we need to recreate the store
+      if (oldVersion === 1) {
+        // v1 had 'note-edits' with boolean 'synced' — delete and recreate
+        if (db.objectStoreNames.contains('note-edits')) {
+          db.deleteObjectStore('note-edits');
+        }
+      }
+      // Create store (fresh install or after migration)
+      if (!db.objectStoreNames.contains('note-edits')) {
+        const store = db.createObjectStore('note-edits', { keyPath: 'id' });
+        store.createIndex('by-nodeId', 'nodeId');
+        store.createIndex('by-synced', 'synced');
+      }
     },
   });
 
@@ -71,7 +82,7 @@ export async function queueNoteEdit(
     nodeId,
     contentJson,
     updatedAt,
-    synced: false,
+    synced: 0, // 0 = unsynced, 1 = synced (booleans are not valid IDB keys)
     createdAt: new Date().toISOString(),
   };
 
@@ -86,7 +97,7 @@ export async function queueNoteEdit(
 export async function getUnsyncedEdits(nodeId: string): Promise<NoteEdit[]> {
   const db = await getDB();
   const allEdits = await db.getAllFromIndex('note-edits', 'by-nodeId', nodeId);
-  return allEdits.filter(edit => !edit.synced);
+  return allEdits.filter(edit => edit.synced === 0);
 }
 
 // ============================================================
@@ -95,7 +106,7 @@ export async function getUnsyncedEdits(nodeId: string): Promise<NoteEdit[]> {
 
 export async function getAllUnsyncedEdits(): Promise<NoteEdit[]> {
   const db = await getDB();
-  const allEdits = await db.getAllFromIndex('note-edits', 'by-synced', false);
+  const allEdits = await db.getAllFromIndex('note-edits', 'by-synced', 0);
   return allEdits;
 }
 
@@ -107,7 +118,7 @@ export async function markEditSynced(editId: string): Promise<void> {
   const db = await getDB();
   const edit = await db.get('note-edits', editId);
   if (edit) {
-    edit.synced = true;
+    edit.synced = 1; // Mark as synced
     await db.put('note-edits', edit);
   }
 }
@@ -118,7 +129,7 @@ export async function markEditSynced(editId: string): Promise<void> {
 
 export async function deleteSyncedEdits(): Promise<void> {
   const db = await getDB();
-  const syncedEdits = await db.getAllFromIndex('note-edits', 'by-synced', true);
+  const syncedEdits = await db.getAllFromIndex('note-edits', 'by-synced', 1);
   for (const edit of syncedEdits) {
     await db.delete('note-edits', edit.id);
   }

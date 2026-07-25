@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+// Watchdog utility - not part of the application codebase
 const { spawn } = require('child_process');
 
 function startServer() {

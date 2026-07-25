@@ -79,14 +79,19 @@ export function NoteEditor({ nodeId }: NoteEditorProps) {
   // Sync queued offline edits when connection returns
   useEffect(() => {
     const syncOnReconnect = async () => {
-      const count = await getUnsyncedCount();
-      if (count > 0) {
-        const result = await syncQueuedEdits();
-        if (result.synced > 0) {
-          toast.success(`Synced ${result.synced} offline edits`);
-          queryClient.invalidateQueries({ queryKey: ['note'] });
-          queryClient.invalidateQueries({ queryKey: ['nodes'] });
+      try {
+        const count = await getUnsyncedCount();
+        if (count > 0) {
+          const result = await syncQueuedEdits();
+          if (result.synced > 0) {
+            toast.success(`Synced ${result.synced} offline edits`);
+            queryClient.invalidateQueries({ queryKey: ['note'] });
+            queryClient.invalidateQueries({ queryKey: ['nodes'] });
+          }
         }
+      } catch (err) {
+        // IDB errors should not crash the component
+        console.warn('Failed to sync offline edits:', err);
       }
     };
 

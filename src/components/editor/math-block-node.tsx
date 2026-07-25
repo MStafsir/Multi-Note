@@ -67,8 +67,10 @@ function MathBlockNodeView({
 export const MathBlockNode = Node.create({
   name: 'mathBlock',
 
-  // Block display by default; can also be inline when displayMode='inline'
-  group: 'block inline',
+  // Block node for math equations (displayed as standalone blocks)
+  // Note: Inline math ($...$) is handled via a separate InlineMathNode
+  // to avoid ProseMirror "Mixing inline and block content" schema error
+  group: 'block',
   inline: false,
   atom: true, // Atom node — no editable content inside, rendered as single unit
   selectable: true,
