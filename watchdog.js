@@ -1,39 +1,35 @@
-// Minimal Node.js watchdog — checks server health and restarts if dead
-const { execSync, spawn } = require('child_process');
-const http = require('http');
+const { spawn } = require('child_process');
 
 function startServer() {
-  console.log('Starting server at ' + new Date().toISOString());
-  const child = spawn('node', ['.next/standalone/server.js'], {
+  const server = spawn('node', ['.next/standalone/server.js'], {
     cwd: '/home/z/my-project',
-    env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=1500', PORT: '3000' },
-    detached: true,
-    stdio: 'ignore'
+    env: {
+      PATH: process.env.PATH,
+      PORT: '3000',
+      NODE_OPTIONS: '--max-old-space-size=500',
+      UV_THREADPOOL_SIZE: '1',
+      HOME: process.env.HOME,
+      DATABASE_URL: process.env.DATABASE_URL || 'file:/home/z/my-project/db/custom.db',
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: false,
   });
-  child.unref();
-  return child.pid;
+  
+  server.stdout.on('data', (data) => {
+    process.stdout.write(data);
+  });
+  
+  server.stderr.on('data', (data) => {
+    process.stderr.write(data);
+  });
+  
+  server.on('exit', () => {
+    setTimeout(startServer, 2000);
+  });
+  
+  return server;
 }
 
-function checkServer() {
-  return new Promise((resolve) => {
-    const req = http.request('http://localhost:3000/', { method: 'HEAD', timeout: 2000 }, (res) => {
-      resolve(res.statusCode === 200);
-    });
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => { req.destroy(); resolve(false); });
-    req.end();
-  });
-}
-
-let serverPid = startServer();
-
-setInterval(async () => {
-  const alive = await checkServer();
-  if (!alive) {
-    console.log('Server not responding, restarting at ' + new Date().toISOString());
-    try { process.kill(serverPid, 'SIGKILL'); } catch {}
-    serverPid = startServer();
-  }
-}, 5000);
-
-console.log('Watchdog started, monitoring server every 5 seconds');
+startServer();
+console.log('[watchdog] Running');

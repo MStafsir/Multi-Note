@@ -426,6 +426,8 @@
   "language": "Bahasa",
   "languageIndonesian": "Bahasa Indonesia",
   "languageEnglish": "English",
+  "languageSwitcher": "Pilih bahasa",
+  "contentScopeNote": "Bahasa UI berubah — konten tetap dalam bahasa asli",
   "switchLanguage": "Ganti bahasa",
   "dateFormatFull": "{date, date, long}",
   "dateFormatShort": "{date, date, short}",
