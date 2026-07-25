@@ -30,6 +30,7 @@ import { Loader2, WifiOff } from 'lucide-react';
 import { EditorToolbar } from './editor-toolbar';
 import { EmbeddedFileNode } from './embedded-file-node';
 import { MathBlockNode } from './math-block-node';
+import { CodeSandboxBlockNode } from './code-sandbox-block-node';
 import { NoteLinkMentionNode, NoteLinkAutocomplete, createNoteLinkSuggestionPlugin } from './note-link-mention';
 import { PresenceIndicator } from './presence-indicator';
 import { BacklinkPanel } from '@/components/backlink/backlink-panel';
@@ -169,6 +170,7 @@ export function TiptapEditorEnhanced({
       }),
       EmbeddedFileNode,
       MathBlockNode,
+      CodeSandboxBlockNode,
       NoteLinkMentionNode,
     ],
     content: parsedContent(),
