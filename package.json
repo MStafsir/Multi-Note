@@ -82,6 +82,7 @@
     "framer-motion": "^12.23.2",
     "idb": "^8.0.3",
     "input-otp": "^1.4.2",
+    "intl-messageformat": "^11.2.12",
     "katex": "^0.18.1",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.525.0",

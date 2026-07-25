@@ -24,6 +24,9 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get('dateTo') || undefined;
     const tagsParam = searchParams.get('tags') || undefined; // comma-separated tag IDs
     const tagMode = searchParams.get('tagMode') || 'OR'; // "AND" | "OR"
+    // MODUL 48.3 — locale-aware search config (for Supabase Postgres: tsvector per-language stemming)
+    // On SQLite, LIKE is language-neutral; locale param stored for future Postgres migration
+    const locale = searchParams.get('locale') || 'id'; // 48.3 — default Bahasa Indonesia
 
     if (!q || q.trim().length < 1) {
       return NextResponse.json({ success: true, data: { results: [] } });

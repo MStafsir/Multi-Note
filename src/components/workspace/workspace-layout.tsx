@@ -39,6 +39,7 @@ import { AdminDashboard } from '@/components/admin/admin-dashboard';
 import { CommandPalette } from '@/components/command/command-palette';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { WorkspaceAdvancedSettings } from './workspace-advanced-settings';
+import { LocaleSwitcher } from './locale-switcher';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { WelcomeSlides } from '@/components/onboarding/welcome-slides';
 import { OnboardingChecklist, markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
@@ -386,6 +387,9 @@ export function WorkspaceLayout() {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* MODUL 47 — Locale switcher */}
+                <LocaleSwitcher />
+
                 {/* Notification badge */}
                 <NotificationBadge />
 

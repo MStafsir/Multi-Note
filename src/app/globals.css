@@ -166,3 +166,109 @@
 .math-block-preview .katex-display {
   margin: 0;
 }
+
+/* ============================================================
+   MODUL 46: CodeSandboxBlock styles
+   Custom styles for code sandbox block rendering in Tiptap editor
+   ============================================================ */
+
+.code-sandbox-block-node {
+  position: relative;
+}
+
+.code-sandbox-block-node .ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.code-sandbox-preview textarea {
+  tab-size: 2;
+}
+
+/* ============================================================
+   MODUL 47/48: i18n RTL support (48.2)
+   CSS logical properties for directional-aware layouts
+   When [dir="rtl"] is set on <html>, these rules flip
+   physical-directional properties automatically
+   ============================================================ */
+
+/* RTL-specific overrides for sidebar and drag-drop (48.2) */
+[dir="rtl"] .sidebar-container {
+  flex-direction: row-reverse;
+}
+
+/* Use logical properties throughout — these are already in Tailwind 4 */
+/* ms-* = margin-inline-start, me-* = margin-inline-end */
+/* ps-* = padding-inline-start, pe-* = padding-inline-end */
+/* start-* = inset-inline-start, end-* = inset-inline-end */
+
+/* RTL text alignment fallback */
+[dir="rtl"] .text-left {
+  text-align: start;
+}
+
+[dir="rtl"] .text-right {
+  text-align: end;
+}
+
+/* RTL border direction fallback */
+[dir="rtl"] .border-l {
+  border-inline-start-width: 1px;
+  border-inline-end-width: 0;
+  border-left-width: 0;
+}
+
+[dir="rtl"] .border-r {
+  border-inline-end-width: 1px;
+  border-inline-start-width: 0;
+  border-right-width: 0;
+}
+
+/* RTL margin/padding fallback */
+[dir="rtl"] .ml-auto {
+  margin-inline-start: auto;
+  margin-left: 0;
+}
+
+[dir="rtl"] .mr-auto {
+  margin-inline-end: auto;
+  margin-right: 0;
+}
+
+/* RTL position fallback */
+[dir="rtl"] .left-0 {
+  inset-inline-start: 0;
+  left: auto;
+}
+
+[dir="rtl"] .right-0 {
+  inset-inline-end: 0;
+  right: auto;
+}
+
+/* RTL scroll direction */
+[dir="rtl"] .overflow-x-auto,
+[dir="rtl"] .overflow-y-auto {
+  scrollbar-gutter: stable both-edges;
+}
+
+/* i18n locale indicator badge */
+.locale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: oklch(0.97 0 0);
+  color: oklch(0.556 0 0);
+  border: 1px solid oklch(0.922 0 0);
+}
+
+.dark .locale-badge {
+  background: oklch(0.269 0 0);
+  color: oklch(0.725 0 0);
+  border-color: oklch(1 0 0 / 10%);
+}

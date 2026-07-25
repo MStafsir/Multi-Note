@@ -15,16 +15,20 @@ export const LOCALE_CONFIG: Record<AppLocale, { label: string; flag: string; dir
   en: { label: 'English', flag: '🇺🇸', direction: 'ltr' },
 };
 
-// Default locale per 47.2 [FLAG: VERIFY] — Bahasa Indonesia for initial user base
-const DEFAULT_LOCALE: AppLocale = 'id';
+// 47.2 — Default locale: Bahasa Indonesia (initial user base)
+// 47.2 — Fallback locale: English
+export const DEFAULT_LOCALE: AppLocale = 'id';
+export const FALLBACK_LOCALE: AppLocale = 'en';
 
 interface LocaleState {
   /** Current active locale */
   locale: AppLocale;
+  /** Whether current locale is RTL (48.2) */
+  isRTL: boolean;
   /** Set locale and persist to localStorage */
   setLocale: (locale: AppLocale) => void;
-  /** Get text direction for current locale (48.2 — RTL consideration) */
-  direction: 'ltr' | 'rtl';
+  /** Reset locale to default */
+  resetLocale: () => void;
 }
 
 // Load persisted locale from localStorage
@@ -39,9 +43,13 @@ function getPersistedLocale(): AppLocale {
   return DEFAULT_LOCALE;
 }
 
+function getIsRTL(locale: AppLocale): boolean {
+  return LOCALE_CONFIG[locale]?.direction === 'rtl';
+}
+
 export const useLocaleStore = create<LocaleState>((set) => ({
   locale: getPersistedLocale(),
-  direction: LOCALE_CONFIG[getPersistedLocale()].direction,
+  isRTL: getIsRTL(getPersistedLocale()),
 
   setLocale: (locale: AppLocale) => {
     // Persist to localStorage
@@ -51,15 +59,35 @@ export const useLocaleStore = create<LocaleState>((set) => ({
       // localStorage not available
     }
 
+    const isRTL = getIsRTL(locale);
+
     set({
       locale,
-      direction: LOCALE_CONFIG[locale].direction,
+      isRTL,
     });
 
     // Update document direction attribute for RTL support (48.2)
     if (typeof document !== 'undefined') {
-      document.documentElement.dir = LOCALE_CONFIG[locale].direction;
+      document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
       document.documentElement.lang = locale;
+    }
+  },
+
+  resetLocale: () => {
+    try {
+      localStorage.removeItem('app-locale');
+    } catch {
+      // localStorage not available
+    }
+
+    set({
+      locale: DEFAULT_LOCALE,
+      isRTL: getIsRTL(DEFAULT_LOCALE),
+    });
+
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = 'ltr';
+      document.documentElement.lang = DEFAULT_LOCALE;
     }
   },
 }));

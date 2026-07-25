@@ -5,7 +5,7 @@
 //
 // Architecture:
 // 1. Web Worker: Executes user code, intercepts console output
-// 2. iframe (sandbox="allow-scripts"): Renders output visually, 
+// 2. iframe (sandbox="allow-scripts"): Renders output visually,
 //    denies same-origin access — prevents access to parent cookies/session
 // 3. 5-second timeout per run (46.4) with forced Worker termination
 // 4. Console output capture (46.5) — render as panel, NOT browser console
@@ -44,125 +44,83 @@ const DEFAULT_TIMEOUT_MS = 5000; // 46.4 — 5 seconds per run
 
 // ============================================================
 // Web Worker code — injected as Blob URL
-// This code runs inside the Worker, intercepts console, 
-// executes user code, and returns output via postMessage
+// NOTE: This is plain JS (not TS) since it runs inside a Worker
+// We build the string using array join to avoid template-literal
+// nesting issues with backticks and regex escaping
 // ============================================================
 
-const WORKER_SOURCE_CODE = `
-// Worker-side console interception (46.5)
-// Override console methods to capture output and send to main thread
-const originalConsole = {
-  log: console.log,
-  warn: console.warn,
-  error: console.error,
-  info: console.info,
-};
-
-function sendOutput(type, args) {
-  const content = args.map(a => {
-    if (a === null) return 'null';
-    if (a === undefined) return 'undefined';
-    if (typeof a === 'object') {
-      try { return JSON.stringify(a, null, 2); }
-      catch { return String(a); }
-    }
-    return String(a);
-  }).join(' ');
-  
-  self.postMessage({
-    type: 'output',
-    outputType: type,
-    content: content,
-    timestamp: Date.now(),
-  });
-}
-
-console.log = (...args) => { originalConsole.log(...args); sendOutput('log', args); };
-console.warn = (...args) => { originalConsole.warn(...args); sendOutput('warn', args); };
-console.error = (...args) => { originalConsole.error(...args); sendOutput('error', args); };
-console.info = (...args) => { originalConsole.info(...args); sendOutput('info', args); };
-
-// Simple TypeScript transpiler (46.3 [FLAG: VERIFY])
-// Removes type annotations, interfaces, type aliases, and enum declarations
-// This is a LIMITED transpiler — not a full TS compiler
-// For production, consider using sucrase or esbuild WASM
-function transpileTS(code) {
-  // Remove interface declarations
-  code = code.replace(/interface\\s+\\w+\\s*\\{[^}]*\\}/g, '');
-  // Remove type alias declarations
-  code = code.replace(/type\\s+\\w+\\s*=\\s*[^;]+;/g, '');
-  // Remove enum declarations (convert to const objects)
-  code = code.replace(/enum\\s+\\w+\\s*\\{([^}]*)\\}/g, (match, body) => {
-    const entries = body.split(',').map(e => {
-      const parts = e.trim().split('=');
-      const key = parts[0].trim();
-      const value = parts.length > 1 ? parts[1].trim() : null;
-      return value ? `${key}: ${value}` : `'${key}'`;
-    });
-    // Extract enum name
-    const enumName = match.match(/enum\\s+(\\w+)/)[1];
-    return 'const ' + enumName + ' = {' + entries.join(', ') + '};';
-  });
-  // Remove type annotations from function params and variable declarations
-  code = code.replace(/:\\s*(?:string|number|boolean|any|void|never|unknown|null|undefined|object|bigint|symbol)(?:\\s*\\|\\s*(?:string|number|boolean|any|void|never|unknown|null|undefined|object|bigint|symbol))*\\s*[;,=\\)]/g, (match) => {
-    return match.charAt(match.length - 1); // Keep the trailing character
-  });
-  // Remove generic type params
-  code = code.replace(/<[^>]+>/g, '');
-  // Remove 'as' type assertions
-  code = code.replace(/\\s+as\\s+\\w+/g, '');
-  // Remove readonly modifier
-  code = code.replace(/readonly\\s+/g, '');
-  // Remove public/private/protected modifiers
-  code = code.replace(/(?:public|private|protected)\\s+/g, '');
-  // Remove abstract modifier
-  code = code.replace(/abstract\\s+/g, '');
-  // Remove implements clause
-  code = code.replace(/implements\\s+\\w+\\s*/g, '');
-  return code;
-}
-
-// Execute user code inside the Worker
-self.onmessage = function(event) {
-  const { code, language, transpileTypeScript } = event.data;
-  
-  try {
-    // Transpile TypeScript if requested (46.3)
-    let executableCode = code;
-    if (language === 'typescript' && transpileTypeScript) {
-      executableCode = transpileTS(code);
-    }
-    
-    // Execute the code using Function constructor (safer than eval)
-    // The Function constructor creates a new scope — no access to Worker internals
-    const fn = new Function(executableCode);
-    const result = fn();
-    
-    // Send result if non-undefined
-    if (result !== undefined) {
-      sendOutput('result', [result]);
-    }
-    
-    // Signal successful completion
-    self.postMessage({
-      type: 'complete',
-      success: true,
-      executionTime: Date.now() - event.data.startTime,
-    });
-  } catch (err) {
-    // Send error output
-    sendOutput('error', [err instanceof Error ? err.message : String(err)]);
-    
-    // Signal error completion
-    self.postMessage({
-      type: 'complete',
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-      executionTime: Date.now() - event.data.startTime,
-    });
-  }
-};
-`;
+const WORKER_SOURCE_CODE = [
+  '// Worker-side console interception (46.5)',
+  'const originalConsole = { log: console.log, warn: console.warn, error: console.error, info: console.info };',
+  '',
+  'function sendOutput(type, args) {',
+  '  const content = args.map(a => {',
+  '    if (a === null) return "null";',
+  '    if (a === undefined) return "undefined";',
+  '    if (typeof a === "object") {',
+  '      try { return JSON.stringify(a, null, 2); }',
+  '      catch { return String(a); }',
+  '    }',
+  '    return String(a);',
+  '  }).join(" ");',
+  '  self.postMessage({ type: "output", outputType: type, content: content, timestamp: Date.now() });',
+  '}',
+  '',
+  'console.log = (...args) => { originalConsole.log(...args); sendOutput("log", args); };',
+  'console.warn = (...args) => { originalConsole.warn(...args); sendOutput("warn", args); };',
+  'console.error = (...args) => { originalConsole.error(...args); sendOutput("error", args); };',
+  'console.info = (...args) => { originalConsole.info(...args); sendOutput("info", args); };',
+  '',
+  '// Simple TypeScript transpiler (46.3) — limited, not a full compiler',
+  'function transpileTS(code) {',
+  '  code = code.replace(/interface\\s+\\w+\\s*\\{[^}]*\\}/g, "");',
+  '  code = code.replace(/type\\s+\\w+\\s*=\\s*[^;]+;/g, "");',
+  '  code = code.replace(/enum\\s+(\\w+)\\s*\\{([^}]*)\\}/g, function(match, name, body) {',
+  '    const entries = body.split(",").map(function(e) {',
+  '      var parts = e.trim().split("=");',
+  '      var key = parts[0].trim();',
+  '      var value = parts.length > 1 ? parts[1].trim() : null;',
+  '      return value ? (key + ": " + value) : ("\\"" + key + "\\");',
+  '    });',
+  '    return "const " + name + " = {" + entries.join(", ") + "};";',
+  '  });',
+  '  code = code.replace(/:\\s*(?:string|number|boolean|any|void|never|unknown|null|undefined|object|bigint|symbol)(?:\\s*\\|\\s*(?:string|number|boolean|any|void|never|unknown|null|undefined|object|bigint|symbol))*\\s*[;,=\\)]/g, function(match) {',
+  '    return match.charAt(match.length - 1);',
+  '  });',
+  '  code = code.replace(/<[^>]+>/g, "");',
+  '  code = code.replace(/\\s+as\\s+\\w+/g, "");',
+  '  code = code.replace(/readonly\\s+/g, "");',
+  '  code = code.replace(/(?:public|private|protected)\\s+/g, "");',
+  '  code = code.replace(/abstract\\s+/g, "");',
+  '  code = code.replace(/implements\\s+\\w+\\s*/g, "");',
+  '  return code;',
+  '}',
+  '',
+  '// Execute user code inside the Worker',
+  'self.onmessage = function(event) {',
+  '  var data = event.data;',
+  '  var code = data.code;',
+  '  var language = data.language;',
+  '  var transpileTypeScript = data.transpileTypeScript;',
+  '  var startTime = data.startTime;',
+  '',
+  '  try {',
+  '    var executableCode = code;',
+  '    if (language === "typescript" && transpileTypeScript) {',
+  '      executableCode = transpileTS(code);',
+  '    }',
+  '    var fn = new Function(executableCode);',
+  '    var result = fn();',
+  '    if (result !== undefined) {',
+  '      sendOutput("result", [result]);',
+  '    }',
+  '    self.postMessage({ type: "complete", success: true, executionTime: Date.now() - startTime });',
+  '  } catch (err) {',
+  '    sendOutput("error", [err instanceof Error ? err.message : String(err)]);',
+  '    self.postMessage({ type: "complete", success: false, error: err instanceof Error ? err.message : String(err), executionTime: Date.now() - startTime });',
+  '  }',
+  '};',
+].join('\n');
 
 // ============================================================
 // SandboxExecutor — Main-thread controller for sandboxed execution
@@ -203,11 +161,6 @@ export class SandboxExecutor {
       const workerUrl = URL.createObjectURL(blob);
       this.worker = new Worker(workerUrl);
 
-      // Revoke blob URL after worker starts (cleanup)
-      this.worker.addEventListener('error', () => {
-        URL.revokeObjectURL(workerUrl);
-      });
-
       // Handle messages from Worker
       this.worker.onmessage = (event: MessageEvent) => {
         const data = event.data;
@@ -221,6 +174,7 @@ export class SandboxExecutor {
           });
         } else if (data.type === 'complete') {
           // Execution finished — clean up and resolve
+          URL.revokeObjectURL(workerUrl);
           this.cleanup();
           resolve({
             success: data.success as boolean,
@@ -234,6 +188,7 @@ export class SandboxExecutor {
 
       // Handle Worker errors (syntax errors, etc.)
       this.worker.onerror = (event: ErrorEvent) => {
+        URL.revokeObjectURL(workerUrl);
         this.outputs.push({
           type: 'error',
           content: event.message || 'Worker execution error',
@@ -255,6 +210,7 @@ export class SandboxExecutor {
         if (this.worker) {
           // Force-terminate the Worker — infinite loop protection
           this.worker.terminate();
+          URL.revokeObjectURL(workerUrl);
           this.outputs.push({
             type: 'error',
             content: `Execution timeout: exceeded ${timeoutMs}ms limit. Worker force-terminated.`,
@@ -348,20 +304,16 @@ export function createSandboxedIframe(
 // Verifies that sandbox cannot access parent window/cookies
 // ============================================================
 
-export const ISOLATION_TEST_CODE = `
-// This code attempts to access parent window — should fail in sandbox
+export const ISOLATION_TEST_CODE = `// This code attempts to access parent window — should fail in sandbox
 try {
-  // Attempt 1: Access parent window
   if (typeof window !== 'undefined' && window.parent) {
     console.log('SECURITY ISSUE: Can access window.parent');
   } else {
     console.log('PASS: Cannot access window.parent (Worker environment)');
   }
-  
-  // Attempt 2: Access cookies
   try {
     if (typeof document !== 'undefined') {
-      const cookies = document.cookie;
+      var cookies = document.cookie;
       console.log('SECURITY ISSUE: Can access cookies: ' + cookies);
     } else {
       console.log('PASS: No document access (Worker environment)');
@@ -369,8 +321,6 @@ try {
   } catch (e) {
     console.log('PASS: Cookie access blocked: ' + e.message);
   }
-  
-  // Attempt 3: Access localStorage
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.getItem('test');
@@ -383,20 +333,17 @@ try {
   }
 } catch (e) {
   console.log('PASS: All isolation checks passed');
-}
-`;
+}`;
 
 // ============================================================
 // Infinite-loop test code (46.6)
 // Used to verify Worker force-termination at timeout
 // ============================================================
 
-export const INFINITE_LOOP_TEST_CODE = `
-// This code intentionally has no exit condition
+export const INFINITE_LOOP_TEST_CODE = `// This code intentionally has no exit condition
 // Should trigger timeout and Worker force-termination (46.6)
-let i = 0;
+var i = 0;
 while (true) {
   i++;
 }
-// Never reaches here — Worker should be terminated at 5s timeout
-`;
+// Never reaches here — Worker should be terminated at 5s timeout`;
