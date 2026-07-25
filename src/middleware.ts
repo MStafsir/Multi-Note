@@ -7,7 +7,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { db } from '@/lib/db';
+// NOTE: Removed Prisma db import from middleware — too heavy for Turbopack compilation
+// Admin role check is handled in API route handlers instead (defense-in-depth still works)
 
 // MODUL 37.2 — Rate limiting store (in-memory, per-IP)
 interface RateLimitEntry {
@@ -57,19 +58,8 @@ setInterval(() => {
   }
 }, 60_000);
 
-// MODUL 36.1 — Check if user is admin via profile role
-async function isUserRole(userId: string, requiredRole: string): Promise<boolean> {
-  try {
-    const profile = await db.profile.findUnique({
-      where: { userId },
-      select: { role: true },
-    });
-    return profile?.role === requiredRole;
-  } catch {
-    // Fallback: if profile lookup fails, deny access (fail-closed)
-    return false;
-  }
-}
+// MODUL 36.1 — Admin role check moved to API route handlers (db import too heavy for middleware)
+// Middleware only checks JWT token role; route handlers do DB-backed verification
 
 // MODUL 37 — Security headers to add to every response
 function addSecurityHeaders(response: NextResponse): NextResponse {
@@ -217,15 +207,12 @@ export async function middleware(request: NextRequest) {
     // Check role from JWT token (includes profile role from auth.ts callback)
     const role = token.role as string;
     if (role !== 'admin') {
-      // Defense-in-depth: also check profile in database (JWT could be stale)
-      const userId = token.id as string;
-      const isActuallyAdmin = await isUserRole(userId, 'admin');
-      if (!isActuallyAdmin) {
-        return NextResponse.json(
-          { success: false, error: 'Forbidden — Admin access required' },
-          { status: 403 }
-        );
-      }
+      // Middleware check: JWT role must be 'admin'
+      // DB-backed verification is done in API route handlers (defense-in-depth)
+      return NextResponse.json(
+        { success: false, error: 'Forbidden — Admin access required' },
+        { status: 403 }
+      );
     }
 
     // Admin user confirmed — add user info headers

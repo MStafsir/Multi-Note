@@ -1,16 +1,17 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SessionProvider } from 'next-auth/react';
-import { ThemeProvider } from 'next-themes';
-import { useState, useEffect } from 'react';
-import { useLocaleStore, DEFAULT_LOCALE } from '@/store/locale';
-
 // ============================================================
 // MODUL 47: Providers — wraps all app-level providers
 // Added locale initialization — sets document dir/lang on mount
 // 48.2 — RTL: document.documentElement.dir updated on locale change
 // ============================================================
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SessionProvider } from 'next-auth/react';
+import { ThemeProvider } from 'next-themes';
+import { Toaster } from '@/components/ui/sonner';
+import { useState, useEffect } from 'react';
+import { useLocaleStore, DEFAULT_LOCALE, FALLBACK_LOCALE, type AppLocale } from '@/store/locale';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const { locale, isRTL } = useLocaleStore();
 
   useEffect(() => {
+     
     // Set document direction and language on mount (48.2 RTL support)
     document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
     document.documentElement.lang = locale;
@@ -39,6 +41,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <SessionProvider>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
+          <Toaster />
         </ThemeProvider>
       </SessionProvider>
     </QueryClientProvider>

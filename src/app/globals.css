@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "katex/dist/katex.min.css";
+/* KaTeX CSS is loaded dynamically in the editor component (OOM prevention) */
 
 @custom-variant dark (&:is(.dark *));
 

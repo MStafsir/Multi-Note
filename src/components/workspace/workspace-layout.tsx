@@ -10,6 +10,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings, Building2, Mail } from 'lucide-react';
 import { signOut } from 'next-auth/react';
@@ -20,10 +21,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sidebar } from './sidebar';
 import { ContentArea } from './content-area';
-import { CreateDialog } from './create-dialog';
-import { WorkspaceSwitcher } from './workspace-switcher';
-import { WorkspaceSettingsDialog } from './workspace-settings-dialog';
-import { WorkspaceInvitationView } from './workspace-invitation-view';
+// Dynamic imports to reduce initial compilation memory (OOM prevention)
+const CreateDialog = dynamic(() => import('./create-dialog').then(m => ({ default: m.CreateDialog })), { ssr: false });
+const WorkspaceSwitcher = dynamic(() => import('./workspace-switcher').then(m => ({ default: m.WorkspaceSwitcher })), { ssr: false });
+const WorkspaceSettingsDialog = dynamic(() => import('./workspace-settings-dialog').then(m => ({ default: m.WorkspaceSettingsDialog })), { ssr: false });
+const WorkspaceInvitationView = dynamic(() => import('./workspace-invitation-view').then(m => ({ default: m.WorkspaceInvitationView })), { ssr: false });
 import { useAuthStore } from '@/store/auth';
 import { useWorkspaceStore } from '@/store/workspace';
 import { useWorkspaces } from '@/hooks/use-workspace';
@@ -32,17 +34,20 @@ import { useFileTreeStore } from '@/store/file-tree';
 import { useUndoStore } from '@/store/undo';
 import { useDeleteNode } from '@/hooks/use-file-tree';
 import { WorkspaceDndProvider } from '@/components/dnd/dnd-context';
-import { CalculatorWidget } from '@/components/calculator/calculator-widget';
-import { SearchDropdown } from '@/components/search/search-dropdown';
-import { TrashView } from '@/components/trash/trash-view';
-import { AdminDashboard } from '@/components/admin/admin-dashboard';
-import { CommandPalette } from '@/components/command/command-palette';
-import { InstallPrompt } from '@/components/pwa/install-prompt';
-import { WorkspaceAdvancedSettings } from './workspace-advanced-settings';
 import { LocaleSwitcher } from './locale-switcher';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { WelcomeSlides } from '@/components/onboarding/welcome-slides';
-import { OnboardingChecklist, markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
+// Heavy components loaded dynamically to reduce OOM during initial compilation
+const CalculatorWidget = dynamic(() => import('@/components/calculator/calculator-widget').then(m => ({ default: m.CalculatorWidget })), { ssr: false });
+const SearchDropdown = dynamic(() => import('@/components/search/search-dropdown').then(m => ({ default: m.SearchDropdown })), { ssr: false });
+const TrashView = dynamic(() => import('@/components/trash/trash-view').then(m => ({ default: m.TrashView })), { ssr: false });
+const AdminDashboard = dynamic(() => import('@/components/admin/admin-dashboard').then(m => ({ default: m.AdminDashboard })), { ssr: false });
+const CommandPalette = dynamic(() => import('@/components/command/command-palette').then(m => ({ default: m.CommandPalette })), { ssr: false });
+const InstallPrompt = dynamic(() => import('@/components/pwa/install-prompt').then(m => ({ default: m.InstallPrompt })), { ssr: false });
+const WorkspaceAdvancedSettings = dynamic(() => import('./workspace-advanced-settings').then(m => ({ default: m.WorkspaceAdvancedSettings })), { ssr: false });
+const WelcomeSlides = dynamic(() => import('@/components/onboarding/welcome-slides').then(m => ({ default: m.WelcomeSlides })), { ssr: false });
+const OnboardingChecklist = dynamic(() => import('@/components/onboarding/onboarding-checklist').then(m => ({ default: m.OnboardingChecklist })), { ssr: false });
+// markOnboardingStep is a utility function, not a component — imported statically
+import { markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
 
 // Mobile breakpoint constant
 const MOBILE_BREAKPOINT = 640;

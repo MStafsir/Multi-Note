@@ -1,11 +1,18 @@
 #!/bin/bash
 cd /home/z/my-project
+# Keep-server for production mode
+# Copies static assets, then starts server in a loop
+# NODE_OPTIONS limits heap to prevent OOM
+cp -r .next/static .next/standalone/.next/static 2>/dev/null
+cp -r public .next/standalone/public 2>/dev/null
+echo "keep-server started at $(date)"
 while true; do
-  node node_modules/.bin/next dev -p 3000 &
+  NODE_OPTIONS="--max-old-space-size=1500" node .next/standalone/server.js &
   SERVER_PID=$!
-  echo "Server started with PID $SERVER_PID at $(date)"
-  # Wait for server to die or be killed
-  wait $SERVER_PID
+  echo "Server PID: $SERVER_PID at $(date)"
+  while kill -0 $SERVER_PID 2>/dev/null; do
+    sleep 2
+  done
   echo "Server died at $(date), restarting..."
-  sleep 3
+  sleep 2
 done

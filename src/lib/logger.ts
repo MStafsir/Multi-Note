@@ -22,6 +22,10 @@ const PII_PATTERNS: RegExp[] = [
 
 const REDACTED = '[REDACTED]';
 
+// In-memory log buffer for queryLogs support
+const logBuffer: LogEntry[] = [];
+const MAX_LOG_BUFFER_SIZE = 10_000;
+
 /**
  * Redact PII from a value by replacing sensitive patterns.
  */
@@ -77,6 +81,12 @@ export function createLogger(service: string, defaultMeta?: Record<string, unkno
   }
 
   function output(entry: LogEntry): void {
+    // Store in in-memory buffer for queryLogs
+    if (logBuffer.length >= MAX_LOG_BUFFER_SIZE) {
+      logBuffer.shift();
+    }
+    logBuffer.push(entry);
+
     const json = JSON.stringify(entry);
     switch (entry.level) {
       case 'debug':
@@ -129,6 +139,37 @@ export function createLogger(service: string, defaultMeta?: Record<string, unkno
       return formatEntry(level, message, meta);
     },
   };
+}
+
+/**
+ * Query structured logs from the in-memory buffer.
+ * Supports filtering by user_id, level, action, and pagination via limit/offset.
+ */
+export interface QueryLogsFilters {
+  user_id?: string;
+  level?: LogLevel;
+  action?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export function queryLogs(filters: QueryLogsFilters): LogEntry[] {
+  let results = [...logBuffer];
+
+  if (filters.user_id) {
+    results = results.filter(entry => entry.user_id === filters.user_id);
+  }
+  if (filters.level) {
+    results = results.filter(entry => entry.level === filters.level);
+  }
+  if (filters.action) {
+    results = results.filter(entry => entry.action === filters.action);
+  }
+
+  const offset = filters.offset ?? 0;
+  const limit = filters.limit ?? 100;
+
+  return results.slice(offset, offset + limit);
 }
 
 // Default app-level logger

@@ -7,6 +7,7 @@
 // ============================================================
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity, Shield, Building2, Users, Settings } from 'lucide-react';
@@ -19,13 +20,14 @@ import { useFileTreeStore } from '@/store/file-tree';
 import { useAuthStore } from '@/store/auth';
 import { useWorkspaceStore } from '@/store/workspace';
 import { FileTreeView } from '@/components/file-tree/file-tree-view';
-import { CreateDialog } from './create-dialog';
-import { WorkspaceSettingsDialog } from './workspace-settings-dialog';
+// Dynamic imports for heavy sidebar components
+const CreateDialog = dynamic(() => import('./create-dialog').then(m => ({ default: m.CreateDialog })), { ssr: false });
+const WorkspaceSettingsDialog = dynamic(() => import('./workspace-settings-dialog').then(m => ({ default: m.WorkspaceSettingsDialog })), { ssr: false });
+const WorkspaceMemberList = dynamic(() => import('./workspace-member-list').then(m => ({ default: m.WorkspaceMemberList })), { ssr: false });
+const ActivityTimeline = dynamic(() => import('@/components/activity/activity-timeline').then(m => ({ default: m.ActivityTimeline })), { ssr: false });
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { WorkspaceMemberList } from './workspace-member-list';
 import { useStorageQuota } from '@/hooks/use-file-tree';
 import { useFavorites } from '@/hooks/use-tags';
-import { ActivityTimeline } from '@/components/activity/activity-timeline';
 
 interface SidebarProps {
   collapsed?: boolean;

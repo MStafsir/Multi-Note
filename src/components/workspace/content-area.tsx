@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
+import dynamic from 'next/dynamic';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -42,7 +43,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UploadZone } from '@/components/upload/upload-zone';
 import { RenameDialog } from './rename-dialog';
-import { NoteEditor } from './note-editor';
 import { ErrorBoundary } from '@/components/error/error-boundary';
 import { NoteEditorError } from '@/components/error/note-editor-error';
 import { useDeleteNode, useUploadFile, useCreateFolder } from '@/hooks/use-file-tree';
@@ -51,15 +51,17 @@ import { toast } from 'sonner';
 import { DraggableItem } from '@/components/dnd/draggable-item';
 import { DroppableFolder } from '@/components/dnd/droppable-folder';
 import { useWorkspaceDnd } from '@/components/dnd/dnd-context';
-import { SearchDropdown } from '@/components/search/search-dropdown';
-import { ShareDialog } from '@/components/sharing/share-dialog';
-import { VersionListDialog } from '@/components/versions/version-list-dialog';
-import { RevisionSidebar } from '@/components/revisions/revision-sidebar';
-import { BulkActionToolbar } from '@/components/bulk/bulk-action-toolbar';
-import { EmptyStateCTA } from '@/components/onboarding/empty-state-cta';
-import { TemplateGalleryDialog } from '@/components/template/template-gallery-dialog';
+// Dynamic imports — heavy components loaded on demand to reduce OOM
+const NoteEditor = dynamic(() => import('./note-editor').then(m => ({ default: m.NoteEditor })), { ssr: false });
+const SearchDropdown = dynamic(() => import('@/components/search/search-dropdown').then(m => ({ default: m.SearchDropdown })), { ssr: false });
+const ShareDialog = dynamic(() => import('@/components/sharing/share-dialog').then(m => ({ default: m.ShareDialog })), { ssr: false });
+const VersionListDialog = dynamic(() => import('@/components/versions/version-list-dialog').then(m => ({ default: m.VersionListDialog })), { ssr: false });
+const RevisionSidebar = dynamic(() => import('@/components/revisions/revision-sidebar').then(m => ({ default: m.RevisionSidebar })), { ssr: false });
+const BulkActionToolbar = dynamic(() => import('@/components/bulk/bulk-action-toolbar').then(m => ({ default: m.BulkActionToolbar })), { ssr: false });
+const EmptyStateCTA = dynamic(() => import('@/components/onboarding/empty-state-cta').then(m => ({ default: m.EmptyStateCTA })), { ssr: false });
+const TemplateGalleryDialog = dynamic(() => import('@/components/template/template-gallery-dialog').then(m => ({ default: m.TemplateGalleryDialog })), { ssr: false });
+const CreateDialog = dynamic(() => import('./create-dialog').then(m => ({ default: m.CreateDialog })), { ssr: false });
 import { markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
-import { CreateDialog } from './create-dialog';
 import { useAuthStore } from '@/store/auth';
 
 export function ContentArea() {

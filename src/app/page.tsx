@@ -1,10 +1,25 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useAuthStore } from '@/store/auth';
 import { AuthForm } from '@/components/auth/auth-form';
-import { WorkspaceLayout } from '@/components/workspace/workspace-layout';
+
+// WorkspaceLayout is VERY heavy (100+ component tree) — loaded dynamically
+// to prevent OOM during initial page compilation. Only compiled when
+// the user is actually authenticated and needs the workspace view.
+const WorkspaceLayout = dynamic(
+  () => import('@/components/workspace/workspace-layout').then(m => ({ default: m.WorkspaceLayout })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading workspace...</div>
+      </div>
+    ),
+  }
+);
 
 export default function Home() {
   const { data: session, status } = useSession();

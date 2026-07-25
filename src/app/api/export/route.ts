@@ -7,7 +7,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { tiptapToMarkdown } from '@/lib/tiptap-to-md';
-import archiver from 'archiver';
+import * as archiverModule from 'archiver';
+const archiver = (archiverModule as any).default || archiverModule;
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
