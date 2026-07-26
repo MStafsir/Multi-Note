@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getSession } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -9,13 +8,11 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check
-    const session = await getSession();
-    if (!session?.user?.id) {
+    // Auth check — x-user-id injected by middleware
+    const userId = request.headers.get('x-user-id');
+    if (!userId) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
-
-    const userId = session.user.id;
 
     // Parse FormData
     const formData = await request.formData();
