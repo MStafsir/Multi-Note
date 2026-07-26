@@ -92,6 +92,16 @@ export function WorkspaceLayout() {
     queryFn: async () => {
       const res = await fetch('/api/onboarding');
       const data = await res.json();
+      if (!data.success) {
+        // Return default onboarding state instead of undefined
+        return {
+          welcomeCompleted: false,
+          sampleContentLoaded: false,
+          checklistProgress: {},
+          dismissedAt: null,
+          steps: [],
+        };
+      }
       return data.data as {
         welcomeCompleted: boolean;
         sampleContentLoaded: boolean;

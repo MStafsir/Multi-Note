@@ -1,83 +1,85 @@
 'use client';
 
-// ============================================================
-// Upload Zone — drag-and-drop and click-to-upload file area
-// Supports file selection via click or drag-and-drop
-// Shows upload progress via useUploadFile mutation
-// ============================================================
-
-import { useCallback, useRef, useState } from 'react';
-import { Upload, FileUp, Loader2 } from 'lucide-react';
+import { useCallback, useRef } from 'react';
+import { Upload, File, X, Loader2 } from 'lucide-react';
+import { useUploadStore } from '@/store/upload';
 import { useUploadFile } from '@/hooks/use-file-tree';
 import { useFileTreeStore } from '@/store/file-tree';
-import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function UploadZone() {
-  const [isDragOver, setIsDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploads, isDragging, setDragging } = useUploadStore();
   const uploadMutation = useUploadFile();
   const { currentFolderId } = useFileTreeStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const activeUploads = Array.from(uploads.values()).filter(
+    (u) => u.status === 'uploading' || u.status === 'pending'
+  );
+  const recentUploads = Array.from(uploads.values()).filter(
+    (u) => u.status === 'complete' || u.status === 'error'
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging(true);
+    },
+    [setDragging]
+  );
+
+  const handleDragLeave = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging(false);
+    },
+    [setDragging]
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setIsDragOver(false);
+      setDragging(false);
 
       const files = Array.from(e.dataTransfer.files);
-      files.forEach((file) => {
+      for (const file of files) {
         uploadMutation.mutate({ file, parentId: currentFolderId });
-      });
+      }
     },
-    [uploadMutation, currentFolderId]
+    [uploadMutation, currentFolderId, setDragging]
   );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  }, []);
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files || []);
-      files.forEach((file) => {
+      for (const file of files) {
         uploadMutation.mutate({ file, parentId: currentFolderId });
-      });
-      // Reset input so same file can be selected again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
       }
+      // Reset input so same file can be selected again
+      e.target.value = '';
     },
     [uploadMutation, currentFolderId]
   );
 
-  const handleClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+  // Only show the drag overlay when dragging
+  if (!isDragging && activeUploads.length === 0 && recentUploads.length === 0) {
+    return (
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileSelect}
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
-    <div
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onClick={handleClick}
-      className={cn(
-        'border-2 border-dashed rounded-lg p-4 mb-4 transition-colors cursor-pointer',
-        isDragOver
-          ? 'border-primary bg-primary/5'
-          : 'border-muted-foreground/25 hover:border-muted-foreground/50',
-        uploadMutation.isPending && 'opacity-50 pointer-events-none'
-      )}
-      role="button"
-      aria-label="Upload files by clicking or dragging"
-    >
+    <>
       <input
         ref={fileInputRef}
         type="file"
@@ -87,22 +89,81 @@ export function UploadZone() {
         aria-hidden="true"
       />
 
-      <div className="flex flex-col items-center justify-center gap-2 text-center">
-        {uploadMutation.isPending ? (
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        ) : isDragOver ? (
-          <FileUp className="h-8 w-8 text-primary" />
-        ) : (
-          <Upload className="h-8 w-8 text-muted-foreground" />
+      {/* Drag overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-primary bg-background p-12">
+              <Upload className="h-12 w-12 text-primary" />
+              <p className="text-lg font-medium">Drop files here to upload</p>
+              <p className="text-sm text-muted-foreground">
+                Files will be uploaded to the current folder
+              </p>
+            </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        <p className="text-sm font-medium text-muted-foreground">
-          {isDragOver ? 'Drop files here' : 'Click or drag files to upload'}
-        </p>
-        <p className="text-xs text-muted-foreground/75">
-          Any file type — stored in current folder
-        </p>
-      </div>
-    </div>
+      {/* Upload progress list */}
+      {(activeUploads.length > 0 || recentUploads.length > 0) && (
+        <div className="mb-4 space-y-2">
+          <AnimatePresence>
+            {activeUploads.map((upload) => (
+              <motion.div
+                key={upload.fileId}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-3 rounded-lg border bg-card p-3"
+              >
+                <File className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{upload.fileName}</p>
+                  {upload.status === 'uploading' && (
+                    <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: `${upload.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </motion.div>
+            ))}
+            {recentUploads.map((upload) => (
+              <motion.div
+                key={upload.fileId}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-3 rounded-lg border bg-card p-3"
+              >
+                <File className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{upload.fileName}</p>
+                  {upload.status === 'error' && upload.error && (
+                    <p className="text-xs text-destructive">{upload.error}</p>
+                  )}
+                </div>
+                {upload.status === 'complete' ? (
+                  <span className="text-xs text-green-600 font-medium">Done</span>
+                ) : (
+                  <X className="h-4 w-4 text-destructive" />
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+    </>
   );
 }

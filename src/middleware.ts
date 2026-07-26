@@ -247,7 +247,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/templates') ||
     pathname.startsWith('/api/comments') ||
     pathname.startsWith('/api/graph') ||
-    pathname.startsWith('/api/workspaces')
+    pathname.startsWith('/api/workspaces') ||
+    pathname.startsWith('/api/onboarding')
   ) {
     const token = await getToken({
       req: request,
@@ -327,6 +328,7 @@ export const config = {
     '/api/comments/:path*',
     '/api/graph',
     '/api/workspaces/:path*',
+    '/api/onboarding',
     '/api/auth/:path*',
     '/api/api-keys/:path*',
     '/api/v1/:path*',

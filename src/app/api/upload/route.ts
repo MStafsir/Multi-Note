@@ -1,171 +1,124 @@
-// ============================================================
-// MODUL 5: File Upload API Route
-// Accepts FormData (file + parentId), stores locally,
-// creates Node + FileMetadata, updates storage quota
-// ============================================================
-
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { bigintToNumber } from '@/lib/bigint';
-import { logActivity } from '@/lib/activity-logger';
-import { logger } from '@/lib/logger';
-import { traceHandler } from '@/lib/request-tracer';
+import { getSession } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import path from 'path';
 import { createHash } from 'crypto';
 
-// Max file size: 50MB per upload
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-// Base directory for file storage
-const UPLOAD_BASE_DIR = join(process.cwd(), 'upload', 'user-files');
-
-async function handleUpload(request: Request): Promise<NextResponse> {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Auth check
+    const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userId = session.user.id;
+
+    // Parse FormData
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const parentId = formData.get('parentId') as string | null;
 
     if (!file) {
-      return NextResponse.json(
-        { success: false, error: 'No file provided' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file size
+    // Size validation
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { success: false, error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB` },
+        { success: false, error: `File too large (max ${MAX_FILE_SIZE / 1024 / 1024}MB)` },
         { status: 400 }
       );
     }
 
-    // Check storage quota
-    const profile = await db.profile.findUnique({
-      where: { userId: session.user.id },
-    });
-
-    const currentUsage = bigintToNumber(profile?.storageUsedBytes) ?? 0;
-    const quotaLimit = bigintToNumber(profile?.quotaLimitBytes) ?? 5 * 1024 * 1024 * 1024; // 5GB default
-
-    if (currentUsage + file.size > quotaLimit) {
-      return NextResponse.json(
-        { success: false, error: 'Storage quota exceeded. Please upgrade your plan or delete some files.' },
-        { status: 403 }
-      );
+    // Storage quota check
+    const profile = await db.profile.findUnique({ where: { userId } });
+    if (profile) {
+      const usedBytes = Number(profile.storageUsedBytes);
+      const limitBytes = Number(profile.quotaLimitBytes);
+      if (usedBytes + file.size > limitBytes) {
+        return NextResponse.json(
+          { success: false, error: 'Storage quota exceeded' },
+          { status: 400 }
+        );
+      }
     }
 
-    // Sanitize filename — remove path traversal characters
-    const sanitizedFileName = file.name.replace(/[/\\<>:"|?*\x00-\x1f]/g, '_');
+    // Compute SHA-256 checksum
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const checksum = createHash('sha256').update(buffer).digest('hex');
 
-    // Get file buffer and compute checksum
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const checksumSha256 = createHash('sha256').update(buffer).digest('hex');
-
-    // Create Node record first (need the ID for storage path)
+    // Create node in DB
     const node = await db.node.create({
       data: {
-        ownerId: session.user.id,
+        ownerId: userId,
         parentId: parentId || null,
         type: 'file',
-        name: sanitizedFileName,
+        name: file.name,
       },
     });
 
-    // Create storage directory for this file
-    const userDir = join(UPLOAD_BASE_DIR, session.user.id, node.id);
-    await mkdir(userDir, { recursive: true });
-
-    // Write file to local filesystem
-    const storagePath = join(userDir, sanitizedFileName);
+    // Store file to disk
+    const storageDir = path.join(process.cwd(), 'upload', 'user-files', userId, node.id);
+    await mkdir(storageDir, { recursive: true });
+    const storagePath = path.join(storageDir, file.name);
     await writeFile(storagePath, buffer);
 
-    // Create FileMetadata record
+    // Create file metadata in DB
     await db.fileMetadata.create({
       data: {
         nodeId: node.id,
-        storagePath: storagePath,
+        storagePath: `upload/user-files/${userId}/${node.id}/${file.name}`,
         mimeType: file.type || 'application/octet-stream',
         sizeBytes: BigInt(file.size),
-        checksumSha256: checksumSha256,
+        checksumSha256: checksum,
       },
     });
 
-    // Update storage usage in profile
-    const newUsage = currentUsage + file.size;
+    // Update storage usage
     if (profile) {
       await db.profile.update({
-        where: { userId: session.user.id },
-        data: { storageUsedBytes: BigInt(newUsage) },
-      });
-    } else {
-      // Create profile if it doesn't exist
-      await db.profile.create({
-        data: {
-          userId: session.user.id,
-          role: 'user',
-          storageUsedBytes: BigInt(file.size),
-          quotaLimitBytes: BigInt(5 * 1024 * 1024 * 1024),
-        },
+        where: { userId },
+        data: { storageUsedBytes: BigInt(Number(profile.storageUsedBytes) + file.size) },
       });
     }
 
     // Log activity
-    await logActivity({
-      actorId: session.user.id,
-      nodeId: node.id,
-      actionType: 'create',
-      metadata: { type: 'file', name: sanitizedFileName, mimeType: file.type, sizeBytes: file.size },
-    });
-
-    logger.info('file_uploaded', {
-      nodeId: node.id,
-      fileName: sanitizedFileName,
-      mimeType: file.type,
-      sizeBytes: file.size,
-      parentId: parentId,
-    }, session.user.id);
-
-    // Fetch the complete node with metadata for response
-    const fullNode = await db.node.findUnique({
-      where: { id: node.id },
-      include: { metadata: true, note: true },
+    await db.activityLog.create({
+      data: {
+        actorId: userId,
+        nodeId: node.id,
+        actionType: 'create',
+        metadata: JSON.stringify({ fileName: file.name, fileSize: file.size, mimeType: file.type }),
+      },
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        id: fullNode!.id,
-        type: fullNode!.type,
-        name: fullNode!.name,
-        parentId: fullNode!.parentId,
-        ownerId: fullNode!.ownerId,
-        isFavorite: fullNode!.isFavorite,
-        createdAt: fullNode!.createdAt,
-        updatedAt: fullNode!.updatedAt,
-        metadata: fullNode!.metadata ? {
-          nodeId: fullNode!.metadata.nodeId,
-          storagePath: fullNode!.metadata.storagePath,
-          mimeType: fullNode!.metadata.mimeType,
-          sizeBytes: bigintToNumber(fullNode!.metadata.sizeBytes),
-          checksumSha256: fullNode!.metadata.checksumSha256,
-        } : null,
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        parentId: node.parentId,
+        metadata: {
+          nodeId: node.id,
+          storagePath: `upload/user-files/${userId}/${node.id}/${file.name}`,
+          mimeType: file.type || 'application/octet-stream',
+          sizeBytes: file.size,
+          checksumSha256: checksum,
+        },
+        createdAt: node.createdAt.toISOString(),
+        updatedAt: node.updatedAt.toISOString(),
       },
     });
-  } catch (error: unknown) {
-    logger.error('file_upload_failed', {}, error);
-    const message = error instanceof Error ? error.message : 'Upload failed';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Upload failed' },
+      { status: 500 }
+    );
   }
 }
-
-export const POST = traceHandler(handleUpload);
