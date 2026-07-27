@@ -33,7 +33,6 @@ export function UploadZone() {
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set dragging false if leaving the entire zone
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
@@ -72,12 +71,12 @@ export function UploadZone() {
     e.target.value = '';
   }, [uploadMutation, currentFolderId]);
 
-  // Active uploads (not completed/errored that haven't been removed yet)
+  // Active uploads
   const activeUploads = Array.from(uploads.values()).filter(
     (u) => u.status === 'uploading' || u.status === 'pending'
   );
 
-  // Recently completed/errored (still showing)
+  // Recently completed/errored
   const recentUploads = Array.from(uploads.values()).filter(
     (u) => u.status === 'complete' || u.status === 'error'
   );
