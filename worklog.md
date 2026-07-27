@@ -86,3 +86,24 @@ Stage Summary:
 - Upload functionality complete (component + API route)
 - No build errors, no import errors
 - Dev server stable on port 3000
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Modul 49 Audit — Stack Migration Integrity & Multi-Tenant Readiness
+
+Work Log:
+- 49.1: Database is SQLite local file (file:/home/z/my-project/db/custom.db), NOT PostgreSQL
+- 49.2: Upload storage is Alibaba Cloud OSS via FUSE mount (persistent cloud-backed), NOT ephemeral. Dual mount (tmpfs+ossfs) exists — ossfs is active.
+- 49.3: Auth library is next-auth v4.24.13, JWT strategy, Credentials provider only. Google OAuth NOT configured.
+- 49.4: Audited 73+ Prisma queries. 38 SAFE, 18 PARTIAL, 0 UNSAFE. Major gaps: 14 queries missing workspaceId scope, getAllDescendants() lacks ownerId filter, hardDeleteNode() no re-verification
+- 49.5: SQLite local MUST migrate to PostgreSQL before production. Upload storage is persistent (OSS) but needs app-level config for portability
+- 49.6: Google OAuth can be added — requires Google Cloud Console setup, env vars, and provider config in auth.ts
+- 49.7: Cross-tenant leak test design: 2 Gmail accounts, force cross-access via API URLs, expect 403/404
+- 49.8: Persistence test PASSED — DB rows (34 nodes, 36 users, 3 filemetadata, 18 notecontent) and 9 uploaded files intact after server restart
+
+Stage Summary:
+- Modul 49 IS realizable — all 8 sub-points can be implemented
+- Critical blockers: SQLite must migrate to PostgreSQL (49.5), Google OAuth needs manual setup (49.6)
+- 18 PARTIAL queries need workspaceId scope fix (49.4) — zero-trust hardening required
+- Persistence verified empirically — DB + files survive restart
