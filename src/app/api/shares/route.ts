@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { createShareSchema } from '@/lib/validators';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getAllDescendants } from '@/lib/permissions';
+import { checkNodeAccess, getAllDescendants } from '@/lib/permissions';
 import { bigintToNumber } from '@/lib/bigint';
 import { v4 as uuidv4 } from 'uuid';
 import { logActivity } from '@/lib/activity-logger';
@@ -30,8 +30,13 @@ export async function POST(request: Request) {
       include: { metadata: true, note: true },
     });
 
-    if (!node || node.ownerId !== session.user.id) {
-      return NextResponse.json({ success: false, error: 'Node not found or not owner' }, { status: 404 });
+    if (!node) {
+      return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const accessResult = await checkNodeAccess(session.user.id, validated.nodeId, 'edit');
+    if (!accessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Not authorized — you need edit permission to share this node' }, { status: 403 });
     }
 
     // Validate sharedWithUserId if provided
@@ -76,7 +81,7 @@ export async function POST(request: Request) {
     // with the same permission level and same user (but NOT share link tokens — only the folder has the link)
     let cascadedCount = 0;
     if (node.type === 'folder') {
-      const descendantIds = await getAllDescendants(validated.nodeId);
+      const descendantIds = await getAllDescendants(validated.nodeId, session.user.id, node.workspaceId);
 
       for (const descendantId of descendantIds) {
         // Skip if a share already exists for this user/node combination
@@ -197,8 +202,13 @@ export async function GET(request: Request) {
       where: { id: nodeId },
     });
 
-    if (!node || node.ownerId !== session.user.id) {
-      return NextResponse.json({ success: false, error: 'Node not found or not owner' }, { status: 404 });
+    if (!node) {
+      return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const accessResult = await checkNodeAccess(session.user.id, nodeId, 'edit');
+    if (!accessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Not authorized — you need edit permission to view shares' }, { status: 403 });
     }
 
     // Get all shares for this node

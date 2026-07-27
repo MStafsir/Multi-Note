@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { traceHandler } from '@/lib/request-tracer';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { z } from 'zod';
 import crypto from 'crypto';
 import type { WebhookEventType } from '@/types';
@@ -29,8 +30,10 @@ async function handleListWebhooks(request: Request): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
+
     const subscriptions = await db.webhookSubscription.findMany({
-      where: { ownerId: userId },
+      where: { ...workspaceScopeFilter },
       orderBy: { createdAt: 'desc' },
     });
 

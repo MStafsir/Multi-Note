@@ -12,6 +12,7 @@ import { bigintToNumber } from '@/lib/bigint';
 import { logActivity } from '@/lib/activity-logger';
 import { logger } from '@/lib/logger';
 import { traceHandler } from '@/lib/request-tracer';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 
 // GET /api/nodes — List nodes in a folder (4.5)
 async function handleGetNodes(request: Request): Promise<NextResponse> {
@@ -21,6 +22,8 @@ async function handleGetNodes(request: Request): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(session.user.id);
+
     const { searchParams } = new URL(request.url);
     const parentId = searchParams.get('parentId') || null;
     const includeDeleted = searchParams.get('includeDeleted') === 'true';
@@ -28,26 +31,25 @@ async function handleGetNodes(request: Request): Promise<NextResponse> {
 
     // 4.5 — Return flat array with parent_id reference
     // Materialize tree in client using adjacency-list-to-tree algorithm
-    const where: Record<string, unknown> = {
-      ownerId: session.user.id,
-    };
+    // MODUL 49.12a — workspace scope: personal + workspace nodes
+    const andConditions: Record<string, unknown>[] = [workspaceScopeFilter];
 
     if (parentId === null) {
-      where.parentId = null;
+      andConditions.push({ parentId: null });
     } else {
-      where.parentId = parentId;
+      andConditions.push({ parentId: parentId });
     }
 
     if (!includeDeleted) {
-      where.deletedAt = null;
+      andConditions.push({ deletedAt: null });
     }
 
     if (type && nodeTypeSchema.safeParse(type).success) {
-      where.type = type;
+      andConditions.push({ type: type });
     }
 
     const nodes = await db.node.findMany({
-      where,
+      where: { AND: andConditions },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
       include: {
         metadata: true,
@@ -56,11 +58,14 @@ async function handleGetNodes(request: Request): Promise<NextResponse> {
     });
 
     // Also get all nodes for tree building (flat array)
+    // MODUL 49.12a — workspace scope for tree building
+    const allNodesAndConditions: Record<string, unknown>[] = [workspaceScopeFilter];
+    if (!includeDeleted) {
+      allNodesAndConditions.push({ deletedAt: null });
+    }
+
     const allNodes = await db.node.findMany({
-      where: {
-        ownerId: session.user.id,
-        deletedAt: includeDeleted ? undefined : null,
-      },
+      where: { AND: allNodesAndConditions },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
       include: {
         metadata: true,
@@ -94,18 +99,20 @@ async function handleCreateNode(request: Request): Promise<NextResponse> {
 
     const body = await request.json();
     const nodeType = body.type || 'folder';
+    const workspaceIdFromBody = body.workspaceId || null; // MODUL 49.12a — workspaceId from request body
 
     if (nodeType === 'folder') {
       const validated = createFolderSchema.parse(body);
 
       // 4.1 — Check duplicate name in same parent scope
+      // MODUL 49.12a — workspace-scoped duplicate check
+      const { workspaceScopeFilter } = await getWorkspaceScopeFilter(session.user.id);
       const duplicate = await db.node.findFirst({
         where: {
-          ownerId: session.user.id,
-          parentId: validated.parentId || null,
-          name: validated.name,
-          type: 'folder',
-          deletedAt: null,
+          AND: [
+            workspaceScopeFilter,
+            { parentId: validated.parentId || null, name: validated.name, type: 'folder', deletedAt: null },
+          ],
         },
       });
 
@@ -120,6 +127,7 @@ async function handleCreateNode(request: Request): Promise<NextResponse> {
       const node = await db.node.create({
         data: {
           ownerId: session.user.id,
+          workspaceId: workspaceIdFromBody, // MODUL 49.12a — workspaceId for created node
           parentId: validated.parentId || null,
           type: 'folder',
           name: validated.name,
@@ -139,13 +147,14 @@ async function handleCreateNode(request: Request): Promise<NextResponse> {
       const validated = createFolderSchema.parse({ ...body, type: undefined });
 
       // Check duplicate
+      // MODUL 49.12a — workspace-scoped duplicate check
+      const { workspaceScopeFilter: noteScopeFilter } = await getWorkspaceScopeFilter(session.user.id);
       const duplicate = await db.node.findFirst({
         where: {
-          ownerId: session.user.id,
-          parentId: validated.parentId || null,
-          name: validated.name,
-          type: 'note',
-          deletedAt: null,
+          AND: [
+            noteScopeFilter,
+            { parentId: validated.parentId || null, name: validated.name, type: 'note', deletedAt: null },
+          ],
         },
       });
 
@@ -160,6 +169,7 @@ async function handleCreateNode(request: Request): Promise<NextResponse> {
       const node = await db.node.create({
         data: {
           ownerId: session.user.id,
+          workspaceId: workspaceIdFromBody, // MODUL 49.12a — workspaceId for created node
           parentId: validated.parentId || null,
           type: 'note',
           name: validated.name,

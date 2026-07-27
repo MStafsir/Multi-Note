@@ -35,25 +35,50 @@ async function handleRegister(request: Request): Promise<NextResponse> {
     const totalUsers = await db.user.count();
     const role = totalUsers === 0 ? 'admin' : 'user';
 
-    // Create user + profile
-    const user = await db.user.create({
-      data: {
-        email: validated.email,
-        name: validated.name || null,
-        passwordHash,
-        profile: {
-          create: {
-            role,
-            storageUsedBytes: 0,
-            quotaLimitBytes: 5368709120, // 5GB
+    // MODUL 49.14 — Wrap user+profile creation in explicit $transaction
+    // Prevents orphaned user (User without Profile) if nested create partially fails.
+    // Nested create is atomic within a single Prisma call, but explicit transaction
+    // adds defense-in-depth for connection interruptions mid-operation.
+    const user = await db.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email: validated.email,
+          name: validated.name || null,
+          passwordHash,
+          profile: {
+            create: {
+              role,
+              storageUsedBytes: BigInt(0),
+              quotaLimitBytes: BigInt(5368709120), // 5GB
+            },
           },
         },
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-      },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      });
+
+      // MODUL 49.14 — Defensive check INSIDE transaction: verify profile was created
+      // If profile creation silently fails, quota enforcement is bypassed
+      const profileCheck = await tx.profile.findUnique({
+        where: { userId: newUser.id },
+      });
+      if (!profileCheck) {
+        // This should never happen with nested create, but if it does:
+        logger.error('register_profile_missing_inside_tx', { userId: newUser.id }, null);
+        await tx.profile.create({
+          data: {
+            userId: newUser.id,
+            role,
+            storageUsedBytes: BigInt(0),
+            quotaLimitBytes: BigInt(5368709120),
+          },
+        });
+      }
+
+      return newUser;
     });
 
     logger.info('register_success', { user_id: user.id, email: user.email }, user.id);

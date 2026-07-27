@@ -168,6 +168,7 @@ async function handleSeedContent(request: Request): Promise<NextResponse> {
   const sampleFolder = await db.node.create({
     data: {
       ownerId: userId,
+      workspaceId: null,
       type: 'folder',
       name: 'Welcome — Getting Started',
       parentId: null,
@@ -178,6 +179,7 @@ async function handleSeedContent(request: Request): Promise<NextResponse> {
   const sampleNote = await db.node.create({
     data: {
       ownerId: userId,
+      workspaceId: null,
       type: 'note',
       name: 'Tips & Quick Start Guide',
       parentId: sampleFolder.id,

@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { logActivity } from '@/lib/activity-logger';
 import { bigintToNumber } from '@/lib/bigint';
 import { getAllDescendants } from '@/lib/permissions';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { z } from 'zod';
 
 const restoreSchema = z.object({
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     // 17.2 — Get all descendants that were also soft-deleted
-    const descendantIds = await getAllDescendants(validated.nodeId);
+    const descendantIds = await getAllDescendants(validated.nodeId, userId, node.workspaceId);
 
     // Collect all IDs to restore (node itself + descendants)
     const allIds = [validated.nodeId, ...descendantIds];
@@ -87,10 +88,11 @@ export async function POST(request: Request) {
     }
 
     // Batch update: set deletedAt = null for node and all descendants
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     await db.node.updateMany({
       where: {
         id: { in: allIds },
-        ownerId: userId,
+        ...workspaceScopeFilter,
       },
       data: { deletedAt: null },
     });

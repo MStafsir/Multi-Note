@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logActivity } from '@/lib/activity-logger';
 import { getAllDescendants } from '@/lib/permissions';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { z } from 'zod';
 
 const bulkDeleteSchema = z.object({
@@ -25,10 +26,11 @@ export async function POST(request: Request) {
     const validated = bulkDeleteSchema.parse(body);
 
     // Verify all nodes belong to this user and are not already trashed
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     const nodes = await db.node.findMany({
       where: {
         id: { in: validated.nodeIds },
-        ownerId: userId,
+        ...workspaceScopeFilter,
       },
     });
 
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
 
       // For folders, also soft-delete all descendants
       if (node.type === 'folder') {
-        const descendantIds = await getAllDescendants(node.id);
+        const descendantIds = await getAllDescendants(node.id, userId, node.workspaceId);
         allIdsToSoftDelete.push(...descendantIds);
       }
     }
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     const result = await db.node.updateMany({
       where: {
         id: { in: uniqueIds },
-        ownerId: userId,
+        ...workspaceScopeFilter,
         deletedAt: null, // Only soft-delete active nodes (not already trashed)
       },
       data: { deletedAt: now },

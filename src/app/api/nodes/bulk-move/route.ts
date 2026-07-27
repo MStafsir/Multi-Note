@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logActivity } from '@/lib/activity-logger';
 import { getAllDescendants } from '@/lib/permissions';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { z } from 'zod';
 
 const bulkMoveSchema = z.object({
@@ -26,12 +27,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = bulkMoveSchema.parse(body);
 
-    // Verify all nodes belong to this user
+    // Verify all nodes belong to this user (MODUL 49.12a — workspace scope)
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     const nodes = await db.node.findMany({
       where: {
-        id: { in: validated.nodeIds },
-        ownerId: userId,
-        deletedAt: null, // Only move active nodes
+        AND: [
+          { id: { in: validated.nodeIds }, deletedAt: null },
+          workspaceScopeFilter,
+        ],
       },
     });
 
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
       // 18.2 — Cycle detection: target can't be descendant of any moved node
       for (const node of nodes) {
         if (node.type === 'folder') {
-          const descendants = await getAllDescendants(node.id);
+          const descendants = await getAllDescendants(node.id, userId, node.workspaceId);
           if (descendants.includes(validated.targetFolderId)) {
             return NextResponse.json(
               { success: false, error: `Cannot move "${node.name}" — target folder is inside it` },
@@ -75,12 +78,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // 18.2 — Batch update: set parentId for all selected nodes
+    // 18.2 — Batch update: set parentId for all selected nodes (MODUL 49.12a — workspace scope)
     const result = await db.node.updateMany({
       where: {
-        id: { in: validated.nodeIds },
-        ownerId: userId,
-        deletedAt: null,
+        AND: [
+          { id: { in: validated.nodeIds }, deletedAt: null },
+          workspaceScopeFilter,
+        ],
       },
       data: { parentId: validated.targetFolderId },
     });

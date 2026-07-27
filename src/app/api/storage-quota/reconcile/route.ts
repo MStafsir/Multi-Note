@@ -9,6 +9,7 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 
 export async function POST() {
   try {
@@ -18,11 +19,12 @@ export async function POST() {
     }
 
     const userId = session.user.id;
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
 
     // 1. Get all file_metadata records for the user's non-deleted file nodes
     const fileNodes = await db.node.findMany({
       where: {
-        ownerId: userId,
+        ...workspaceScopeFilter,
         type: 'file',
         deletedAt: null,
       },

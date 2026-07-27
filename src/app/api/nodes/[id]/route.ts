@@ -9,7 +9,7 @@ import { renameNodeSchema, deleteNodeSchema, moveNodeSchema, noteContentSchema }
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
-import { checkNodeAccess } from '@/lib/permissions';
+import { checkNodeAccess, getAllDescendants } from '@/lib/permissions';
 import { logActivity } from '@/lib/activity-logger';
 import { logger } from '@/lib/logger';
 import { traceHandler } from '@/lib/request-tracer';
@@ -89,16 +89,14 @@ async function handlePatchNode(
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
     }
 
-    // Modul 13 — For rename/move, only owner can perform these actions
-    // For note content editing, owner OR user with 'edit' share can modify
-    const isOwner = node.ownerId === session.user.id;
+    // Modul 13 — Permission check: owner OR workspace member OR edit-level share
     const editAccess = await checkNodeAccess(session.user.id, id, 'edit');
 
-    // 4.2 — Rename (owner only)
+    // 4.2 — Rename (edit access required)
     if (body.newName) {
-      if (!isOwner) {
-        logger.warn('node_rename_denied', { nodeId: id, reason: 'not_owner' }, session.user.id);
-        return NextResponse.json({ success: false, error: 'Only the owner can rename this node' }, { status: 403 });
+      if (!editAccess.hasAccess) {
+        logger.warn('node_rename_denied', { nodeId: id, reason: 'no_edit_access' }, session.user.id);
+        return NextResponse.json({ success: false, error: 'You need edit permission to rename this node' }, { status: 403 });
       }
       const validated = renameNodeSchema.parse({ nodeId: id, newName: body.newName });
 
@@ -106,6 +104,7 @@ async function handlePatchNode(
       const duplicate = await db.node.findFirst({
         where: {
           ownerId: session.user.id,
+          workspaceId: node.workspaceId,
           parentId: node.parentId,
           name: validated.newName,
           type: node.type,
@@ -149,18 +148,18 @@ async function handlePatchNode(
       });
     }
 
-    // 4.4 — Move (owner only)
+    // 4.4 — Move (edit access required)
     if (body.newParentId !== undefined) {
-      if (!isOwner) {
-        logger.warn('node_move_denied', { nodeId: id, reason: 'not_owner' }, session.user.id);
-        return NextResponse.json({ success: false, error: 'Only the owner can move this node' }, { status: 403 });
+      if (!editAccess.hasAccess) {
+        logger.warn('node_move_denied', { nodeId: id, reason: 'no_edit_access' }, session.user.id);
+        return NextResponse.json({ success: false, error: 'You need edit permission to move this node' }, { status: 403 });
       }
 
       const validated = moveNodeSchema.parse({ nodeId: id, newParentId: body.newParentId });
 
       // 4.4 — Cycle detection: folder cannot be moved into its own child
       if (validated.newParentId) {
-        const isDescendant = await checkDescendant(id, validated.newParentId);
+        const isDescendant = await checkDescendant(id, validated.newParentId, session.user.id, node.workspaceId);
         if (isDescendant) {
           return NextResponse.json(
             { success: false, error: 'Cannot move a folder into its own descendant' },
@@ -267,16 +266,22 @@ async function handleDeleteNode(
     const { id } = await params;
 
     const node = await db.node.findUnique({ where: { id } });
-    if (!node || node.ownerId !== session.user.id) {
+    if (!node) {
       logger.info('node_delete_not_found', { nodeId: id }, session.user.id);
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const deleteAccess = await checkNodeAccess(session.user.id, id, 'edit');
+    if (!deleteAccess.hasAccess) {
+      logger.warn('node_delete_denied', { nodeId: id }, session.user.id);
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     const now = new Date();
 
     // 4.3 — Soft-delete cascading: set deleted_at on node and all children
     // Recursive CTE equivalent for SQLite: get all descendant IDs
-    const descendantIds = await getAllDescendants(id);
+    const descendantIds = await getAllDescendants(id, session.user.id, node.workspaceId);
     const allIds = [id, ...descendantIds];
 
     // Batch update — single statement, not loop per-node
@@ -284,6 +289,7 @@ async function handleDeleteNode(
       where: {
         id: { in: allIds },
         ownerId: session.user.id,
+        workspaceId: node.workspaceId ?? undefined,
       },
       data: { deletedAt: now },
     });
@@ -324,28 +330,12 @@ async function handleDeleteNode(
 }
 
 // 4.4 — Cycle detection: recursive ancestor lookup
-async function checkDescendant(nodeId: string, targetParentId: string): boolean {
+async function checkDescendant(nodeId: string, targetParentId: string, sessionUserId: string, workspaceId?: string): Promise<boolean> {
   // Check if targetParentId is a descendant of nodeId
-  const descendants = await getAllDescendants(nodeId);
+  const descendants = await getAllDescendants(nodeId, sessionUserId, workspaceId);
   return descendants.includes(targetParentId);
 }
 
-// Get all descendant IDs recursively (SQLite doesn't support recursive CTE in Prisma)
-async function getAllDescendants(parentId: string): string[] {
-  const descendants: string[] = [];
-  let currentIds = [parentId];
-
-  while (currentIds.length > 0) {
-    const children = await db.node.findMany({
-      where: { parentId: { in: currentIds } },
-      select: { id: true },
-    });
-    currentIds = children.map(c => c.id);
-    descendants.push(...currentIds);
-  }
-
-  return descendants;
-}
 
 export const GET = traceHandler(handleGetNode, true);
 export const PATCH = traceHandler(handlePatchNode, true);

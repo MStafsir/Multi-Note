@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { markdownToTiptap } from '@/lib/md-to-tiptap';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const zipFile = formData.get('file') as File | null;
     const targetParentId = (formData.get('parentId') as string) || null;
+    const targetWorkspaceId = (formData.get('workspaceId') as string) || null;
 
     if (!zipFile) {
       return NextResponse.json({ success: false, error: 'No ZIP file provided' }, { status: 400 });
@@ -41,10 +43,11 @@ export async function POST(request: Request) {
 
     // Validate target parent folder exists and belongs to user (if specified)
     if (targetParentId) {
+      const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
       const parent = await db.node.findFirst({
         where: {
           id: targetParentId,
-          ownerId: userId,
+          ...workspaceScopeFilter,
           type: 'folder',
           deletedAt: null,
         },
@@ -113,6 +116,7 @@ export async function POST(request: Request) {
           const folderNode = await db.node.create({
             data: {
               ownerId: userId,
+              workspaceId: targetWorkspaceId || null,
               parentId: currentParentId,
               type: 'folder',
               name: folderName,
@@ -129,6 +133,7 @@ export async function POST(request: Request) {
         const folderNode = await db.node.create({
           data: {
             ownerId: userId,
+            workspaceId: targetWorkspaceId || null,
             parentId: currentParentId,
             type: 'folder',
             name: entryName,
@@ -154,6 +159,7 @@ export async function POST(request: Request) {
           const noteNode = await db.node.create({
             data: {
               ownerId: userId,
+              workspaceId: targetWorkspaceId || null,
               parentId: currentParentId,
               type: 'note',
               name: noteName,
@@ -195,6 +201,7 @@ export async function POST(request: Request) {
           const fileNode = await db.node.create({
             data: {
               ownerId: userId,
+              workspaceId: targetWorkspaceId || null,
               parentId: currentParentId,
               type: 'file',
               name: entryName,
@@ -225,9 +232,10 @@ export async function POST(request: Request) {
     }
 
     // Update storage quota for imported files
+    const { workspaceScopeFilter: scopeFilter } = await getWorkspaceScopeFilter(userId);
     const totalImportedSize = await db.node.aggregate({
       where: {
-        ownerId: userId,
+        ...scopeFilter,
         type: 'file',
         deletedAt: null,
       },

@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { traceHandler } from '@/lib/request-tracer';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import type { GraphNode, GraphEdge } from '@/types';
 
 // GET /api/graph — Get force-directed graph data for user's workspace
@@ -22,6 +23,7 @@ async function handleGetGraph(request: Request): Promise<NextResponse> {
     }
 
     const userId = session.user.id;
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '200', 10);
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -34,7 +36,7 @@ async function handleGetGraph(request: Request): Promise<NextResponse> {
     const links = await db.noteLink.findMany({
       where: {
         sourceNode: {
-          ownerId: userId,
+          ...workspaceScopeFilter,
           deletedAt: null,
         },
       },
@@ -52,7 +54,7 @@ async function handleGetGraph(request: Request): Promise<NextResponse> {
     const incomingLinks = await db.noteLink.findMany({
       where: {
         targetNode: {
-          ownerId: userId,
+          ...workspaceScopeFilter,
           deletedAt: null,
         },
         sourceNode: {

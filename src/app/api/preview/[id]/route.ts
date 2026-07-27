@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { checkNodeAccess } from '@/lib/permissions';
 import { readFile, stat } from 'fs/promises';
 import { open } from 'fs/promises';
 import path from 'path';
@@ -38,9 +39,14 @@ export async function GET(
       include: { metadata: true },
     });
 
-    // Auth check: user must own the node
-    if (!node || node.ownerId !== session.user.id || node.type !== 'file' || node.deletedAt) {
+    // Auth check: user must have view access
+    if (!node || node.type !== 'file' || node.deletedAt) {
       return NextResponse.json({ success: false, error: 'File not found' }, { status: 404 });
+    }
+
+    const accessResult = await checkNodeAccess(session.user.id, id, 'view');
+    if (!accessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     if (!node.metadata) {

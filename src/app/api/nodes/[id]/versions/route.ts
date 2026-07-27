@@ -12,6 +12,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import { z } from 'zod';
+import { checkNodeAccess } from '@/lib/permissions';
 
 // Max versions per file (15.3 — retention limit)
 const MAX_VERSIONS = 20;
@@ -48,7 +49,9 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Node is not a file' }, { status: 400 });
     }
 
-    if (node.ownerId !== userId) {
+    // Verify view access (owner OR workspace member OR share recipient)
+    const viewAccess = await checkNodeAccess(userId, id, 'view');
+    if (!viewAccess.hasAccess) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
@@ -119,7 +122,9 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Node is not a file' }, { status: 400 });
     }
 
-    if (node.ownerId !== userId) {
+    // Verify edit access (owner OR workspace member OR edit-level share)
+    const editAccess = await checkNodeAccess(userId, id, 'edit');
+    if (!editAccess.hasAccess) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 

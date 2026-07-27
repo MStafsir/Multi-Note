@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { checkNodeAccess } from '@/lib/permissions';
 
 // GET /api/nodes/[id]/versions/[versionId] — Download a specific version
 export async function GET(
@@ -35,7 +36,9 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Node is not a file' }, { status: 400 });
     }
 
-    if (node.ownerId !== userId) {
+    // Verify view access (owner OR workspace member OR share recipient)
+    const viewAccess = await checkNodeAccess(userId, id, 'view');
+    if (!viewAccess.hasAccess) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 

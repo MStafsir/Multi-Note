@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { updateShareSchema } from '@/lib/validators';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getAllDescendants } from '@/lib/permissions';
+import { checkNodeAccess, getAllDescendants } from '@/lib/permissions';
 
 // DELETE /api/shares/[id] — Remove a share (owner only)
 export async function DELETE(
@@ -31,19 +31,24 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Share not found' }, { status: 404 });
     }
 
-    // Verify the requesting user is the owner of the node
+    // Verify the requesting user has edit access to the node
     const node = await db.node.findUnique({
       where: { id: share.nodeId },
     });
 
-    if (!node || node.ownerId !== session.user.id) {
+    if (!node) {
+      return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const accessResult = await checkNodeAccess(session.user.id, share.nodeId, 'edit');
+    if (!accessResult.hasAccess) {
       return NextResponse.json({ success: false, error: 'Not authorized to remove this share' }, { status: 403 });
     }
 
     // If this is a folder share, also remove cascaded child shares
     let cascadedRemoved = 0;
     if (node.type === 'folder') {
-      const descendantIds = await getAllDescendants(share.nodeId);
+      const descendantIds = await getAllDescendants(share.nodeId, session.user.id, node.workspaceId);
 
       const childShares = await db.nodeShare.findMany({
         where: {
@@ -118,12 +123,17 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Share not found' }, { status: 404 });
     }
 
-    // Verify the requesting user is the owner of the node
+    // Verify the requesting user has edit access to the node
     const node = await db.node.findUnique({
       where: { id: share.nodeId },
     });
 
-    if (!node || node.ownerId !== session.user.id) {
+    if (!node) {
+      return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const accessResult = await checkNodeAccess(session.user.id, share.nodeId, 'edit');
+    if (!accessResult.hasAccess) {
       return NextResponse.json({ success: false, error: 'Not authorized to update this share' }, { status: 403 });
     }
 
@@ -134,7 +144,7 @@ export async function PATCH(
 
       // If this is a folder share, also update cascaded child shares
       if (node.type === 'folder') {
-        const descendantIds = await getAllDescendants(share.nodeId);
+        const descendantIds = await getAllDescendants(share.nodeId, session.user.id, node.workspaceId);
 
         await db.nodeShare.updateMany({
           where: {

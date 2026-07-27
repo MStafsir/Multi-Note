@@ -12,7 +12,8 @@ function startServer() {
       UV_THREADPOOL_SIZE: '1',
       HOME: process.env.HOME,
       DATABASE_URL: process.env.DATABASE_URL || 'file:/home/z/my-project/db/custom.db',
-      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+      // MODUL 49.9: No fallback string — if NEXTAUTH_SECRET missing, the app throws fatal at boot
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: false,

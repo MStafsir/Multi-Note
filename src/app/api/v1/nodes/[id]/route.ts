@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { bigintToNumber } from '@/lib/bigint';
 import { logger } from '@/lib/logger';
 import { authenticateApiKey, hasScope } from '@/lib/api-key-auth';
+import { checkNodeAccess } from '@/lib/permissions';
 
 // GET /api/v1/nodes/[id] — Get single node detail (43.2)
 export async function GET(request: Request, context: unknown): Promise<NextResponse> {
@@ -48,8 +49,9 @@ export async function GET(request: Request, context: unknown): Promise<NextRespo
         return NextResponse.json({ success: false, error: 'Node not accessible with this API key' }, { status: 403 });
       }
     } else if (authResult.userId) {
-      // Personal key → node must be owned by that user
-      if (node.ownerId !== authResult.userId) {
+      // Personal key → check node access (owner, workspace member, or share)
+      const accessResult = await checkNodeAccess(authResult.userId, nodeId, 'view');
+      if (!accessResult.hasAccess) {
         return NextResponse.json({ success: false, error: 'Node not accessible with this API key' }, { status: 403 });
       }
     }

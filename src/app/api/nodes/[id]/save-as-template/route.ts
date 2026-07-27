@@ -11,6 +11,7 @@ import { saveAsTemplateSchema } from '@/lib/validators';
 import { logger } from '@/lib/logger';
 import { traceHandler } from '@/lib/request-tracer';
 import { logActivity } from '@/lib/activity-logger';
+import { checkNodeAccess } from '@/lib/permissions';
 import type { NoteTemplateInfo } from '@/types';
 
 const EMBEDDED_FILE_NODE_TYPE = 'embeddedFile';
@@ -104,10 +105,11 @@ async function handleSaveAsTemplate(
       );
     }
 
-    // Verify ownership
-    if (sourceNode.ownerId !== userId) {
+    // Verify view access (owner OR workspace member OR share recipient)
+    const accessResult = await checkNodeAccess(userId, validated.nodeId, 'view');
+    if (!accessResult.hasAccess) {
       return NextResponse.json(
-        { success: false, error: 'Only the owner can save this note as template' },
+        { success: false, error: 'Access denied — you need view permission to save this note as template' },
         { status: 403 }
       );
     }

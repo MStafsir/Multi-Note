@@ -10,6 +10,19 @@ import { getToken } from 'next-auth/jwt';
 // NOTE: Removed Prisma db import from middleware — too heavy for Turbopack compilation
 // Admin role check is handled in API route handlers instead (defense-in-depth still works)
 
+// ============================================================
+// MODUL 49.9: NEXTAUTH_SECRET — fatal error at boot if missing
+// No fallback string permitted. Cannot import from auth.ts (too heavy for middleware).
+// ============================================================
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
+if (!NEXTAUTH_SECRET) {
+  throw new Error(
+    'FATAL: NEXTAUTH_SECRET environment variable is not set. ' +
+    'Middleware cannot validate tokens without a valid auth secret. ' +
+    'Set NEXTAUTH_SECRET in your .env file (generate with: openssl rand -base64 32)'
+  );
+}
+
 // MODUL 37.2 — Rate limiting store (in-memory, per-IP)
 interface RateLimitEntry {
   count: number;
@@ -149,7 +162,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/api-keys')) {
     const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+      secret: NEXTAUTH_SECRET,
     });
 
     if (!token) {
@@ -169,7 +182,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/webhooks')) {
     const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+      secret: NEXTAUTH_SECRET,
     });
 
     if (!token) {
@@ -194,7 +207,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/admin')) {
     const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+      secret: NEXTAUTH_SECRET,
     });
 
     if (!token) {
@@ -252,7 +265,7 @@ export async function middleware(request: NextRequest) {
   ) {
     const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET || 'workspace-secret-key-dev',
+      secret: NEXTAUTH_SECRET,
     });
 
     if (!token) {

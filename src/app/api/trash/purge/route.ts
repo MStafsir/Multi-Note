@@ -8,98 +8,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logActivity } from '@/lib/activity-logger';
 import { bigintToNumber } from '@/lib/bigint';
-import { unlink } from 'fs/promises';
-import path from 'path';
+import { hardDeleteNode } from '@/lib/hard-delete-node';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { z } from 'zod';
 
 const purgeSchema = z.object({
   confirm: z.boolean(),
   confirmText: z.string(),
 });
-
-/**
- * Hard-delete a single trashed node and all its associated records.
- * Handles file deletion from disk, metadata, notes, shares, tags, etc.
- */
-async function hardDeleteNode(nodeId: string): Promise<number> {
-  // Get node with all associated data
-  const node = await db.node.findUnique({
-    where: { id: nodeId },
-    include: {
-      metadata: true,
-      note: true,
-      versions: true,
-      revisions: true,
-      shares: true,
-      tags: true,
-    },
-  });
-
-  if (!node) return 0;
-
-  let freedBytes = 0;
-
-  // Delete file from disk + metadata
-  if (node.type === 'file' && node.metadata) {
-    const storagePath = node.metadata.storagePath;
-    const fullPath = path.join(process.cwd(), 'download', storagePath);
-
-    try {
-      await unlink(fullPath);
-    } catch {
-      // File might already be deleted from disk — continue gracefully
-    }
-
-    freedBytes = bigintToNumber(node.metadata.sizeBytes) ?? 0;
-
-    // Delete FileMetadata record
-    await db.fileMetadata.delete({ where: { nodeId: node.id } });
-  }
-
-  // Delete file versions (and their disk files)
-  if (node.versions && node.versions.length > 0) {
-    for (const version of node.versions) {
-      const versionPath = path.join(process.cwd(), 'download', version.storagePath);
-      try {
-        await unlink(versionPath);
-      } catch {
-        // Version file may already be gone — continue
-      }
-    }
-    await db.fileVersion.deleteMany({ where: { nodeId: node.id } });
-  }
-
-  // Delete note content
-  if (node.note) {
-    await db.noteContent.delete({ where: { nodeId: node.id } });
-  }
-
-  // Delete note revisions
-  if (node.revisions && node.revisions.length > 0) {
-    await db.noteRevision.deleteMany({ where: { nodeId: node.id } });
-  }
-
-  // Delete shares
-  if (node.shares && node.shares.length > 0) {
-    await db.nodeShare.deleteMany({ where: { nodeId: node.id } });
-  }
-
-  // Delete tags associations
-  if (node.tags && node.tags.length > 0) {
-    await db.nodeTag.deleteMany({ where: { nodeId: node.id } });
-  }
-
-  // Set ActivityLog nodeId to null (onDelete: SetNull in schema)
-  await db.activityLog.updateMany({
-    where: { nodeId: node.id },
-    data: { nodeId: null },
-  });
-
-  // Hard delete the node row itself
-  await db.node.delete({ where: { id: node.id } });
-
-  return freedBytes;
-}
 
 export async function POST(request: Request) {
   try {
@@ -119,10 +35,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
+
     // Find all trashed nodes for this user
     const trashedNodes = await db.node.findMany({
       where: {
-        ownerId: userId,
+        ...workspaceScopeFilter,
         deletedAt: { not: null },
       },
       select: { id: true },
@@ -135,16 +53,19 @@ export async function POST(request: Request) {
       });
     }
 
-    // Hard delete each trashed node (with all associated data)
+    // Hard delete each trashed node using the atomic shared utility (49.12c)
     let totalFreedBytes = 0;
     let deletedCount = 0;
     let failedCount = 0;
 
     for (const trashedNode of trashedNodes) {
       try {
-        const freedBytes = await hardDeleteNode(trashedNode.id);
-        totalFreedBytes += freedBytes;
-        deletedCount++;
+        const result = await hardDeleteNode(trashedNode.id, userId);
+        if (result.deletedCount > 0) {
+          totalFreedBytes += result.freedBytes;
+          deletedCount++;
+        }
+        // If deletedCount === 0, ownership changed — skip gracefully (no side effects occurred)
       } catch {
         // 18.6 — Partial failure handling: continue with other nodes
         failedCount++;
@@ -153,9 +74,10 @@ export async function POST(request: Request) {
 
     // Re-calculate storage_used_bytes by reconciling actual file sizes
     // This is more accurate than just decrementing
+    const { workspaceScopeFilter: scopeFilter2 } = await getWorkspaceScopeFilter(userId);
     const activeFileNodes = await db.node.findMany({
       where: {
-        ownerId: userId,
+        ...scopeFilter2,
         type: 'file',
         deletedAt: null,
       },

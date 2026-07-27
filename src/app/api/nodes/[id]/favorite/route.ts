@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { traceHandler } from '@/lib/request-tracer';
+import { checkNodeAccess } from '@/lib/permissions';
 
 // PATCH /api/nodes/[id]/favorite — Toggle favorite on a node
 async function handleToggleFavorite(
@@ -23,11 +24,17 @@ async function handleToggleFavorite(
     const { id } = await params;
     const body = await request.json();
 
-    // Verify node exists and belongs to user
+    // Verify node exists
     const node = await db.node.findUnique({ where: { id } });
-    if (!node || node.ownerId !== userId) {
+    if (!node) {
       logger.info('favorite_node_not_found', { nodeId: id }, userId);
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    // Verify edit access (owner OR workspace member OR edit-level share)
+    const accessResult = await checkNodeAccess(userId, id, 'edit');
+    if (!accessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     // Determine the new favorite state

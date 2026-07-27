@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bigintToNumber } from '@/lib/bigint';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 
 // GET /api/search?q=...&type=...&dateFrom=...&dateTo=...&tags=...&tagMode=AND|OR
 export async function GET(request: Request) {
@@ -34,28 +35,27 @@ export async function GET(request: Request) {
 
     const query = q.trim();
 
+    // MODUL 49.12a — workspace-scoped search filter
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(session.user.id);
+
     // Build where clause for Node search
-    const where: Record<string, unknown> = {
-      ownerId: session.user.id,
-      deletedAt: null,
-    };
+    const searchAndConditions: Record<string, unknown>[] = [workspaceScopeFilter, { deletedAt: null }];
 
     // Type filter
     if (type && ['file', 'folder', 'note'].includes(type)) {
-      where.type = type;
+      searchAndConditions.push({ type: type });
     }
 
     // Date range filter
+    const dateFilter: Record<string, unknown> = {};
     if (dateFrom) {
-      where.createdAt = { gte: new Date(dateFrom) };
+      dateFilter.gte = new Date(dateFrom);
     }
     if (dateTo) {
-      // Combine with existing createdAt filter
-      if (where.createdAt && typeof where.createdAt === 'object') {
-        where.createdAt = { ...where.createdAt, lte: new Date(dateTo) };
-      } else {
-        where.createdAt = { lte: new Date(dateTo) };
-      }
+      dateFilter.lte = new Date(dateTo);
+    }
+    if (dateFrom || dateTo) {
+      searchAndConditions.push({ createdAt: dateFilter });
     }
 
     // 21 — Tag filter: if tags are specified, filter nodes that have matching tags
@@ -95,9 +95,11 @@ export async function GET(request: Request) {
     }
 
     // Build combined where clause with tag filter
-    const nameWhere = tagFilter
-      ? { ...where, ...tagFilter, name: { contains: query } }
-      : { ...where, name: { contains: query } };
+    const nameAndConditions: Record<string, unknown>[] = [...searchAndConditions, { name: { contains: query } }];
+    if (tagFilter) {
+      nameAndConditions.push(tagFilter);
+    }
+    const nameWhere = { AND: nameAndConditions };
 
     // 12.1 — Search Node table by name using LIKE
     // SQLite LIKE is case-insensitive by default for ASCII chars
@@ -119,25 +121,18 @@ export async function GET(request: Request) {
 
     // Only search note content if type filter is 'note' or no type filter
     if (!type || type === 'note') {
-      const noteWhere: Record<string, unknown> = {
-        ownerId: session.user.id,
-        deletedAt: null,
-        type: 'note',
-      };
+      // MODUL 49.12a — workspace-scoped note search filter
+      const noteAndConditions: Record<string, unknown>[] = [workspaceScopeFilter, { deletedAt: null, type: 'note' }];
 
-      if (dateFrom) {
-        noteWhere.createdAt = { gte: new Date(dateFrom) };
-      }
-      if (dateTo) {
-        if (noteWhere.createdAt && typeof noteWhere.createdAt === 'object') {
-          noteWhere.createdAt = { ...noteWhere.createdAt, lte: new Date(dateTo) };
-        } else {
-          noteWhere.createdAt = { lte: new Date(dateTo) };
-        }
+      if (dateFrom || dateTo) {
+        const noteDateFilter: Record<string, unknown> = {};
+        if (dateFrom) noteDateFilter.gte = new Date(dateFrom);
+        if (dateTo) noteDateFilter.lte = new Date(dateTo);
+        noteAndConditions.push({ createdAt: noteDateFilter });
       }
 
       const allNotes = await db.node.findMany({
-        where: noteWhere,
+        where: { AND: noteAndConditions },
         include: {
           metadata: true,
           note: true,

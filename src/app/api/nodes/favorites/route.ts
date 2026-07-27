@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { bigintToNumber } from '@/lib/bigint';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 
 // GET /api/nodes/favorites — List all favorite nodes for current user
 export async function GET(request: Request) {
@@ -15,11 +16,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    // MODUL 49.12a — workspace-scoped favorites query
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
+
     const nodes = await db.node.findMany({
       where: {
-        ownerId: userId,
-        isFavorite: true,
-        deletedAt: null,
+        AND: [
+          workspaceScopeFilter,
+          { isFavorite: true, deletedAt: null },
+        ],
       },
       orderBy: { updatedAt: 'desc' },
       include: {

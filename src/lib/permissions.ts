@@ -122,7 +122,7 @@ export async function canViewNode(userId: string, nodeId: string): Promise<boole
 /**
  * Get all ancestor IDs by traversing parentId chain upward.
  */
-async function getAncestorIds(nodeId: string): string[] {
+async function getAncestorIds(nodeId: string): Promise<string[]> {
   const ancestors: string[] = [];
   let currentId: string | null = nodeId;
 
@@ -143,14 +143,24 @@ async function getAncestorIds(nodeId: string): string[] {
 
 /**
  * Get all descendant IDs recursively (for cascading shares on folders).
+ * MODUL 49.12b — ownerId/workspaceId are scoped directly in the Prisma WHERE
+ * clause to prevent cross-workspace or cross-owner ID leakage.
  */
-export async function getAllDescendants(parentId: string): string[] {
+export async function getAllDescendants(
+  parentId: string,
+  ownerId: string,
+  workspaceId?: string
+): Promise<string[]> {
   const descendants: string[] = [];
   let currentIds = [parentId];
 
   while (currentIds.length > 0) {
     const children = await db.node.findMany({
-      where: { parentId: { in: currentIds } },
+      where: {
+        parentId: { in: currentIds },
+        ownerId,
+        ...(workspaceId ? { workspaceId } : {}),
+      },
       select: { id: true },
     });
     currentIds = children.map(c => c.id);

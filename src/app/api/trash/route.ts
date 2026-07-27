@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { bigintToNumber } from '@/lib/bigint';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 
 export async function GET(request: Request) {
   try {
@@ -14,11 +15,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 17.1 — Find all nodes where ownerId = userId AND deletedAt IS NOT NULL
+    // 17.1 — Find all trashed nodes (MODUL 49.12a — workspace scope)
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     const trashedNodes = await db.node.findMany({
       where: {
-        ownerId: userId,
-        deletedAt: { not: null },
+        AND: [
+          workspaceScopeFilter,
+          { deletedAt: { not: null } },
+        ],
       },
       orderBy: { deletedAt: 'desc' },
       include: {

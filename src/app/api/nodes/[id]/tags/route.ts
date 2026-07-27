@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { checkNodeAccess } from '@/lib/permissions';
 
 // --- Zod Validators ---
 const assignTagSchema = z.object({
@@ -31,10 +32,15 @@ export async function GET(
 
     const { id } = await params;
 
-    // Verify node exists and belongs to user
+    // Verify node exists and user has view access
     const node = await db.node.findUnique({ where: { id } });
-    if (!node || node.ownerId !== userId) {
+    if (!node) {
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const viewAccess = await checkNodeAccess(userId, id, 'view');
+    if (!viewAccess.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     // Get all tags for this node
@@ -76,10 +82,15 @@ export async function POST(
     const body = await request.json();
     const validated = assignTagSchema.parse(body);
 
-    // Verify node exists and belongs to user
+    // Verify node exists and user has edit access
     const node = await db.node.findUnique({ where: { id } });
-    if (!node || node.ownerId !== userId) {
+    if (!node) {
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const editAccess = await checkNodeAccess(userId, id, 'edit');
+    if (!editAccess.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     // Verify tag exists and belongs to user
@@ -149,10 +160,15 @@ export async function DELETE(
       tagId = validated.data.tagId;
     }
 
-    // Verify node exists and belongs to user
+    // Verify node exists and user has edit access
     const node = await db.node.findUnique({ where: { id } });
-    if (!node || node.ownerId !== userId) {
+    if (!node) {
       return NextResponse.json({ success: false, error: 'Node not found' }, { status: 404 });
+    }
+
+    const editAccess = await checkNodeAccess(userId, id, 'edit');
+    if (!editAccess.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     // Delete NodeTag entry

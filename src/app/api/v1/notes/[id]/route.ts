@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import { authenticateApiKey, hasScope } from '@/lib/api-key-auth';
 import { logActivity } from '@/lib/activity-logger';
 import { dispatchWebhooks } from '@/lib/webhook-dispatch';
+import { checkNodeAccess } from '@/lib/permissions';
 import { z } from 'zod';
 
 // Update note content schema
@@ -53,7 +54,8 @@ export async function GET(request: Request, context: unknown): Promise<NextRespo
         return NextResponse.json({ success: false, error: 'Note not accessible with this API key' }, { status: 403 });
       }
     } else if (authResult.userId) {
-      if (node.ownerId !== authResult.userId) {
+      const accessResult = await checkNodeAccess(authResult.userId, nodeId, 'view');
+      if (!accessResult.hasAccess) {
         return NextResponse.json({ success: false, error: 'Note not accessible with this API key' }, { status: 403 });
       }
     }
@@ -124,7 +126,8 @@ export async function PATCH(request: Request, context: unknown): Promise<NextRes
         return NextResponse.json({ success: false, error: 'Note not accessible with this API key' }, { status: 403 });
       }
     } else if (authResult.userId) {
-      if (node.ownerId !== authResult.userId) {
+      const accessResult = await checkNodeAccess(authResult.userId!, nodeId, 'edit');
+      if (!accessResult.hasAccess) {
         return NextResponse.json({ success: false, error: 'Note not accessible with this API key' }, { status: 403 });
       }
     }

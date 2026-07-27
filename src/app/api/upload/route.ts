@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const parentId = formData.get('parentId') as string | null;
+    const workspaceId = formData.get('workspaceId') as string | null;
 
     if (!file) {
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     await writeFile(path.join(storageDir, originalName), buffer);
 
     const node = await db.node.create({
-      data: { ownerId: userId, parentId: parentId || null, type: 'file', name: originalName },
+      data: { ownerId: userId, workspaceId: workspaceId || null, parentId: parentId || null, type: 'file', name: originalName },
       include: { metadata: true, note: true },
     });
 

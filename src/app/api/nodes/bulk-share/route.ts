@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logActivity } from '@/lib/activity-logger';
 import { createNotification } from '@/lib/notification-sender';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { z } from 'zod';
 
 const bulkShareSchema = z.object({
@@ -42,10 +43,11 @@ export async function POST(request: Request) {
     }
 
     // Verify all nodes belong to this user and are active
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     const nodes = await db.node.findMany({
       where: {
         id: { in: validated.nodeIds },
-        ownerId: userId,
+        ...workspaceScopeFilter,
         deletedAt: null,
       },
     });

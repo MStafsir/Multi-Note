@@ -31,7 +31,7 @@ export async function PATCH(
     // Find the comment
     const comment = await db.comment.findUnique({
       where: { id },
-      include: { node: { select: { ownerId: true } } },
+      include: { node: { select: { id: true } } },
     });
 
     if (!comment) {
@@ -71,10 +71,9 @@ export async function PATCH(
 
     // --- Toggle resolve/unresolve ---
     if (resolved !== undefined) {
-      // Resolve: node owner or comment author or anyone with edit access
+      // Resolve: comment author or anyone with edit access (including workspace members)
       const canResolve =
         comment.authorId === userId ||
-        comment.node.ownerId === userId ||
         accessResult.permissionLevel === 'edit' ||
         accessResult.viaOwnerId;
 
@@ -122,17 +121,24 @@ export async function DELETE(
 
     const comment = await db.comment.findUnique({
       where: { id },
-      include: { node: { select: { ownerId: true } } },
+      include: { node: { select: { id: true } } },
     });
 
     if (!comment) {
       return NextResponse.json({ success: false, error: 'Comment not found' }, { status: 404 });
     }
 
-    // Delete allowed: author OR node owner
+    // Verify comment-level access to the node
+    const nodeAccessResult = await checkNodeAccess(userId, comment.nodeId, 'comment');
+    if (!nodeAccessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    }
+
+    // Delete allowed: author OR anyone with edit access (including workspace members)
     const canDelete =
       comment.authorId === userId ||
-      comment.node.ownerId === userId;
+      nodeAccessResult.permissionLevel === 'edit' ||
+      nodeAccessResult.viaOwnerId;
 
     if (!canDelete) {
       return NextResponse.json({ success: false, error: 'Only the comment author or node owner can delete comments' }, { status: 403 });

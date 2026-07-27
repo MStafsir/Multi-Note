@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { tiptapToMarkdown } from '@/lib/tiptap-to-md';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import * as archiverModule from 'archiver';
 const archiver = (archiverModule as any).default || archiverModule;
 import { writeFile, mkdir } from 'fs/promises';
@@ -28,9 +29,10 @@ export async function POST(request: Request) {
     }
 
     // Query all non-deleted nodes for the user (including metadata and note content)
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     const nodes = await db.node.findMany({
       where: {
-        ownerId: userId,
+        ...workspaceScopeFilter,
         deletedAt: null,
       },
       include: {

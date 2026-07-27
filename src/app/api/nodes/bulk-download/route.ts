@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAllDescendants } from '@/lib/permissions';
+import { getWorkspaceScopeFilter } from '@/lib/workspace-scope';
 import { readFile, stat } from 'fs/promises';
 import path from 'path';
 import * as archiver from 'archiver';
@@ -28,10 +29,11 @@ export async function POST(request: Request) {
     const validated = bulkDownloadSchema.parse(body);
 
     // Verify all nodes belong to this user and are active
+    const { workspaceScopeFilter } = await getWorkspaceScopeFilter(userId);
     const nodes = await db.node.findMany({
       where: {
         id: { in: validated.nodeIds },
-        ownerId: userId,
+        ...workspaceScopeFilter,
         deletedAt: null,
       },
       include: { metadata: true },
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
         }
       } else if (node.type === 'folder') {
         // Get all descendant files for the folder
-        const descendantIds = await getAllDescendants(node.id);
+        const descendantIds = await getAllDescendants(node.id, userId, node.workspaceId);
         const descendants = await db.node.findMany({
           where: {
             id: { in: descendantIds },

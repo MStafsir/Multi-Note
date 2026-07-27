@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createDatabaseSchema } from '@/lib/validators';
+import { checkNodeAccess } from '@/lib/permissions';
 
 export async function POST(request: NextRequest) {
   const userId = request.headers.get('x-user-id');
@@ -20,11 +21,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the parent note belongs to the user
-    const parentNote = await db.node.findFirst({
-      where: { id: parsed.data.parentNoteId, ownerId: userId, type: 'note', deletedAt: null },
-    });
-    if (!parentNote) {
-      return NextResponse.json({ success: false, error: 'Parent note not found or not owned' }, { status: 404 });
+    const accessResult = await checkNodeAccess(userId, parsed.data.parentNoteId, 'edit');
+    if (!accessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Parent note not found or no edit access' }, { status: 404 });
     }
 
     const database = await db.noteDatabase.create({
@@ -74,12 +73,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'noteId query param required' }, { status: 400 });
     }
 
-    // Verify note ownership
-    const note = await db.node.findFirst({
-      where: { id: noteId, ownerId: userId, deletedAt: null },
-    });
-    if (!note) {
-      return NextResponse.json({ success: false, error: 'Note not found' }, { status: 404 });
+    // Verify note ownership/access
+    const noteAccessResult = await checkNodeAccess(userId, noteId, 'view');
+    if (!noteAccessResult.hasAccess) {
+      return NextResponse.json({ success: false, error: 'Note not found or no access' }, { status: 404 });
     }
 
     const databases = await db.noteDatabase.findMany({

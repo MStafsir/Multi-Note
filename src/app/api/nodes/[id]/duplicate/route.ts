@@ -11,6 +11,7 @@ import { duplicateNoteSchema } from '@/lib/validators';
 import { logger } from '@/lib/logger';
 import { traceHandler } from '@/lib/request-tracer';
 import { logActivity } from '@/lib/activity-logger';
+import { checkNodeAccess } from '@/lib/permissions';
 
 // ProseMirror node types that are custom block references
 const EMBEDDED_FILE_NODE_TYPE = 'embeddedFile';
@@ -94,11 +95,11 @@ async function handleDuplicateNote(
       );
     }
 
-    // Verify ownership (or shared access with edit permission)
-    if (sourceNode.ownerId !== userId) {
-      // Could also check share access, but for duplication let's restrict to owner for simplicity
+    // Verify view access (owner OR workspace member OR share recipient)
+    const accessResult = await checkNodeAccess(userId, validated.nodeId, 'view');
+    if (!accessResult.hasAccess) {
       return NextResponse.json(
-        { success: false, error: 'Only the owner can duplicate this note' },
+        { success: false, error: 'Access denied — you need view permission to duplicate this note' },
         { status: 403 }
       );
     }
@@ -212,6 +213,7 @@ async function handleDuplicateNote(
     const existingDuplicate = await db.node.findFirst({
       where: {
         ownerId: userId,
+        workspaceId: sourceNode.workspaceId,
         parentId: sourceNode.parentId || null,
         name: duplicateName,
         type: 'note',
@@ -228,6 +230,7 @@ async function handleDuplicateNote(
         const existing = await db.node.findFirst({
           where: {
             ownerId: userId,
+            workspaceId: sourceNode.workspaceId,
             parentId: sourceNode.parentId || null,
             name: testName,
             type: 'note',
@@ -246,6 +249,7 @@ async function handleDuplicateNote(
     const newNoteNode = await db.node.create({
       data: {
         ownerId: userId,
+        workspaceId: sourceNode.workspaceId,
         parentId: sourceNode.parentId || null,
         type: 'note',
         name: finalName,

@@ -1,6 +1,13 @@
 // ============================================================
 // MODUL 2: Database Schema & Foundation
-// Adapted: Prisma SQLite (instead of Supabase Postgres)
+// MODUL 49.10: PostgreSQL-compatible schema
+// Sandbox: uses SQLite (no external Postgres available)
+// Deployment: change provider to "postgresql" and set DATABASE_URL
+//   to Supabase/Neon Postgres connection string.
+// IMPORTANT: Prisma connects with table-owner role by default,
+//   which BYPASSRLS — Row Level Security policies are NOT enforced
+//   unless you explicitly set the connection role to a non-superuser.
+//   See 49.11 verification below.
 // ============================================================
 
 generator client {
