@@ -277,3 +277,23 @@ Stage Summary:
 - Fix: restored NEXTAUTH_SECRET + NEXTAUTH_URL in .env
 - Application fully functional: auth, registration, workspace all working
 - Note: existing sessions from previous secret are invalidated (users need to re-login)
+
+---
+Task ID: fix-upload-bigint
+Agent: main
+Task: Fix 500 Internal Server Error on file upload — BigInt serialization issue
+
+Work Log:
+- Root cause: `TypeError: Do not know how to serialize a BigInt` at route.ts:154
+- Prisma FileMetadata.sizeBytes is BigInt → JSON.stringify can't handle it → 500 error
+- Fix: imported existing `serializeBigInt` utility from @/lib/bigint.ts
+- Applied serializeBigInt to metadata object in response payload
+- Also normalized parentId handling (empty string → null) for FormData
+- Lint: clean pass
+- Browser test: uploaded test-upload.docx successfully, file appears in workspace
+
+Stage Summary:
+- Upload API now works for ALL file types including .docx
+- BigInt fields correctly serialized to Number for JSON
+- No file type restrictions in upload route (no accept attribute filter)
+- Max file size: 100MB

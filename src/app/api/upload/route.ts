@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { bigintToNumber, serializeBigInt } from '@/lib/bigint';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
@@ -35,7 +36,9 @@ export async function POST(request: NextRequest) {
     // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const parentId = formData.get('parentId') as string | null;
+    // FormData returns empty string for missing values — normalize to null
+    const parentIdRaw = formData.get('parentId');
+    const parentId = (typeof parentIdRaw === 'string' && parentIdRaw.trim() !== '') ? parentIdRaw : null;
 
     if (!file) {
       return NextResponse.json(
@@ -145,23 +148,28 @@ export async function POST(request: NextRequest) {
       return node;
     });
 
-    // Return the created node
+    // Return the created node — serialize BigInt fields for JSON
     const createdNode = await db.node.findUnique({
       where: { id: result.id },
       include: { metadata: true },
     });
 
+    // serializeBigInt converts all BigInt fields to Number for JSON.stringify
+    const serializedData = {
+      id: createdNode!.id,
+      name: createdNode!.name,
+      type: createdNode!.type,
+      parentId: createdNode!.parentId,
+      metadata: createdNode!.metadata
+        ? serializeBigInt(createdNode!.metadata as Record<string, unknown>)
+        : null,
+      createdAt: createdNode!.createdAt,
+      updatedAt: createdNode!.updatedAt,
+    };
+
     return NextResponse.json({
       success: true,
-      data: {
-        id: createdNode!.id,
-        name: createdNode!.name,
-        type: createdNode!.type,
-        parentId: createdNode!.parentId,
-        metadata: createdNode!.metadata,
-        createdAt: createdNode!.createdAt,
-        updatedAt: createdNode!.updatedAt,
-      },
+      data: serializedData,
     });
   } catch (error) {
     console.error('Upload error:', error);
