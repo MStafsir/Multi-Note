@@ -3,7 +3,7 @@
 // Maps MIME types to preview types, Lucide icon names, and labels
 // ============================================================
 
-export type PreviewType = 'image' | 'pdf' | 'video' | 'audio' | 'none';
+export type PreviewType = 'image' | 'pdf' | 'video' | 'audio' | 'text' | 'download' | 'none';
 
 // Icon name mapping (Lucide component names as strings for dynamic rendering)
 export type IconName =
@@ -51,31 +51,31 @@ const MIME_CATEGORIES: Record<string, { previewType: PreviewType; icon: IconName
   'audio/webm': { previewType: 'audio', icon: 'Music', label: 'WebM Audio' },
   'audio/x-m4a': { previewType: 'audio', icon: 'Music', label: 'M4A Audio' },
 
-  // Documents / Text
-  'text/plain': { previewType: 'none', icon: 'FileText', label: 'Text File' },
-  'text/csv': { previewType: 'none', icon: 'Spreadsheet', label: 'CSV File' },
-  'text/html': { previewType: 'none', icon: 'Code', label: 'HTML File' },
-  'text/css': { previewType: 'none', icon: 'Code', label: 'CSS File' },
-  'text/xml': { previewType: 'none', icon: 'Code', label: 'XML File' },
-  'text/markdown': { previewType: 'none', icon: 'FileText', label: 'Markdown File' },
-  'application/json': { previewType: 'none', icon: 'Code', label: 'JSON File' },
-  'application/xml': { previewType: 'none', icon: 'Code', label: 'XML File' },
-  'application/javascript': { previewType: 'none', icon: 'Code', label: 'JavaScript File' },
-  'application/typescript': { previewType: 'none', icon: 'Code', label: 'TypeScript File' },
+  // Documents / Text — previewType: 'text' for inline rendering
+  'text/plain': { previewType: 'text', icon: 'FileText', label: 'Text File' },
+  'text/csv': { previewType: 'text', icon: 'Spreadsheet', label: 'CSV File' },
+  'text/html': { previewType: 'text', icon: 'Code', label: 'HTML File' },
+  'text/css': { previewType: 'text', icon: 'Code', label: 'CSS File' },
+  'text/xml': { previewType: 'text', icon: 'Code', label: 'XML File' },
+  'text/markdown': { previewType: 'text', icon: 'FileText', label: 'Markdown File' },
+  'application/json': { previewType: 'text', icon: 'Code', label: 'JSON File' },
+  'application/xml': { previewType: 'text', icon: 'Code', label: 'XML File' },
+  'application/javascript': { previewType: 'text', icon: 'Code', label: 'JavaScript File' },
+  'application/typescript': { previewType: 'text', icon: 'Code', label: 'TypeScript File' },
 
-  // Office documents
+  // Office documents — previewType: 'download' (no browser-native preview, must download)
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
-    previewType: 'none', icon: 'FileText', label: 'Word Document',
+    previewType: 'download', icon: 'FileText', label: 'Word Document',
   },
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
-    previewType: 'none', icon: 'Spreadsheet', label: 'Excel Spreadsheet',
+    previewType: 'download', icon: 'Spreadsheet', label: 'Excel Spreadsheet',
   },
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': {
-    previewType: 'none', icon: 'Presentation', label: 'PowerPoint Presentation',
+    previewType: 'download', icon: 'Presentation', label: 'PowerPoint Presentation',
   },
-  'application/msword': { previewType: 'none', icon: 'FileText', label: 'Word Document' },
-  'application/vnd.ms-excel': { previewType: 'none', icon: 'Spreadsheet', label: 'Excel Spreadsheet' },
-  'application/vnd.ms-powerpoint': { previewType: 'none', icon: 'Presentation', label: 'PowerPoint Presentation' },
+  'application/msword': { previewType: 'download', icon: 'FileText', label: 'Word Document' },
+  'application/vnd.ms-excel': { previewType: 'download', icon: 'Spreadsheet', label: 'Excel Spreadsheet' },
+  'application/vnd.ms-powerpoint': { previewType: 'download', icon: 'Presentation', label: 'PowerPoint Presentation' },
 
   // Archives
   'application/zip': { previewType: 'none', icon: 'Archive', label: 'ZIP Archive' },
@@ -106,6 +106,7 @@ export function getMimePreviewType(mimeType: string): PreviewType {
   if (mimeType.startsWith('video/')) return 'video';
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.startsWith('text/')) return 'text';
 
   return 'none';
 }

@@ -61,6 +61,7 @@ const RevisionSidebar = dynamic(() => import('@/components/revisions/revision-si
 const BulkActionToolbar = dynamic(() => import('@/components/bulk/bulk-action-toolbar').then(m => ({ default: m.BulkActionToolbar })), { ssr: false });
 const EmptyStateCTA = dynamic(() => import('@/components/onboarding/empty-state-cta').then(m => ({ default: m.EmptyStateCTA })), { ssr: false });
 const TemplateGalleryDialog = dynamic(() => import('@/components/template/template-gallery-dialog').then(m => ({ default: m.TemplateGalleryDialog })), { ssr: false });
+const FilePreviewModal = dynamic(() => import('@/components/preview/file-preview-modal').then(m => ({ default: m.FilePreviewModal })), { ssr: false });
 const CreateDialog = dynamic(() => import('./create-dialog').then(m => ({ default: m.CreateDialog })), { ssr: false });
 import { markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
 import { useAuthStore } from '@/store/auth';
@@ -83,6 +84,12 @@ export function ContentArea() {
   // 39 — Onboarding empty state: create dialog for note/folder
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createType, setCreateType] = useState<'folder' | 'note'>('note');
+  // File preview modal state
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewFileId, setPreviewFileId] = useState<string>('');
+  const [previewFileName, setPreviewFileName] = useState<string>('');
+  const [previewFileMime, setPreviewFileMime] = useState<string>('application/octet-stream');
+  const [previewFileSize, setPreviewFileSize] = useState<number>(0);
   // 39 — File upload
   const uploadMutation = useUploadFile();
   const createMutation = useCreateFolder();
@@ -171,7 +178,12 @@ export function ContentArea() {
     } else if (node.type === 'note') {
       openNote(node.id);
     } else {
-      setSelectedNodeId(node.id);
+      // Open file preview modal for file type nodes
+      setPreviewFileId(node.id);
+      setPreviewFileName(node.name);
+      setPreviewFileMime(node.metadata?.mimeType || 'application/octet-stream');
+      setPreviewFileSize(typeof node.metadata?.sizeBytes === 'number' ? node.metadata.sizeBytes : 0);
+      setPreviewModalOpen(true);
     }
   };
 
@@ -733,6 +745,16 @@ export function ContentArea() {
           // Mark onboarding step
           markOnboardingStep('create_note');
         }}
+      />
+
+      {/* File Preview Modal — opens when a file is clicked */}
+      <FilePreviewModal
+        open={previewModalOpen}
+        onOpenChange={setPreviewModalOpen}
+        id={previewFileId}
+        name={previewFileName}
+        mimeType={previewFileMime}
+        sizeBytes={previewFileSize}
       />
     </div>
   );

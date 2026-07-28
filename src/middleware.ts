@@ -280,7 +280,8 @@ export async function middleware(request: NextRequest) {
     let actionType = 'default';
 
     // Classify action type for rate limiting
-    if (pathname.startsWith('/api/upload')) {
+    // Upload POST = rate-limited, but upload GET (download) = not rate-limited
+    if (pathname.startsWith('/api/upload') && request.method === 'POST') {
       actionType = 'upload';
     } else if (pathname.startsWith('/api/nodes') && request.method === 'POST') {
       actionType = 'create';
@@ -292,8 +293,8 @@ export async function middleware(request: NextRequest) {
       actionType = 'mutation';
     }
 
-    // Only rate limit mutations (not GET requests, except upload)
-    if (request.method !== 'GET' || pathname.startsWith('/api/upload')) {
+    // Only rate limit mutations (not GET requests, including file downloads)
+    if (request.method !== 'GET') {
       const { allowed, remaining } = checkRateLimit(ip, actionType);
       if (!allowed) {
         return NextResponse.json(

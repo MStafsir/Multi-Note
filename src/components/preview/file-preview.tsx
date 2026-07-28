@@ -7,10 +7,12 @@
 // - PDFs: embedded iframe viewer or link
 // - Videos: <video> tag with controls and preload="metadata"
 // - Audio: simple audio tag
+// - Text/Code: syntax-highlighted text preview (fetches from API)
+// - Office docs (docx, xlsx, pptx): download button + Google Docs viewer link
 // - Unsupported: fallback icon + file name + size + download button
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   File,
   ImageIcon,
@@ -20,16 +22,18 @@ import {
   Archive,
   Code,
   Presentation,
-  Spreadsheet,
+  FileSpreadsheet,
   FileQuestion,
   Download,
   Loader2,
   X,
   ExternalLink,
+  Copy,
 } from 'lucide-react';
 import { getMimePreviewType, getMimeIcon, getMimeLabel, formatFileSize, type PreviewType, type IconName } from '@/lib/mime-icons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
 
 interface FilePreviewProps {
   id: string;
@@ -49,13 +53,16 @@ const ICON_COMPONENTS: Record<IconName, React.ComponentType<React.SVGProps<SVGSV
   Archive,
   Code,
   Presentation,
-  Spreadsheet,
+  Spreadsheet: FileSpreadsheet,
   FileQuestion,
 };
 
 export function FilePreview({ id, name, mimeType, sizeBytes, onClose }: FilePreviewProps) {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [textContent, setTextContent] = useState<string>('');
+  const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState(false);
   const previewType = getMimePreviewType(mimeType);
   const iconName = getMimeIcon(mimeType);
   const mimeLabel = getMimeLabel(mimeType);
@@ -63,6 +70,33 @@ export function FilePreview({ id, name, mimeType, sizeBytes, onClose }: FilePrev
 
   const previewUrl = `/api/preview/${id}`;
   const downloadUrl = `/api/upload/download/${id}`;
+
+  // Fetch text content for text/code preview
+  useEffect(() => {
+    if (previewType === 'text') {
+      let cancelled = false;
+      const loadText = async () => {
+        try {
+          const res = await fetch(previewUrl);
+          if (!res.ok) throw new Error('Failed to load text content');
+          const content = await res.text();
+          if (!cancelled) {
+            setTextContent(content);
+          }
+        } catch {
+          if (!cancelled) {
+            setTextError(true);
+          }
+        }
+      };
+      setTextLoading(true);
+      setTextError(false);
+      loadText().finally(() => {
+        if (!cancelled) setTextLoading(false);
+      });
+      return () => { cancelled = true; };
+    }
+  }, [previewType, previewUrl]);
 
   // Render close button
   const closeButton = onClose ? (
@@ -200,7 +234,122 @@ export function FilePreview({ id, name, mimeType, sizeBytes, onClose }: FilePrev
     );
   }
 
-  // --- Unsupported Type: Fallback ---
+  // --- Text/Code Preview ---
+  if (previewType === 'text') {
+    return (
+      <div className="relative flex flex-col w-full">
+        {closeButton}
+        <div className="flex items-center gap-2 mb-3">
+          <Code className="h-5 w-5 text-emerald-500" />
+          <span className="font-medium truncate max-w-xs">{name}</span>
+          {sizeBytes && (
+            <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>
+          )}
+          <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+          <div className="flex gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(textContent);
+                toast.success('Copied to clipboard');
+              }}
+              disabled={textLoading || textError}
+            >
+              <Copy className="h-4 w-4 mr-1" />
+              Copy
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={downloadUrl} download={name}>
+                <Download className="h-4 w-4 mr-1" />
+                Download
+              </a>
+            </Button>
+          </div>
+        </div>
+        {textLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : textError ? (
+          <Card className="w-full">
+            <CardContent className="p-6 flex flex-col items-center gap-4">
+              <Code className="h-12 w-12 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Failed to load text content</p>
+              <Button variant="outline" size="sm" asChild>
+                <a href={downloadUrl} download={name}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download file
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="relative rounded-lg border bg-muted/30 overflow-hidden">
+            <pre className="p-4 text-sm font-mono overflow-auto max-h-[60vh] whitespace-pre-wrap break-words leading-relaxed">
+              {textContent}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- Download-only Preview (Office docs, archives, etc.) ---
+  if (previewType === 'download' || previewType === 'none') {
+    const isOffice = mimeType.includes('officedocument') || mimeType.includes('msword') || mimeType.includes('ms-excel') || mimeType.includes('ms-powerpoint');
+
+    return (
+      <div className="relative flex flex-col items-center w-full p-6">
+        {closeButton}
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+              <IconComponent className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="text-center">
+              <p className="font-medium truncate max-w-full">{name}</p>
+              <p className="text-sm text-muted-foreground mt-1">{mimeLabel}</p>
+              {sizeBytes && (
+                <p className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</p>
+              )}
+            </div>
+            {isOffice ? (
+              <>
+                <p className="text-xs text-muted-foreground text-center">
+                  This file type can&apos;t be previewed inline in the browser
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="default" size="sm" asChild>
+                    <a href={downloadUrl} download={name}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download to Open
+                    </a>
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground text-center">
+                  No preview available for this file type
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={downloadUrl} download={name}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </a>
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // --- Fallback ---
   return (
     <div className="relative flex flex-col items-center w-full p-6">
       {closeButton}
@@ -216,9 +365,6 @@ export function FilePreview({ id, name, mimeType, sizeBytes, onClose }: FilePrev
               <p className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</p>
             )}
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            No preview available for this file type
-          </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={downloadUrl} download={name}>

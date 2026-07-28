@@ -297,3 +297,31 @@ Stage Summary:
 - BigInt fields correctly serialized to Number for JSON
 - No file type restrictions in upload route (no accept attribute filter)
 - Max file size: 100MB
+
+---
+Task ID: fix-file-preview-click
+Agent: main
+Task: Fix file preview — files were clickable but nothing happened ("pajangan" only)
+
+Work Log:
+- Root cause #1: content-area.tsx had no FilePreviewModal — clicking a file only set selectedNodeId but no preview modal opened
+- Root cause #2: preview API route used wrong UPLOAD_DIR (`download/uploads` instead of `upload`)
+- Root cause #3: no download API route existed at `/api/upload/download/[id]`
+- Root cause #4: text/code/Office files mapped to previewType='none' — no inline preview
+- Fix #1: Added FilePreviewModal dynamic import + state variables + open on file click
+- Fix #2: Changed UPLOAD_DIR to `upload/` and resolved storage path properly (absolute or relative)
+- Fix #3: Created `/api/upload/download/[id]/route.ts` for file downloads with auth check
+- Fix #4: Added previewType='text' for text/code files (inline rendering), 'download' for Office docs
+- Fix #5: Fixed `Spreadsheet` icon import → `FileSpreadsheet` (lucide-react doesn't have Spreadsheet)
+- Fix #6: Updated preview API to use x-user-id header (middleware) instead of getServerSession (heavy)
+- Fix #7: Fixed rate limiting — download GETs should not be rate-limited
+- Browser test: clicking files now opens preview modal
+  - .txt files: full inline text preview with Copy + Download buttons ✅
+  - .docx files: download-only modal with "Download to Open" button ✅
+  - Images, PDFs, video, audio: served inline from preview API ✅
+- Lint: clean pass
+
+Stage Summary:
+- Files are no longer "pajangan" — clicking opens a preview/download modal
+- Text/code files render inline, Office docs offer download, media types stream inline
+- All file types are viewable/downloadable without errors

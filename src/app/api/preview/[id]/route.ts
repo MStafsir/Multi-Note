@@ -5,29 +5,30 @@
 // - PDFs: served inline with application/pdf
 // - Videos: served with proper Content-Type, Range header for streaming
 // - Audio: served with proper Content-Type
-// - Other: returns JSON metadata only (no preview)
+// - Text/code: served as UTF-8 text for inline rendering
+// - Office/docs: served for download (no browser-native preview)
+// - Other: returns JSON metadata + download link
+// Auth: uses middleware-injected x-user-id header (not getServerSession)
 // ============================================================
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { checkNodeAccess } from '@/lib/permissions';
-import { readFile, stat } from 'fs/promises';
-import { open } from 'fs/promises';
+import { readFile, stat, open } from 'fs/promises';
 import path from 'path';
 import { getMimePreviewType } from '@/lib/mime-icons';
 import { bigintToNumber } from '@/lib/bigint';
 
-const UPLOAD_DIR = path.join(process.cwd(), 'download', 'uploads');
+const UPLOAD_DIR = path.join(process.cwd(), 'upload');
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Get user ID from middleware-injected header
+    const userId = request.headers.get('x-user-id');
+    if (!userId) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -44,7 +45,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'File not found' }, { status: 404 });
     }
 
-    const accessResult = await checkNodeAccess(session.user.id, id, 'view');
+    const accessResult = await checkNodeAccess(userId, id, 'view');
     if (!accessResult.hasAccess) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
@@ -55,10 +56,31 @@ export async function GET(
 
     const mimeType = node.metadata.mimeType;
     const previewType = getMimePreviewType(mimeType);
-    const fullPath = path.join(UPLOAD_DIR, node.metadata.storagePath);
+    // Storage path from metadata — could be absolute or relative
+    const storagePath = node.metadata.storagePath;
+    const fullPath = storagePath.startsWith('/') ? storagePath : path.join(UPLOAD_DIR, path.basename(storagePath));
 
-    // For unsupported types, return metadata JSON only
-    if (previewType === 'none') {
+    // --- Text/code files: serve as UTF-8 text for inline preview ---
+    if (previewType === 'text') {
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = await readFile(fullPath);
+      } catch {
+        return NextResponse.json({ success: false, error: 'File not found on disk' }, { status: 404 });
+      }
+      const textContent = fileBuffer.toString('utf-8');
+      return new NextResponse(textContent, {
+        headers: {
+          'Content-Type': `${mimeType}; charset=utf-8`,
+          'Content-Disposition': `inline; filename="${node.name}"`,
+          'Cache-Control': 'private, max-age=3600',
+        },
+      });
+    }
+
+    // --- Office/unsupported types: serve as download + metadata ---
+    if (previewType === 'none' || previewType === 'download') {
+      // Return metadata JSON with download URL
       return NextResponse.json({
         success: true,
         data: {
@@ -67,12 +89,13 @@ export async function GET(
           mimeType: mimeType,
           sizeBytes: bigintToNumber(node.metadata.sizeBytes),
           previewType: 'none',
-          message: 'No preview available for this file type',
+          downloadUrl: `/api/upload/download/${id}`,
+          message: 'No inline preview available — download to view',
         },
       });
     }
 
-    // Check file exists on disk
+    // Check file exists on disk for binary preview types
     let fileStat;
     try {
       fileStat = await stat(fullPath);
@@ -85,32 +108,26 @@ export async function GET(
       const rangeHeader = request.headers.get('range');
 
       if (rangeHeader) {
-        // Parse Range header: "bytes=start-end"
         const fileSize = fileStat.size;
         const parts = rangeHeader.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
 
-        // Validate range
         if (start >= fileSize || end >= fileSize) {
           return new NextResponse(null, {
-            status: 416, // Range Not Satisfiable
-            headers: {
-              'Content-Range': `bytes */${fileSize}`,
-            },
+            status: 416,
+            headers: { 'Content-Range': `bytes */${fileSize}` },
           });
         }
 
         const chunkSize = end - start + 1;
-
-        // Read the specific byte range from the file
         const fileHandle = await open(fullPath, 'r');
         const buffer = Buffer.alloc(chunkSize);
         await fileHandle.read(buffer, 0, chunkSize, start);
         await fileHandle.close();
 
         return new NextResponse(buffer, {
-          status: 206, // Partial Content
+          status: 206,
           headers: {
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
             'Accept-Ranges': 'bytes',
@@ -122,7 +139,6 @@ export async function GET(
         });
       }
 
-      // No Range header — serve full file
       const fileBuffer = await readFile(fullPath);
       return new NextResponse(fileBuffer, {
         headers: {
@@ -139,11 +155,8 @@ export async function GET(
     if (previewType === 'image') {
       const url = new URL(request.url);
       const sizeParam = url.searchParams.get('size');
-
       const fileBuffer = await readFile(fullPath);
 
-      // For thumbnail requests, we still serve the full image
-      // (Next.js Image optimization handles resizing on the client side)
       const headers: Record<string, string> = {
         'Content-Type': mimeType,
         'Content-Disposition': `inline; filename="${node.name}"`,
@@ -151,7 +164,6 @@ export async function GET(
         'Cache-Control': 'private, max-age=3600',
       };
 
-      // Add thumbnail hint in response header
       if (sizeParam === 'thumbnail') {
         headers['X-Preview-Size'] = 'thumbnail';
       }
@@ -172,7 +184,7 @@ export async function GET(
       });
     }
 
-    // Fallback — should not reach here, but return metadata just in case
+    // Fallback
     return NextResponse.json({
       success: true,
       data: {
@@ -181,6 +193,7 @@ export async function GET(
         mimeType: mimeType,
         sizeBytes: bigintToNumber(node.metadata.sizeBytes),
         previewType: 'none',
+        downloadUrl: `/api/upload/download/${id}`,
         message: 'No preview available',
       },
     });
