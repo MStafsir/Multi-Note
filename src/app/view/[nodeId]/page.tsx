@@ -2,7 +2,11 @@
 // MODUL 54.4-54.5: Dedicated New-Tab Viewer — Server Component
 // Validates session + ownership at server level BEFORE rendering shell
 // Same-origin, same-app — NextAuth session automatically carries over
-// Zero token-handoff mechanism needed
+// Zero token-handoff mechanism needed for authenticated endpoints.
+//
+// MODUL 54.7: Also generates a one-time public access token for
+// Google Docs Viewer integration. The token allows the public-content
+// endpoint to serve file bytes without session auth.
 // ============================================================
 
 import { getServerSession } from 'next-auth/next';
@@ -11,8 +15,9 @@ import { db } from '@/lib/db';
 import { checkNodeAccess } from '@/lib/permissions';
 import { getMimePreviewType, getPreviewTier, getMimeLabel, type PreviewType, type PreviewTier } from '@/lib/mime-icons';
 import { bigintToNumber } from '@/lib/bigint';
+import { generatePublicAccessToken } from '@/lib/public-file-access';
 import { redirect } from 'next/navigation';
-import { DedicatedViewer } from '@/components/preview/dedicated-viewer';
+import { DedicatedViewerClient } from './dedicated-viewer-client';
 
 interface ViewerPageProps {
   params: Promise<{ nodeId: string }>;
@@ -93,9 +98,16 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
   const sizeBytes = bigintToNumber(node.metadata.sizeBytes) ?? 0;
   const checksumSha256 = node.metadata.checksumSha256 ?? null;
 
-  // Pass data to client component for rendering
+  // 8. Generate a temporary public access token for Google Docs Viewer
+  // This token allows the /api/files/[nodeId]/public-content endpoint
+  // to serve file content without session authentication.
+  // The token is valid for 5 minutes (not one-time-use, since Google Docs
+  // Viewer may make multiple HTTP requests).
+  const publicAccessToken = generatePublicAccessToken(nodeId);
+
+  // Pass data to client component wrapper for rendering
   return (
-    <DedicatedViewer
+    <DedicatedViewerClient
       nodeId={nodeId}
       name={node.name}
       mimeType={mimeType}
@@ -104,6 +116,7 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
       mimeLabel={mimeLabel}
       sizeBytes={sizeBytes}
       checksumSha256={checksumSha256}
+      publicAccessToken={publicAccessToken}
     />
   );
 }

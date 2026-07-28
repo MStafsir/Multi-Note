@@ -1,29 +1,41 @@
 // ============================================================
-// MODUL 50-51 Phase 1: File Content Streaming Route
-// Serves RAW file bytes (not converted content) with Range support
-// Auth: middleware-injected x-user-id header
-// Supports ?download=true for forced download (Content-Disposition: attachment)
+// MODUL 54.7: Public File Content Endpoint
+// Serves file content using a temporary access token instead
+// of NextAuth session authentication. This enables external
+// services (e.g., Google Docs Viewer) to access file content
+// without requiring a user session.
+//
+// Usage: GET /api/files/[nodeId]/public-content?token=TEMP_TOKEN
+// Token is generated server-side in /view/[nodeId]/page.tsx
+// and passed to the client for constructing Google Docs URLs.
+//
+// Token is valid for 5 minutes (not one-time-use, since Google Docs
+// Viewer may make multiple HTTP requests to the same URL).
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { checkNodeAccess } from '@/lib/permissions';
+import { validatePublicAccessToken } from '@/lib/public-file-access';
 import { buildRangeResponse } from '@/lib/range-response';
-import { stat } from 'fs/promises';
 import { resolveStoragePath } from '@/lib/storage-path';
+import { stat } from 'fs/promises';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ nodeId: string }> }
 ) {
   try {
-    // 1. Read x-user-id from middleware-injected header
-    const userId = request.headers.get('x-user-id');
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    // 1. Validate the temporary access token from query parameter
+    const token = request.nextUrl.searchParams.get('token');
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Token required' }, { status: 401 });
     }
 
     const { nodeId } = await params;
+
+    if (!validatePublicAccessToken(token, nodeId)) {
+      return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 });
+    }
 
     // 2. Lookup node by nodeId from DB with metadata
     const node = await db.node.findUnique({
@@ -36,21 +48,15 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'File not found' }, { status: 404 });
     }
 
-    // 4. Check access via permission system
-    const accessResult = await checkNodeAccess(userId, nodeId, 'view');
-    if (!accessResult.hasAccess) {
-      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
-    }
-
     if (!node.metadata) {
       return NextResponse.json({ success: false, error: 'File metadata missing' }, { status: 404 });
     }
 
-    // 5. Resolve storagePath to absolute filesystem path
+    // 4. Resolve storagePath using shared utility (handles all 3 path formats)
     const storagePath = node.metadata.storagePath;
     const fullPath = resolveStoragePath(storagePath);
 
-    // 6. Read file stats to get fileSize
+    // 5. Read file stats to get fileSize
     let fileStat;
     try {
       fileStat = await stat(fullPath);
@@ -61,14 +67,9 @@ export async function GET(
     const fileSize = fileStat.size;
     const mimeType = node.metadata.mimeType;
     const fileName = node.name;
-    // Handle BigInt serialization for checksumSha256
     const checksumSha256 = node.metadata.checksumSha256 ?? undefined;
 
-    // 7. Check ?download=true query parameter
-    const downloadParam = request.nextUrl.searchParams.get('download');
-    const isDownload = downloadParam === 'true';
-
-    // 8. Build Range response
+    // 6. Build Range response (same as authenticated content endpoint)
     const rangeHeader = request.headers.get('range');
 
     return buildRangeResponse({
@@ -78,7 +79,7 @@ export async function GET(
       fileName,
       checksumSha256,
       rangeHeader,
-      isDownload,
+      isDownload: false,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'File content streaming failed';

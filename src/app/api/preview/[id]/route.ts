@@ -17,11 +17,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkNodeAccess } from '@/lib/permissions';
 import { readFile } from 'fs/promises';
-import path from 'path';
 import { getMimePreviewType } from '@/lib/mime-icons';
+import { resolveStoragePath } from '@/lib/storage-path';
 import { bigintToNumber } from '@/lib/bigint';
-
-const UPLOAD_DIR = path.join(process.cwd(), 'upload');
 
 export async function GET(
   request: NextRequest,
@@ -56,7 +54,7 @@ export async function GET(
     const mimeType = node.metadata.mimeType;
     const previewType = getMimePreviewType(mimeType);
     const storagePath = node.metadata.storagePath;
-    const fullPath = storagePath.startsWith('/') ? storagePath : path.join(UPLOAD_DIR, path.basename(storagePath));
+    const fullPath = resolveStoragePath(storagePath);
 
     // --- Text/code files (Tier 1 — UTF-8 text endpoint) ---
     if (previewType === 'text') {

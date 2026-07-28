@@ -14,6 +14,7 @@
 //   - File name display
 //   - Close/back button (window.close() if opener exists, router.back() fallback)
 //   - Download button → /api/files/[nodeId]/content?download=true
+//   - "Open with Google Docs" button (DOCX/XLSX/PPTX) → public-content endpoint
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react';
@@ -27,6 +28,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
 import { formatFileSize } from '@/lib/mime-icons';
 import type { PreviewType, PreviewTier } from '@/lib/mime-icons';
@@ -42,6 +44,7 @@ interface DedicatedViewerProps {
   mimeLabel: string;
   sizeBytes: number;
   checksumSha256: string | null;
+  publicAccessToken: string;
 }
 
 // ============================================================
@@ -190,6 +193,7 @@ export function DedicatedViewer({
   mimeLabel,
   sizeBytes,
   checksumSha256,
+  publicAccessToken,
 }: DedicatedViewerProps) {
   const router = useRouter();
 
@@ -217,6 +221,17 @@ export function DedicatedViewer({
   const contentUrl = `/api/files/${nodeId}/content`;
   const previewUrl = `/api/preview/${nodeId}`;
   const downloadUrl = `/api/files/${nodeId}/content?download=true`;
+
+  // Whether to show the Google Docs button (only for office file types)
+  const showGoogleDocsButton = previewType === 'docx' || previewType === 'xlsx' || previewType === 'pptx';
+
+  // Handler for opening Google Docs Viewer — computed lazily to avoid SSR window crash
+  const handleOpenGoogleDocs = () => {
+    // Build the public-content URL with the temporary token
+    const publicContentUrl = `${window.location.origin}/api/files/${nodeId}/public-content?token=${encodeURIComponent(publicAccessToken)}`;
+    const googleDocsViewerUrl = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(publicContentUrl)}`;
+    window.open(googleDocsViewerUrl, '_blank');
+  };
 
   // ---- DOCX loading ----
   useEffect(() => {
@@ -252,7 +267,8 @@ export function DedicatedViewer({
         // Fallback to mammoth
         if (!cancelled) {
           const mammoth = await import('mammoth');
-          const result = await mammoth.convertToHtml({ buffer: arrayBuffer });
+          // In browser, mammoth expects {arrayBuffer: ArrayBuffer} not {buffer: Buffer}
+          const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
           if (!cancelled) {
             setMammothHtml(result.value);
             setLoading(false);
@@ -386,12 +402,20 @@ export function DedicatedViewer({
             </Button>
             <span className="font-medium truncate max-w-[50vw]">{name}</span>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <a href={downloadUrl} download={name}>
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </a>
-          </Button>
+          <div className="flex items-center gap-2">
+            {showGoogleDocsButton && (
+              <Button variant="outline" size="sm" onClick={handleOpenGoogleDocs}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Google Docs
+              </Button>
+            )}
+            <Button variant="outline" size="sm" asChild>
+              <a href={downloadUrl} download={name}>
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </a>
+            </Button>
+          </div>
         </div>
 
         {/* Error content */}
@@ -400,12 +424,20 @@ export function DedicatedViewer({
             <CardContent className="p-6 flex flex-col items-center gap-4">
               {getIcon()}
               <p className="text-sm text-muted-foreground">{error}</p>
-              <Button variant="outline" size="sm" asChild>
-                <a href={downloadUrl} download={name}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download to open
-                </a>
-              </Button>
+              <div className="flex items-center gap-2">
+                {showGoogleDocsButton && (
+                  <Button variant="outline" size="sm" onClick={handleOpenGoogleDocs}>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Google Docs
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" asChild>
+                  <a href={downloadUrl} download={name}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download to open
+                  </a>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -429,12 +461,20 @@ export function DedicatedViewer({
           )}
           <span className="text-xs text-muted-foreground">{mimeLabel}</span>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <a href={downloadUrl} download={name}>
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </a>
-        </Button>
+        <div className="flex items-center gap-2">
+          {showGoogleDocsButton && (
+            <Button variant="outline" size="sm" onClick={handleOpenGoogleDocs}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Google Docs
+            </Button>
+          )}
+          <Button variant="outline" size="sm" asChild>
+            <a href={downloadUrl} download={name}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </a>
+          </Button>
+        </div>
       </div>
 
       {/* Content area */}

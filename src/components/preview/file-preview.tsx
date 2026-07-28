@@ -509,7 +509,8 @@ function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
         // Fallback to mammoth
         if (!cancelled) {
           const mammoth = await import('mammoth');
-          const result = await mammoth.convertToHtml({ buffer: arrayBuffer });
+          // In browser, mammoth expects {arrayBuffer: ArrayBuffer} not {buffer: Buffer}
+          const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
           if (!cancelled) {
             setMammothHtml(result.value);
             setLoading(false);

@@ -141,6 +141,12 @@ export async function middleware(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next());
   }
 
+  // MODUL 54.7 — Public file content endpoint uses token-based auth (not session)
+  // This allows Google Docs Viewer and other external services to access file content
+  if (pathname.match(/^\/api\/files\/[^/]+\/public-content$/) && request.method === 'GET') {
+    return addSecurityHeaders(NextResponse.next());
+  }
+
   // MODUL 40.6 — Workspace invitation GET is public (no auth required for viewing invite)
   // POST (accept) and PATCH (decline) require auth, handled below in protected routes
   if (pathname.match(/^\/api\/workspaces\/invitations\/[^/]+$/) && request.method === 'GET') {

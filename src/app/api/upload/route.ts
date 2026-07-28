@@ -15,6 +15,42 @@ import crypto from 'crypto';
 import path from 'path';
 import { mkdir, writeFile } from 'fs/promises';
 
+// Map file extensions to MIME types
+const EXTENSION_MIME_MAP: Record<string, string> = {
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.doc': 'application/msword',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.xls': 'application/vnd.ms-excel',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain',
+  '.csv': 'text/csv',
+  '.json': 'application/json',
+  '.html': 'text/html',
+  '.xml': 'text/xml',
+  '.md': 'text/markdown',
+  '.py': 'text/x-python',
+  '.js': 'application/javascript',
+  '.ts': 'application/typescript',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.zip': 'application/zip',
+};
+
+function getMimeTypeFromFilename(filename: string): string | null {
+  const ext = path.extname(filename).toLowerCase();
+  return EXTENSION_MIME_MAP[ext] || null;
+}
+
 const UPLOAD_DIR = path.join(process.cwd(), 'upload');
 
 // Generate a short random ID for filename uniqueness
@@ -129,7 +165,18 @@ async function handleUpload(request: NextRequest): Promise<NextResponse> {
     const relativeStoragePath = `user-files/${userId}/${uniqueFilename}`;
 
     // 11. Determine MIME type
-    const mimeType = file.type || 'application/octet-stream';
+    // Use file.type if available and specific (not generic octet-stream)
+    // Otherwise, detect from filename extension
+    let mimeType = file.type;
+    if (!mimeType || mimeType === 'application/octet-stream') {
+      const detectedMime = getMimeTypeFromFilename(sanitizedOriginalName);
+      if (detectedMime) {
+        mimeType = detectedMime;
+      }
+    }
+    if (!mimeType) {
+      mimeType = 'application/octet-stream';
+    }
 
     // 12. Create Node record (type='file') in DB
     // Use parent's workspaceId if it has one (MODUL 40.1 — workspace-scoped nodes)
