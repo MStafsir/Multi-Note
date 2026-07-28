@@ -1,77 +1,89 @@
 // ============================================================
-// MODUL 51: Service Worker — Serwist + custom cache strategies
-// 51.1 — Cache-first-if-exists for /api/files/[nodeId]/content (Tier 1 blobs)
-//   - Range requests → skip cache, always network (video/audio seeking)
-//   - No Range + cache match → return cached Response
-//   - No Range + no cache match → fetch from network, cache 200 Response, return it
-//   - DO NOT cache 206 (Partial Content) responses — only 200 (Full Content)
-//   - Cache name: 'preview-blobs-v1', max age: 30 days, max entries: 200
-// Existing rules:
-//   /api/nodes → staleWhileRevalidate
-//   /api/upload → networkOnly
+// MODUL 53: Service Worker — Vanilla implementation
+// Replaces Serwist-based SW which failed evaluation.
+// This vanilla SW uses only standard ServiceWorker APIs
+// (no window/document dependencies, no complex bundling).
+//
+// Features:
+//   - Cache-first-if-exists for /api/files/[nodeId]/content (Tier 1 blobs)
+//     Range requests → skip cache, always network (video/audio seeking)
+//     Only cache 200 (Full Content) responses — NOT 206 (Partial Content)
+//   - /api/upload → network-only (mutations must hit server)
+//   - Static assets → cache-first (precache on install)
 // ============================================================
 
-import type { PrecacheEntry } from 'serwist';
-import { Serwist, CacheFirst, ExpirationPlugin } from 'serwist';
+const CACHE_NAMES = {
+  blobs: 'preview-blobs-v1',
+  static: 'static-v1',
+};
 
-declare global {
-  interface WorkerGlobalScope {
-    __SW_MANIFEST: (string | PrecacheEntry)[];
-  }
-}
+// Maximum entries and age for blob cache
+const BLOB_MAX_ENTRIES = 200;
+const BLOB_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
 
-// Cache name for Tier 1 blob content (images, video, audio, PDF raw bytes)
-const BLOB_CACHE_NAME = 'preview-blobs-v1';
-
-// Cache-first strategy for /api/files/[nodeId]/content — Tier 1 blobs
-// 30-day max age, 200 max entries, cache-only for non-Range requests
-const blobCacheStrategy = new CacheFirst({
-  cacheName: BLOB_CACHE_NAME,
-  plugins: [
-    new ExpirationPlugin({
-      maxEntries: 200,
-      maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-    }),
-  ],
+// Install: claim clients immediately
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
-const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
-  clientsClaim: true,
+// Activate: clean up old caches, claim clients
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => !Object.values(CACHE_NAMES).includes(key))
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
 
-// Existing rule: /api/nodes → staleWhileRevalidate
-serwist.addPrecacheRule({
-  url: /\/api\/nodes/,
-  strategy: 'staleWhileRevalidate',
-});
-
-// Existing rule: /api/upload → networkOnly
-serwist.addPrecacheRule({
-  url: /\/api\/upload/,
-  strategy: 'networkOnly',
-});
-
-// Register Serwist event listeners first
-serwist.addEventListeners();
-
-// Custom fetch handler for Tier 1 blob content (/api/files/[nodeId]/content)
-// This runs AFTER Serwist's default handling — if Serwist didn't handle it,
-// we intercept it here with our cache-first-if-exists strategy.
-self.addEventListener('fetch', (event: FetchEvent) => {
+// Fetch handler: routing based on URL pattern
+self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
-  // Only handle /api/files/[nodeId]/content requests
-  if (!url.pathname.match(/^\/api\/files\/[^/]+\/content$/)) {
-    return; // Let other handlers deal with it
-  }
 
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;
   }
 
+  // Skip cross-origin requests
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Rule: /api/upload → network-only (mutations must hit server)
+  if (url.pathname.startsWith('/api/upload')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Rule: /api/files/[nodeId]/content → cache-first-if-exists (Tier 1 blobs)
+  if (url.pathname.match(/^\/api\/files\/[^/]+\/content$/)) {
+    handleBlobFetch(event);
+    return;
+  }
+
+  // Rule: static assets → cache-first
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff2?)$/i)) {
+    handleStaticFetch(event);
+    return;
+  }
+
+  // Default: network-first for everything else
+  // (API calls, HTML pages, etc.)
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(event.request);
+      return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+    })
+  );
+});
+
+// Cache-first-if-exists strategy for blob content
+// Range requests bypass cache; non-Range requests check cache first
+async function handleBlobFetch(event: FetchEvent) {
   // Range request → skip cache, always go to network (video/audio seeking)
   const rangeHeader = event.request.headers.get('Range');
   if (rangeHeader) {
@@ -79,36 +91,61 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     return;
   }
 
-  // Cache-first-if-exists strategy for non-Range requests
   event.respondWith(
     (async () => {
       try {
         // Check Cache API for matching URL
         const cachedResponse = await caches.match(event.request, {
-          cacheName: BLOB_CACHE_NAME,
+          cacheName: CACHE_NAMES.blobs,
         });
 
         if (cachedResponse) {
-          // Cache hit — return cached response
-          return cachedResponse;
+          // Check if cached entry has expired (manual expiration check)
+          const dateHeader = cachedResponse.headers.get('sw-cache-date');
+          if (dateHeader) {
+            const cacheDate = new Date(dateHeader).getTime();
+            const age = Date.now() - cacheDate;
+            if (age > BLOB_MAX_AGE_MS) {
+              // Stale — remove from cache and re-fetch
+              const cache = await caches.open(CACHE_NAMES.blobs);
+              cache.delete(event.request);
+              // Fall through to network fetch below
+            } else {
+              // Cache hit — return cached response
+              return cachedResponse;
+            }
+          } else {
+            // No date header but cached — return it
+            return cachedResponse;
+          }
         }
 
-        // Cache miss — fetch from network
+        // Cache miss or expired — fetch from network
         const networkResponse = await fetch(event.request);
 
         // Only cache 200 (Full Content) responses — NOT 206 (Partial Content)
-        if (
-          networkResponse.status === 200 &&
-          networkResponse.headers.get('Content-Length')
-        ) {
+        if (networkResponse.status === 200) {
           // Clone the response before caching (response can only be consumed once)
           const responseToCache = networkResponse.clone();
 
+          // Create a new response with the cache-date header added
+          const headers = new Headers(responseToCache.headers);
+          headers.set('sw-cache-date', new Date().toISOString());
+
+          const cacheableResponse = new Response(responseToCache.body, {
+            status: responseToCache.status,
+            statusText: responseToCache.statusText,
+            headers,
+          });
+
           // Store in cache asynchronously — don't block the response
-          const cache = await caches.open(BLOB_CACHE_NAME);
-          cache.put(event.request, responseToCache).catch((err) => {
+          const cache = await caches.open(CACHE_NAMES.blobs);
+          cache.put(event.request, cacheableResponse).catch((err) => {
             console.warn('[SW] Failed to cache blob response:', err);
           });
+
+          // LRU eviction: if cache has too many entries, delete oldest
+          evictBlobCache(cache);
         }
 
         return networkResponse;
@@ -124,4 +161,45 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       }
     })()
   );
-});
+}
+
+// LRU eviction for blob cache — removes oldest entries if over max
+async function evictBlobCache(cache: Cache) {
+  try {
+    const keys = await cache.keys();
+    if (keys.length > BLOB_MAX_ENTRIES) {
+      // Delete oldest entries (first in the list)
+      const toDelete = keys.slice(0, keys.length - BLOB_MAX_ENTRIES);
+      for (const key of toDelete) {
+        await cache.delete(key);
+      }
+    }
+  } catch (err) {
+    console.warn('[SW] Blob cache eviction failed:', err);
+  }
+}
+
+// Cache-first strategy for static assets
+async function handleStaticFetch(event: FetchEvent) {
+  const cachedResponse = await caches.match(event.request, {
+    cacheName: CACHE_NAMES.static,
+  });
+
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  event.respondWith(
+    fetch(event.request).then(async (networkResponse) => {
+      if (networkResponse.status === 200) {
+        const cache = await caches.open(CACHE_NAMES.static);
+        cache.put(event.request, networkResponse.clone());
+      }
+      return networkResponse;
+    }).catch(async () => {
+      // Network failed — try any cache
+      const fallback = await caches.match(event.request);
+      return fallback || new Response('Offline', { status: 503 });
+    })
+  );
+}

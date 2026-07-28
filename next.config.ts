@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import withSerwist from "@serwist/next";
 
 // ============================================================
 // MODUL 37.1-37.2: Security Headers — applied to ALL responses
@@ -52,10 +51,10 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Use Turbopack only in dev mode (webpack for production builds)
-  // Production Turbopack standalone doesn't serve static files correctly
-  // Dev Turbopack uses ~2.8GB RSS which gets OOM-killed on 4GB sandbox
-  turbopack: process.env.NODE_ENV !== 'production' ? {} : undefined,
+  // Production builds use --webpack flag explicitly (Next.js 16 defaults to Turbopack)
+  // Dev server also uses --webpack (Turbopack causes 2.8GB RSS → OOM on 4GB sandbox)
+  // Setting turbopack: undefined means no Turbopack config, --webpack flag overrides
+  turbopack: undefined,
   // 37 — Apply security headers to ALL routes
   headers: async () => {
     return [
@@ -67,11 +66,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Disable serwist in dev mode since it doesn't support Turbopack
-const isDev = process.env.NODE_ENV !== "production";
-
-export default withSerwist({
-  swSrc: "src/app/sw.ts",
-  swDest: "public/sw.js",
-  disable: isDev,
-})(nextConfig);
+export default nextConfig;
