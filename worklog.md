@@ -255,3 +255,40 @@ Stage Summary:
 - OfflineBadge added to workspace toolbar
 - File preview components integrated with cache: DOCX/XLSX/PPTX show cached content when available, show offline message when offline + no cache, cache results after network fetch
 - checksumSha256 propagated from TreeNode metadata through content-area → FilePreviewModal → FilePreview → usePreviewCache
+
+---
+Task ID: 502-fix-continued
+Agent: main
+Task: Fix 502 Bad Gateway (continued session) — restart production server, verify Modul 50-51
+
+Work Log:
+- Discovered dev server OOM crash (2.8GB RSS) + missing UploadZone component causing Module not found error
+- Created /home/z/my-project/src/components/upload/upload-zone.tsx (drag-and-drop file upload overlay)
+- Fixed NEXTAUTH_SECRET missing in .env — generated new secret, added NEXTAUTH_URL
+- Rebuilt production server (npx next build --webpack) — Turbopack standalone doesn't serve static files correctly
+- Copied .next/static/ and public/ to .next/standalone/ (required for standalone builds)
+- Started production server via double-fork daemon (run-server.sh)
+- Killed stale Turbopack-built server (PID 2154)
+- Verified server works: HTTP 200, static files served correctly, sign-in/register functional
+- Browser verification: sign-in works, workspace loads, note creation works
+- Slimmed down /api/preview/[id]/route.ts — removed redundant binary/office serving:
+  - Text/code still served as UTF-8 (Tier 1)
+  - PPTX still served as JSON (Tier 3)
+  - Binary types (image, video, audio, PDF, DOCX, XLSX) now redirect to /api/files/[nodeId]/content
+- Verified Modul 50-51 was already fully implemented from previous session:
+  - PreviewTier (3-tier classification) ✅
+  - Authenticated streaming route /api/files/[nodeId]/content ✅
+  - Range response utility ✅
+  - Service Worker cache for Tier 1 blobs ✅
+  - IndexedDB cache for Tier 2/3 rendered results ✅
+  - LRU eviction with 15% quota cap ✅
+  - OfflineBadge ✅
+  - usePreviewCache hook ✅
+  - No third-party iframe viewers ✅
+
+Stage Summary:
+- 502 Bad Gateway error FIXED — production server running on port 3000 (~135MB RSS)
+- All Modul 50-51 implementation verified and complete from previous session
+- Production server uses webpack build (Turbopack standalone has static file serving issues)
+- NEXTAUTH_SECRET now properly configured in .env
+- UploadZone component created (was missing, causing build errors)
