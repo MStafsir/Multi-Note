@@ -521,3 +521,28 @@ Stage Summary:
 - Service Worker registered and working in production
 - Upload pipeline works correctly with proper MIME type detection
 - Storage path resolution handles all 3 DB path formats
+---
+Task ID: 1
+Agent: main
+Task: Fix upload functionality - allow adding files to any folder, add "Upload" buttons everywhere, fix root-level upload
+
+Work Log:
+- Diagnosed the problem: upload only worked via drag-and-drop or empty state CTA, no explicit "Upload" button in toolbar or content area
+- Fixed /api/upload/route.ts: allowed parentId to be null (root-level uploads). Changed validation to skip parent folder check when parentId is null
+- Fixed use-file-tree.ts upload hook: only append parentId to FormData when it's not null (omit for root-level uploads)
+- Added "Upload" button in toolbar of content-area.tsx (always visible, triggers hidden file input)
+- Added "+ Add New" card at the top of both grid and list views in content-area.tsx with dropdown menu (Upload File, New Folder, New Note)
+- Added "Upload" button in sidebar (both expanded and collapsed modes)
+- Added event listener for 'workspace-upload-trigger' custom event so sidebar Upload button triggers the content area's file input
+- Added Upload, Plus, FolderPlus icons to imports
+- Rebuilt production build and restarted server
+- Verified via browser: Upload button visible in toolbar, sidebar, and "Add New" card in grid/list views
+- Tested creating subfolder via "Add New" dropdown - works
+- Tested root-level upload via API - works (parentId: null accepted)
+- Tested folder-level upload via API - works
+
+Stage Summary:
+- Users can now add files to ANY folder via multiple entry points: toolbar Upload button, sidebar Upload button, "+ Add New" card dropdown, drag-and-drop
+- Root-level uploads now work (parentId: null is accepted)
+- File upload supports multiple files at once (input has multiple attribute)
+- No need to create a new folder just to add files - "Add New" card appears in every folder view

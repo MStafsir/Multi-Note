@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +19,9 @@ import {
   Share2,
   History,
   Star,
+  Upload,
+  Plus,
+  FolderPlus,
 } from 'lucide-react';
 import type { TreeNode, NodeType } from '@/types';
 import { useFileTreeStore } from '@/store/file-tree';
@@ -100,6 +103,15 @@ export function ContentArea() {
   // 39 — Hidden file input ref for empty state CTA
   const fileInputRef = useState<HTMLInputElement | null>(null);
   const [fileInputEl, setFileInputEl] = fileInputRef;
+
+  // Listen for sidebar upload trigger event
+  useEffect(() => {
+    const handler = () => {
+      fileInputEl?.click();
+    };
+    window.addEventListener('workspace-upload-trigger', handler);
+    return () => window.removeEventListener('workspace-upload-trigger', handler);
+  }, [fileInputEl]);
 
   const {
     tree,
@@ -438,6 +450,18 @@ export function ContentArea() {
             </Button>
           </div>
 
+          {/* Upload button — always visible in toolbar */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-[44px]"
+            onClick={() => fileInputEl?.click()}
+            aria-label="Upload files to current folder"
+          >
+            <Upload className="h-4 w-4 mr-1.5" />
+            Upload
+          </Button>
+
           {/* Offline status badge — 51: shows online/offline status */}
           <OfflineBadge />
         </div>
@@ -511,6 +535,35 @@ export function ContentArea() {
               >
                 {viewMode === 'grid' ? (
                   <ul role="list" aria-label="Folder contents grid" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {/* + Add New card — always visible at start of every folder */}
+                    <li role="listitem" aria-label="Add new item">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Card className="cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group">
+                            <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                                <Plus className="h-6 w-6 text-primary" />
+                              </div>
+                              <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Add New</span>
+                            </CardContent>
+                          </Card>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => fileInputEl?.click()}>
+                            <Upload className="h-4 w-4 mr-2 text-orange-500" />
+                            Upload File
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setCreateType('folder'); setCreateDialogOpen(true); }}>
+                            <FolderPlus className="h-4 w-4 mr-2 text-orange-500" />
+                            New Folder
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setCreateType('note'); setCreateDialogOpen(true); markOnboardingStep('create_note'); }}>
+                            <FileText className="h-4 w-4 mr-2 text-emerald-600" />
+                            New Note
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </li>
                     {filteredItems.map((node) => {
                       // Folder items get DroppableFolder wrapper + DraggableItem
                       // Non-folder items just get DraggableItem
@@ -619,6 +672,33 @@ export function ContentArea() {
                   </ul>
                 ) : (
                   <ul role="list" aria-label="Folder contents list" className="space-y-1">
+                    {/* + Add New row — always visible at start of every folder */}
+                    <li role="listitem" aria-label="Add new item">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <div className="flex items-center gap-3 p-3 rounded-md hover:bg-accent/50 cursor-pointer group transition-colors">
+                            <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                              <Plus className="h-4 w-4 text-primary" />
+                            </div>
+                            <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Add New</span>
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => fileInputEl?.click()}>
+                            <Upload className="h-4 w-4 mr-2 text-orange-500" />
+                            Upload File
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setCreateType('folder'); setCreateDialogOpen(true); }}>
+                            <FolderPlus className="h-4 w-4 mr-2 text-orange-500" />
+                            New Folder
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setCreateType('note'); setCreateDialogOpen(true); markOnboardingStep('create_note'); }}>
+                            <FileText className="h-4 w-4 mr-2 text-emerald-600" />
+                            New Note
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </li>
                     {filteredItems.map((node) => {
                       const isSelected = multiSelectedIds.has(node.id);
 

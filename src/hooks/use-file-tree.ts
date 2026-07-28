@@ -227,7 +227,11 @@ export function useUploadFile() {
 
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('parentId', parentId || currentFolderId || '');
+      const effectiveParentId = parentId || currentFolderId;
+      // Only append parentId if we have one; omitting it means root-level upload
+      if (effectiveParentId) {
+        formData.append('parentId', effectiveParentId);
+      }
 
       try {
         const res = await fetch('/api/upload', {

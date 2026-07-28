@@ -90,36 +90,36 @@ async function handleUpload(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'File is required' }, { status: 400 });
     }
 
-    if (!parentId) {
-      return NextResponse.json({ success: false, error: 'Parent folder ID is required' }, { status: 400 });
-    }
+    // parentId can be null for root-level uploads
+    const effectiveParentId = parentId && parentId.trim() !== '' ? parentId : null;
 
-    // 4. Validate parent folder exists and user has access
-    const parentFolder = await db.node.findFirst({
-      where: {
-        id: parentId,
-        type: 'folder',
-        deletedAt: null,
-      },
-    });
+    // 4. Validate parent folder exists and user has access (when not root)
+    if (effectiveParentId) {
+      const parentFolder = await db.node.findFirst({
+        where: {
+          id: effectiveParentId,
+          type: 'folder',
+          deletedAt: null,
+        },
+      });
 
-    if (!parentFolder) {
-      return NextResponse.json(
-        { success: false, error: 'Parent folder not found' },
-        { status: 404 }
-      );
-    }
-
-    // Verify user owns the parent folder (or has edit access via workspace/share)
-    if (parentFolder.ownerId !== userId) {
-      // Check workspace membership or share permissions
-      const { checkNodeAccess } = await import('@/lib/permissions');
-      const accessResult = await checkNodeAccess(userId, parentId, 'edit');
-      if (!accessResult.hasAccess) {
+      if (!parentFolder) {
         return NextResponse.json(
-          { success: false, error: 'You do not have permission to upload to this folder' },
-          { status: 403 }
+          { success: false, error: 'Parent folder not found' },
+          { status: 404 }
         );
+      }
+
+      // Verify user owns the parent folder (or has edit access via workspace/share)
+      if (parentFolder.ownerId !== userId) {
+        const { checkNodeAccess } = await import('@/lib/permissions');
+        const accessResult = await checkNodeAccess(userId, effectiveParentId, 'edit');
+        if (!accessResult.hasAccess) {
+          return NextResponse.json(
+            { success: false, error: 'You do not have permission to upload to this folder' },
+            { status: 403 }
+          );
+        }
       }
     }
 
@@ -179,12 +179,20 @@ async function handleUpload(request: NextRequest): Promise<NextResponse> {
     }
 
     // 12. Create Node record (type='file') in DB
-    // Use parent's workspaceId if it has one (MODUL 40.1 — workspace-scoped nodes)
+    // Use parent's workspaceId if it has one, otherwise null for root-level uploads
+    // MODUL 40.1 — workspace-scoped nodes
+    let nodeWorkspaceId: string | null = null;
+    if (effectiveParentId) {
+      // Re-fetch parent to get workspaceId (already validated above)
+      const parentNode = await db.node.findUnique({ where: { id: effectiveParentId } });
+      nodeWorkspaceId = parentNode?.workspaceId || null;
+    }
+
     const node = await db.node.create({
       data: {
         ownerId: userId,
-        parentId: parentId,
-        workspaceId: parentFolder.workspaceId || null,
+        parentId: effectiveParentId,
+        workspaceId: nodeWorkspaceId,
         type: 'file',
         name: sanitizedOriginalName,
       },

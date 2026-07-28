@@ -10,7 +10,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity, Shield, Building2, Users, Settings } from 'lucide-react';
+import { FolderPlus, FileText, File, Star, HardDrive, ChevronDown, ChevronRight, Trash2, Activity, Shield, Building2, Users, Settings, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
@@ -108,6 +108,24 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           </TooltipTrigger>
           <TooltipContent side="right">
             <p>New Note (N)</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 min-h-[44px] min-w-[44px]"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('workspace-upload-trigger'));
+              }}
+              aria-label="Upload file"
+            >
+              <Upload className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Upload File</p>
           </TooltipContent>
         </Tooltip>
         {/* 40-41 — Workspace context icons */}
@@ -302,6 +320,25 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             </TooltipTrigger>
             <TooltipContent>
               <p>New Note (N)</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 min-h-[44px]"
+                onClick={() => {
+                  // Trigger file upload via a global event
+                  window.dispatchEvent(new CustomEvent('workspace-upload-trigger'));
+                }}
+              >
+                <Upload className="h-4 w-4 mr-1" />
+                Upload
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Upload File</p>
             </TooltipContent>
           </Tooltip>
         </div>
