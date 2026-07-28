@@ -3,7 +3,7 @@
 // Maps MIME types to preview types, Lucide icon names, and labels
 // ============================================================
 
-export type PreviewType = 'image' | 'pdf' | 'video' | 'audio' | 'text' | 'download' | 'none';
+export type PreviewType = 'image' | 'pdf' | 'video' | 'audio' | 'text' | 'office' | 'download' | 'none';
 
 // Icon name mapping (Lucide component names as strings for dynamic rendering)
 export type IconName =
@@ -63,19 +63,19 @@ const MIME_CATEGORIES: Record<string, { previewType: PreviewType; icon: IconName
   'application/javascript': { previewType: 'text', icon: 'Code', label: 'JavaScript File' },
   'application/typescript': { previewType: 'text', icon: 'Code', label: 'TypeScript File' },
 
-  // Office documents — previewType: 'download' (no browser-native preview, must download)
+  // Office documents — previewType: 'office' (converted to HTML/table for inline preview)
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
-    previewType: 'download', icon: 'FileText', label: 'Word Document',
+    previewType: 'office', icon: 'FileText', label: 'Word Document',
   },
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
-    previewType: 'download', icon: 'Spreadsheet', label: 'Excel Spreadsheet',
+    previewType: 'office', icon: 'Spreadsheet', label: 'Excel Spreadsheet',
   },
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': {
-    previewType: 'download', icon: 'Presentation', label: 'PowerPoint Presentation',
+    previewType: 'office', icon: 'Presentation', label: 'PowerPoint Presentation',
   },
-  'application/msword': { previewType: 'download', icon: 'FileText', label: 'Word Document' },
-  'application/vnd.ms-excel': { previewType: 'download', icon: 'Spreadsheet', label: 'Excel Spreadsheet' },
-  'application/vnd.ms-powerpoint': { previewType: 'download', icon: 'Presentation', label: 'PowerPoint Presentation' },
+  'application/msword': { previewType: 'office', icon: 'FileText', label: 'Word Document' },
+  'application/vnd.ms-excel': { previewType: 'office', icon: 'Spreadsheet', label: 'Excel Spreadsheet' },
+  'application/vnd.ms-powerpoint': { previewType: 'office', icon: 'Presentation', label: 'PowerPoint Presentation' },
 
   // Archives
   'application/zip': { previewType: 'none', icon: 'Archive', label: 'ZIP Archive' },
@@ -84,12 +84,30 @@ const MIME_CATEGORIES: Record<string, { previewType: PreviewType; icon: IconName
   'application/x-rar-compressed': { previewType: 'none', icon: 'Archive', label: 'RAR Archive' },
   'application/x-7z-compressed': { previewType: 'none', icon: 'Archive', label: '7-Zip Archive' },
 
-  // Code / Dev files
-  'application/x-python': { previewType: 'none', icon: 'Code', label: 'Python File' },
-  'application/x-java': { previewType: 'none', icon: 'Code', label: 'Java File' },
-  'application/x-c': { previewType: 'none', icon: 'Code', label: 'C Source File' },
-  'application/x-cpp': { previewType: 'none', icon: 'Code', label: 'C++ Source File' },
-  'application/x-shellscript': { previewType: 'none', icon: 'Code', label: 'Shell Script' },
+  // Code / Dev files — previewType: 'text' (viewable as plain text)
+  'application/x-python': { previewType: 'text', icon: 'Code', label: 'Python File' },
+  'application/x-java': { previewType: 'text', icon: 'Code', label: 'Java File' },
+  'application/x-c': { previewType: 'text', icon: 'Code', label: 'C Source File' },
+  'application/x-cpp': { previewType: 'text', icon: 'Code', label: 'C++ Source File' },
+  'application/x-shellscript': { previewType: 'text', icon: 'Code', label: 'Shell Script' },
+  'text/x-python': { previewType: 'text', icon: 'Code', label: 'Python File' },
+  'text/x-java': { previewType: 'text', icon: 'Code', label: 'Java Source File' },
+  'text/x-c': { previewType: 'text', icon: 'Code', label: 'C Source File' },
+  'text/x-c++': { previewType: 'text', icon: 'Code', label: 'C++ Source File' },
+  'text/x-sh': { previewType: 'text', icon: 'Code', label: 'Shell Script' },
+  'text/x-ruby': { previewType: 'text', icon: 'Code', label: 'Ruby File' },
+  'text/x-go': { previewType: 'text', icon: 'Code', label: 'Go Source File' },
+  'text/x-rust': { previewType: 'text', icon: 'Code', label: 'Rust Source File' },
+  'text/x-swift': { previewType: 'text', icon: 'Code', label: 'Swift File' },
+  'text/x-kotlin': { previewType: 'text', icon: 'Code', label: 'Kotlin File' },
+  'text/x-sql': { previewType: 'text', icon: 'Code', label: 'SQL Script' },
+  'text/x-yaml': { previewType: 'text', icon: 'Code', label: 'YAML File' },
+  'text/x-toml': { previewType: 'text', icon: 'Code', label: 'TOML File' },
+  'text/x-dockerfile': { previewType: 'text', icon: 'Code', label: 'Dockerfile' },
+  'text/x-makefile': { previewType: 'text', icon: 'Code', label: 'Makefile' },
+  'application/x-yaml': { previewType: 'text', icon: 'Code', label: 'YAML File' },
+  'application/x-httpd-php': { previewType: 'text', icon: 'Code', label: 'PHP File' },
+  'application/x-perl': { previewType: 'text', icon: 'Code', label: 'Perl Script' },
 };
 
 /**
@@ -107,6 +125,8 @@ export function getMimePreviewType(mimeType: string): PreviewType {
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType === 'application/pdf') return 'pdf';
   if (mimeType.startsWith('text/')) return 'text';
+  // Office document types (Open XML formats, legacy MS Office)
+  if (mimeType.includes('officedocument') || mimeType.includes('msword') || mimeType.includes('ms-excel') || mimeType.includes('ms-powerpoint')) return 'office';
 
   return 'none';
 }

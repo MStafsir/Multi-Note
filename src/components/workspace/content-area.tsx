@@ -156,7 +156,7 @@ export function ContentArea() {
     return [draggedNode];
   };
 
-  // Handle multi-select click (Ctrl/Cmd + click)
+  // Single click: select item (Google Drive style)
   const handleItemClick = (node: TreeNode, e?: React.MouseEvent) => {
     if (e && (e.metaKey || e.ctrlKey)) {
       // Multi-select
@@ -170,9 +170,13 @@ export function ContentArea() {
       return;
     }
 
-    // Clear multi-selection on regular click
+    // Single click: select the item
+    setSelectedNodeId(node.id);
     setMultiSelectedIds(new Set());
+  };
 
+  // Double click: open item (folder → navigate, note → editor, file → preview)
+  const handleItemDoubleClick = (node: TreeNode) => {
     if (node.type === 'folder') {
       navigateToFolder(node.id, node.name);
     } else if (node.type === 'note') {
@@ -500,10 +504,11 @@ export function ContentArea() {
                         <Card
                           role="listitem"
                           className={`cursor-pointer hover:border-accent transition-colors group relative
-                            ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
+                            ${isSelected || selectedNodeId === node.id ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
                             ${isDragging ? 'pointer-events-none' : ''}
                           `}
                           onClick={(e) => handleItemClick(node, e)}
+                          onDoubleClick={() => handleItemDoubleClick(node)}
                         >
                           <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                             <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
@@ -605,10 +610,11 @@ export function ContentArea() {
                         <li
                           role="listitem"
                           className={`flex items-center gap-3 p-3 rounded-md hover:bg-accent/50 cursor-pointer group transition-colors
-                            ${isSelected ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
+                            ${isSelected || selectedNodeId === node.id ? 'ring-2 ring-emerald-500/50 bg-emerald-50/30 dark:bg-emerald-950/10' : ''}
                             ${isDragging ? 'pointer-events-none' : ''}
                           `}
                           onClick={(e) => handleItemClick(node, e)}
+                          onDoubleClick={() => handleItemDoubleClick(node)}
                         >
                           <div className="w-8 h-8 rounded flex items-center justify-center shrink-0">
                             {getIcon(node.type)}
