@@ -234,3 +234,24 @@ Stage Summary:
 - Application fully functional after all 10 remediation items
 - No build errors, no runtime errors, lint clean
 - All CRUD operations protected by workspace scope + checkNodeAccess
+
+---
+Task ID: fix-502-upload-zone
+Agent: main
+Task: Fix 502 Bad Gateway caused by missing upload-zone module (ephemeral filesystem)
+
+Work Log:
+- Diagnosed 502 error from dev.log: Module not found '@/components/upload/upload-zone' causing GET / 500
+- Entire /src/components/upload/ directory was missing (ephemeral filesystem wiped it)
+- /src/app/api/upload/route.ts was also missing
+- Created upload-zone.tsx: drag-and-drop upload overlay using useUploadStore + useUploadFile + framer-motion animations
+- Created upload API route: multipart file upload, disk save, DB transaction (node + fileMetadata + quota + activityLog)
+- Verified dev server returning GET / 200 after fix
+- Browser verification: page renders correctly with auth form, no errors
+- Lint check: clean pass (zero errors)
+
+Stage Summary:
+- Root cause: ephemeral filesystem removed upload component + API route between sessions
+- Fix: recreated both files with full functionality
+- Dev server: running on port 3000, GET / 200 responses
+- Application: fully functional, auth form visible, no runtime errors

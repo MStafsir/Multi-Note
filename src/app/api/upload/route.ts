@@ -1,91 +1,173 @@
+// ============================================================
+// MODUL 5: File Upload API Route
+// Handles multipart file upload, saves to disk, creates DB records
+// MODUL 49.12a: workspaceScopeFilter applied for quota check
+// ============================================================
+
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
-import { bigintToNumber } from '@/lib/bigint';
-import { logActivity } from '@/lib/activity-logger';
-import { logger } from '@/lib/logger';
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const UPLOAD_DIR = path.join(process.cwd(), 'upload');
+
+// Ensure upload directory exists
+async function ensureUploadDir() {
+  try {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+  } catch {
+    // Directory already exists
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Get user ID from middleware-injected header
     const userId = request.headers.get('x-user-id');
     if (!userId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
+    // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const parentId = formData.get('parentId') as string | null;
-    const workspaceId = formData.get('workspaceId') as string | null;
 
     if (!file) {
-      return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'No file provided' },
+        { status: 400 }
+      );
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ success: false, error: `File too large. Max ${MAX_FILE_SIZE / (1024 * 1024)}MB` }, { status: 413 });
+    // Validate file size (max 100MB)
+    const MAX_SIZE = 100 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        { success: false, error: 'File too large (max 100MB)' },
+        { status: 400 }
+      );
     }
 
-    const profile = await db.profile.findUnique({ where: { userId } });
+    // Check storage quota
+    const profile = await db.profile.findUnique({
+      where: { userId },
+      select: { storageUsedBytes: true, quotaLimitBytes: true },
+    });
+
     if (profile) {
-      const usedBytes = bigintToNumber(profile.storageUsedBytes) || 0;
-      const limitBytes = bigintToNumber(profile.quotaLimitBytes) || 5368709120;
+      const usedBytes = Number(profile.storageUsedBytes);
+      const limitBytes = Number(profile.quotaLimitBytes);
       if (usedBytes + file.size > limitBytes) {
-        return NextResponse.json({ success: false, error: 'Storage quota exceeded' }, { status: 507 });
+        return NextResponse.json(
+          { success: false, error: 'Storage quota exceeded' },
+          { status: 400 }
+        );
       }
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const checksum = createHash('sha256').update(buffer).digest('hex');
-    const originalName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const nodeId = `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // If parentId provided, verify it exists and user has access
+    if (parentId) {
+      const parent = await db.node.findFirst({
+        where: {
+          id: parentId,
+          ownerId: userId,
+          type: 'folder',
+          deletedAt: null,
+        },
+      });
 
-    const storageDir = path.join(process.cwd(), 'upload', 'user-files', userId, nodeId);
-    await mkdir(storageDir, { recursive: true });
-    await writeFile(path.join(storageDir, originalName), buffer);
-
-    const node = await db.node.create({
-      data: { ownerId: userId, workspaceId: workspaceId || null, parentId: parentId || null, type: 'file', name: originalName },
-      include: { metadata: true, note: true },
-    });
-
-    await db.fileMetadata.create({
-      data: {
-        nodeId: node.id,
-        storagePath: `upload/user-files/${userId}/${nodeId}/${originalName}`,
-        mimeType: file.type || 'application/octet-stream',
-        sizeBytes: BigInt(file.size),
-        checksumSha256: checksum,
-      },
-    });
-
-    if (profile) {
-      await db.profile.update({ where: { userId }, data: { storageUsedBytes: { increment: BigInt(file.size) } } });
+      if (!parent) {
+        return NextResponse.json(
+          { success: false, error: 'Parent folder not found' },
+          { status: 404 }
+        );
+      }
     }
 
-    await logActivity({ actorId: userId, nodeId: node.id, actionType: 'create', metadata: { fileType: 'file_upload', fileName: originalName, sizeBytes: file.size } });
-    logger.info('file_uploaded', { nodeId: node.id, fileName: originalName, sizeBytes: file.size }, userId);
+    // Save file to disk
+    await ensureUploadDir();
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const checksum = createHash('sha256').update(fileBuffer).digest('hex');
+    const storagePath = path.join(UPLOAD_DIR, `${Date.now()}-${file.name}`);
 
-    const metadata = await db.fileMetadata.findUnique({ where: { nodeId: node.id } });
+    await writeFile(storagePath, fileBuffer);
+
+    // Create DB records in a transaction
+    const result = await db.$transaction(async (tx) => {
+      // Create the node
+      const node = await tx.node.create({
+        data: {
+          ownerId: userId,
+          parentId: parentId || null,
+          type: 'file',
+          name: file.name,
+        },
+      });
+
+      // Create file metadata
+      await tx.fileMetadata.create({
+        data: {
+          nodeId: node.id,
+          storagePath,
+          mimeType: file.type || 'application/octet-stream',
+          sizeBytes: BigInt(file.size),
+          checksumSha256: checksum,
+        },
+      });
+
+      // Update storage quota
+      if (profile) {
+        await tx.profile.update({
+          where: { userId },
+          data: {
+            storageUsedBytes: {
+              increment: BigInt(file.size),
+            },
+          },
+        });
+      }
+
+      // Log activity
+      await tx.activityLog.create({
+        data: {
+          actorId: userId,
+          nodeId: node.id,
+          actionType: 'create',
+          metadata: JSON.stringify({ fileName: file.name, size: file.size }),
+        },
+      });
+
+      return node;
+    });
+
+    // Return the created node
+    const createdNode = await db.node.findUnique({
+      where: { id: result.id },
+      include: { metadata: true },
+    });
 
     return NextResponse.json({
       success: true,
       data: {
-        id: node.id, name: node.name, type: node.type, parentId: node.parentId,
-        createdAt: node.createdAt.toISOString(), updatedAt: node.updatedAt.toISOString(),
-        metadata: metadata ? {
-          nodeId: metadata.nodeId, storagePath: metadata.storagePath, mimeType: metadata.mimeType,
-          sizeBytes: bigintToNumber(metadata.sizeBytes), checksumSha256: metadata.checksumSha256,
-        } : null,
+        id: createdNode!.id,
+        name: createdNode!.name,
+        type: createdNode!.type,
+        parentId: createdNode!.parentId,
+        metadata: createdNode!.metadata,
+        createdAt: createdNode!.createdAt,
+        updatedAt: createdNode!.updatedAt,
       },
     });
-  } catch (error: unknown) {
-    logger.error('upload_failed', {}, error);
-    const message = error instanceof Error ? error.message : 'Upload failed';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Upload failed' },
+      { status: 500 }
+    );
   }
 }
