@@ -65,6 +65,7 @@ const FilePreviewModal = dynamic(() => import('@/components/preview/file-preview
 const CreateDialog = dynamic(() => import('./create-dialog').then(m => ({ default: m.CreateDialog })), { ssr: false });
 import { markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
 import { useAuthStore } from '@/store/auth';
+import { OfflineBadge } from '@/components/ui/offline-badge';
 
 export function ContentArea() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -90,6 +91,7 @@ export function ContentArea() {
   const [previewFileName, setPreviewFileName] = useState<string>('');
   const [previewFileMime, setPreviewFileMime] = useState<string>('application/octet-stream');
   const [previewFileSize, setPreviewFileSize] = useState<number>(0);
+  const [previewFileChecksum, setPreviewFileChecksum] = useState<string | null>(null);
   // 39 — File upload
   const uploadMutation = useUploadFile();
   const createMutation = useCreateFolder();
@@ -187,6 +189,7 @@ export function ContentArea() {
       setPreviewFileName(node.name);
       setPreviewFileMime(node.metadata?.mimeType || 'application/octet-stream');
       setPreviewFileSize(typeof node.metadata?.sizeBytes === 'number' ? node.metadata.sizeBytes : 0);
+      setPreviewFileChecksum(node.metadata?.checksumSha256 || null);
       setPreviewModalOpen(true);
     }
   };
@@ -424,6 +427,9 @@ export function ContentArea() {
               <List className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Offline status badge — 51: shows online/offline status */}
+          <OfflineBadge />
         </div>
       </div>
 
@@ -761,6 +767,7 @@ export function ContentArea() {
         name={previewFileName}
         mimeType={previewFileMime}
         sizeBytes={previewFileSize}
+        checksumSha256={previewFileChecksum}
       />
     </div>
   );

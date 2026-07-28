@@ -1,9 +1,22 @@
 // ============================================================
 // MODUL 7: MIME Type to Icon Mapping Utility
 // Maps MIME types to preview types, Lucide icon names, and labels
+// MODUL 50-51 Phase 1: PreviewTier, refined PreviewType (docx/xlsx/pptx)
 // ============================================================
 
-export type PreviewType = 'image' | 'pdf' | 'video' | 'audio' | 'text' | 'office' | 'download' | 'none';
+export type PreviewTier = 'tier1_native' | 'tier2_client' | 'tier3_server';
+
+export type PreviewType =
+  | 'image'
+  | 'pdf'
+  | 'video'
+  | 'audio'
+  | 'text'
+  | 'docx'
+  | 'xlsx'
+  | 'pptx'
+  | 'download'
+  | 'none';
 
 // Icon name mapping (Lucide component names as strings for dynamic rendering)
 export type IconName =
@@ -18,101 +31,102 @@ export type IconName =
   | 'Spreadsheet'
   | 'FileQuestion';
 
-// MIME type category mappings
-const MIME_CATEGORIES: Record<string, { previewType: PreviewType; icon: IconName; label: string }> = {
-  // Images
-  'image/jpeg': { previewType: 'image', icon: 'Image', label: 'JPEG Image' },
-  'image/png': { previewType: 'image', icon: 'Image', label: 'PNG Image' },
-  'image/gif': { previewType: 'image', icon: 'Image', label: 'GIF Image' },
-  'image/webp': { previewType: 'image', icon: 'Image', label: 'WebP Image' },
-  'image/svg+xml': { previewType: 'image', icon: 'Image', label: 'SVG Image' },
-  'image/bmp': { previewType: 'image', icon: 'Image', label: 'BMP Image' },
-  'image/tiff': { previewType: 'image', icon: 'Image', label: 'TIFF Image' },
-  'image/avif': { previewType: 'image', icon: 'Image', label: 'AVIF Image' },
-  'image/ico': { previewType: 'image', icon: 'Image', label: 'ICO Image' },
+// MIME type category mappings (with tier field)
+const MIME_CATEGORIES: Record<string, { previewType: PreviewType; icon: IconName; label: string; tier: PreviewTier }> = {
+  // Images — tier1_native (browser can render natively)
+  'image/jpeg': { previewType: 'image', icon: 'Image', label: 'JPEG Image', tier: 'tier1_native' },
+  'image/png': { previewType: 'image', icon: 'Image', label: 'PNG Image', tier: 'tier1_native' },
+  'image/gif': { previewType: 'image', icon: 'Image', label: 'GIF Image', tier: 'tier1_native' },
+  'image/webp': { previewType: 'image', icon: 'Image', label: 'WebP Image', tier: 'tier1_native' },
+  'image/svg+xml': { previewType: 'image', icon: 'Image', label: 'SVG Image', tier: 'tier1_native' },
+  'image/bmp': { previewType: 'image', icon: 'Image', label: 'BMP Image', tier: 'tier1_native' },
+  'image/tiff': { previewType: 'image', icon: 'Image', label: 'TIFF Image', tier: 'tier1_native' },
+  'image/avif': { previewType: 'image', icon: 'Image', label: 'AVIF Image', tier: 'tier1_native' },
+  'image/ico': { previewType: 'image', icon: 'Image', label: 'ICO Image', tier: 'tier1_native' },
 
-  // PDFs
-  'application/pdf': { previewType: 'pdf', icon: 'FileText', label: 'PDF Document' },
+  // PDFs — tier1_native (browser PDF viewer)
+  'application/pdf': { previewType: 'pdf', icon: 'FileText', label: 'PDF Document', tier: 'tier1_native' },
 
-  // Videos
-  'video/mp4': { previewType: 'video', icon: 'Film', label: 'MP4 Video' },
-  'video/webm': { previewType: 'video', icon: 'Film', label: 'WebM Video' },
-  'video/ogg': { previewType: 'video', icon: 'Film', label: 'OGG Video' },
-  'video/quicktime': { previewType: 'video', icon: 'Film', label: 'QuickTime Video' },
-  'video/x-msvideo': { previewType: 'video', icon: 'Film', label: 'AVI Video' },
-  'video/x-matroska': { previewType: 'video', icon: 'Film', label: 'MKV Video' },
+  // Videos — tier1_native (browser <video> element)
+  'video/mp4': { previewType: 'video', icon: 'Film', label: 'MP4 Video', tier: 'tier1_native' },
+  'video/webm': { previewType: 'video', icon: 'Film', label: 'WebM Video', tier: 'tier1_native' },
+  'video/ogg': { previewType: 'video', icon: 'Film', label: 'OGG Video', tier: 'tier1_native' },
+  'video/quicktime': { previewType: 'video', icon: 'Film', label: 'QuickTime Video', tier: 'tier1_native' },
+  'video/x-msvideo': { previewType: 'video', icon: 'Film', label: 'AVI Video', tier: 'tier1_native' },
+  'video/x-matroska': { previewType: 'video', icon: 'Film', label: 'MKV Video', tier: 'tier1_native' },
 
-  // Audio
-  'audio/mpeg': { previewType: 'audio', icon: 'Music', label: 'MP3 Audio' },
-  'audio/wav': { previewType: 'audio', icon: 'Music', label: 'WAV Audio' },
-  'audio/ogg': { previewType: 'audio', icon: 'Music', label: 'OGG Audio' },
-  'audio/flac': { previewType: 'audio', icon: 'Music', label: 'FLAC Audio' },
-  'audio/aac': { previewType: 'audio', icon: 'Music', label: 'AAC Audio' },
-  'audio/webm': { previewType: 'audio', icon: 'Music', label: 'WebM Audio' },
-  'audio/x-m4a': { previewType: 'audio', icon: 'Music', label: 'M4A Audio' },
+  // Audio — tier1_native (browser <audio> element)
+  'audio/mpeg': { previewType: 'audio', icon: 'Music', label: 'MP3 Audio', tier: 'tier1_native' },
+  'audio/wav': { previewType: 'audio', icon: 'Music', label: 'WAV Audio', tier: 'tier1_native' },
+  'audio/ogg': { previewType: 'audio', icon: 'Music', label: 'OGG Audio', tier: 'tier1_native' },
+  'audio/flac': { previewType: 'audio', icon: 'Music', label: 'FLAC Audio', tier: 'tier1_native' },
+  'audio/aac': { previewType: 'audio', icon: 'Music', label: 'AAC Audio', tier: 'tier1_native' },
+  'audio/webm': { previewType: 'audio', icon: 'Music', label: 'WebM Audio', tier: 'tier1_native' },
+  'audio/x-m4a': { previewType: 'audio', icon: 'Music', label: 'M4A Audio', tier: 'tier1_native' },
 
-  // Documents / Text — previewType: 'text' for inline rendering
-  'text/plain': { previewType: 'text', icon: 'FileText', label: 'Text File' },
-  'text/csv': { previewType: 'text', icon: 'Spreadsheet', label: 'CSV File' },
-  'text/html': { previewType: 'text', icon: 'Code', label: 'HTML File' },
-  'text/css': { previewType: 'text', icon: 'Code', label: 'CSS File' },
-  'text/xml': { previewType: 'text', icon: 'Code', label: 'XML File' },
-  'text/markdown': { previewType: 'text', icon: 'FileText', label: 'Markdown File' },
-  'application/json': { previewType: 'text', icon: 'Code', label: 'JSON File' },
-  'application/xml': { previewType: 'text', icon: 'Code', label: 'XML File' },
-  'application/javascript': { previewType: 'text', icon: 'Code', label: 'JavaScript File' },
-  'application/typescript': { previewType: 'text', icon: 'Code', label: 'TypeScript File' },
+  // Documents / Text — tier1_native (browser can render plain text)
+  'text/plain': { previewType: 'text', icon: 'FileText', label: 'Text File', tier: 'tier1_native' },
+  'text/csv': { previewType: 'text', icon: 'Spreadsheet', label: 'CSV File', tier: 'tier1_native' },
+  'text/html': { previewType: 'text', icon: 'Code', label: 'HTML File', tier: 'tier1_native' },
+  'text/css': { previewType: 'text', icon: 'Code', label: 'CSS File', tier: 'tier1_native' },
+  'text/xml': { previewType: 'text', icon: 'Code', label: 'XML File', tier: 'tier1_native' },
+  'text/markdown': { previewType: 'text', icon: 'FileText', label: 'Markdown File', tier: 'tier1_native' },
+  'application/json': { previewType: 'text', icon: 'Code', label: 'JSON File', tier: 'tier1_native' },
+  'application/xml': { previewType: 'text', icon: 'Code', label: 'XML File', tier: 'tier1_native' },
+  'application/javascript': { previewType: 'text', icon: 'Code', label: 'JavaScript File', tier: 'tier1_native' },
+  'application/typescript': { previewType: 'text', icon: 'Code', label: 'TypeScript File', tier: 'tier1_native' },
 
-  // Office documents — previewType: 'office' (converted to HTML/table for inline preview)
+  // Office documents — docx/xlsx/pptx with tier2_client or tier3_server
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
-    previewType: 'office', icon: 'FileText', label: 'Word Document',
+    previewType: 'docx', icon: 'FileText', label: 'Word Document', tier: 'tier2_client',
   },
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
-    previewType: 'office', icon: 'Spreadsheet', label: 'Excel Spreadsheet',
+    previewType: 'xlsx', icon: 'Spreadsheet', label: 'Excel Spreadsheet', tier: 'tier2_client',
   },
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': {
-    previewType: 'office', icon: 'Presentation', label: 'PowerPoint Presentation',
+    previewType: 'pptx', icon: 'Presentation', label: 'PowerPoint Presentation', tier: 'tier3_server',
   },
-  'application/msword': { previewType: 'office', icon: 'FileText', label: 'Word Document' },
-  'application/vnd.ms-excel': { previewType: 'office', icon: 'Spreadsheet', label: 'Excel Spreadsheet' },
-  'application/vnd.ms-powerpoint': { previewType: 'office', icon: 'Presentation', label: 'PowerPoint Presentation' },
+  'application/msword': { previewType: 'docx', icon: 'FileText', label: 'Word Document', tier: 'tier2_client' },
+  'application/vnd.ms-excel': { previewType: 'xlsx', icon: 'Spreadsheet', label: 'Excel Spreadsheet', tier: 'tier2_client' },
+  'application/vnd.ms-powerpoint': { previewType: 'pptx', icon: 'Presentation', label: 'PowerPoint Presentation', tier: 'tier3_server' },
 
-  // Archives
-  'application/zip': { previewType: 'none', icon: 'Archive', label: 'ZIP Archive' },
-  'application/x-tar': { previewType: 'none', icon: 'Archive', label: 'TAR Archive' },
-  'application/gzip': { previewType: 'none', icon: 'Archive', label: 'GZIP Archive' },
-  'application/x-rar-compressed': { previewType: 'none', icon: 'Archive', label: 'RAR Archive' },
-  'application/x-7z-compressed': { previewType: 'none', icon: 'Archive', label: '7-Zip Archive' },
+  // Archives — tier3_server (no inline preview, server-side download only)
+  'application/zip': { previewType: 'none', icon: 'Archive', label: 'ZIP Archive', tier: 'tier3_server' },
+  'application/x-tar': { previewType: 'none', icon: 'Archive', label: 'TAR Archive', tier: 'tier3_server' },
+  'application/gzip': { previewType: 'none', icon: 'Archive', label: 'GZIP Archive', tier: 'tier3_server' },
+  'application/x-rar-compressed': { previewType: 'none', icon: 'Archive', label: 'RAR Archive', tier: 'tier3_server' },
+  'application/x-7z-compressed': { previewType: 'none', icon: 'Archive', label: '7-Zip Archive', tier: 'tier3_server' },
 
-  // Code / Dev files — previewType: 'text' (viewable as plain text)
-  'application/x-python': { previewType: 'text', icon: 'Code', label: 'Python File' },
-  'application/x-java': { previewType: 'text', icon: 'Code', label: 'Java File' },
-  'application/x-c': { previewType: 'text', icon: 'Code', label: 'C Source File' },
-  'application/x-cpp': { previewType: 'text', icon: 'Code', label: 'C++ Source File' },
-  'application/x-shellscript': { previewType: 'text', icon: 'Code', label: 'Shell Script' },
-  'text/x-python': { previewType: 'text', icon: 'Code', label: 'Python File' },
-  'text/x-java': { previewType: 'text', icon: 'Code', label: 'Java Source File' },
-  'text/x-c': { previewType: 'text', icon: 'Code', label: 'C Source File' },
-  'text/x-c++': { previewType: 'text', icon: 'Code', label: 'C++ Source File' },
-  'text/x-sh': { previewType: 'text', icon: 'Code', label: 'Shell Script' },
-  'text/x-ruby': { previewType: 'text', icon: 'Code', label: 'Ruby File' },
-  'text/x-go': { previewType: 'text', icon: 'Code', label: 'Go Source File' },
-  'text/x-rust': { previewType: 'text', icon: 'Code', label: 'Rust Source File' },
-  'text/x-swift': { previewType: 'text', icon: 'Code', label: 'Swift File' },
-  'text/x-kotlin': { previewType: 'text', icon: 'Code', label: 'Kotlin File' },
-  'text/x-sql': { previewType: 'text', icon: 'Code', label: 'SQL Script' },
-  'text/x-yaml': { previewType: 'text', icon: 'Code', label: 'YAML File' },
-  'text/x-toml': { previewType: 'text', icon: 'Code', label: 'TOML File' },
-  'text/x-dockerfile': { previewType: 'text', icon: 'Code', label: 'Dockerfile' },
-  'text/x-makefile': { previewType: 'text', icon: 'Code', label: 'Makefile' },
-  'application/x-yaml': { previewType: 'text', icon: 'Code', label: 'YAML File' },
-  'application/x-httpd-php': { previewType: 'text', icon: 'Code', label: 'PHP File' },
-  'application/x-perl': { previewType: 'text', icon: 'Code', label: 'Perl Script' },
+  // Code / Dev files — tier1_native (viewable as plain text)
+  'application/x-python': { previewType: 'text', icon: 'Code', label: 'Python File', tier: 'tier1_native' },
+  'application/x-java': { previewType: 'text', icon: 'Code', label: 'Java File', tier: 'tier1_native' },
+  'application/x-c': { previewType: 'text', icon: 'Code', label: 'C Source File', tier: 'tier1_native' },
+  'application/x-cpp': { previewType: 'text', icon: 'Code', label: 'C++ Source File', tier: 'tier1_native' },
+  'application/x-shellscript': { previewType: 'text', icon: 'Code', label: 'Shell Script', tier: 'tier1_native' },
+  'text/x-python': { previewType: 'text', icon: 'Code', label: 'Python File', tier: 'tier1_native' },
+  'text/x-java': { previewType: 'text', icon: 'Code', label: 'Java Source File', tier: 'tier1_native' },
+  'text/x-c': { previewType: 'text', icon: 'Code', label: 'C Source File', tier: 'tier1_native' },
+  'text/x-c++': { previewType: 'text', icon: 'Code', label: 'C++ Source File', tier: 'tier1_native' },
+  'text/x-sh': { previewType: 'text', icon: 'Code', label: 'Shell Script', tier: 'tier1_native' },
+  'text/x-ruby': { previewType: 'text', icon: 'Code', label: 'Ruby File', tier: 'tier1_native' },
+  'text/x-go': { previewType: 'text', icon: 'Code', label: 'Go Source File', tier: 'tier1_native' },
+  'text/x-rust': { previewType: 'text', icon: 'Code', label: 'Rust Source File', tier: 'tier1_native' },
+  'text/x-swift': { previewType: 'text', icon: 'Code', label: 'Swift File', tier: 'tier1_native' },
+  'text/x-kotlin': { previewType: 'text', icon: 'Code', label: 'Kotlin File', tier: 'tier1_native' },
+  'text/x-sql': { previewType: 'text', icon: 'Code', label: 'SQL Script', tier: 'tier1_native' },
+  'text/x-yaml': { previewType: 'text', icon: 'Code', label: 'YAML File', tier: 'tier1_native' },
+  'text/x-toml': { previewType: 'text', icon: 'Code', label: 'TOML File', tier: 'tier1_native' },
+  'text/x-dockerfile': { previewType: 'text', icon: 'Code', label: 'Dockerfile', tier: 'tier1_native' },
+  'text/x-makefile': { previewType: 'text', icon: 'Code', label: 'Makefile', tier: 'tier1_native' },
+  'application/x-yaml': { previewType: 'text', icon: 'Code', label: 'YAML File', tier: 'tier1_native' },
+  'application/x-httpd-php': { previewType: 'text', icon: 'Code', label: 'PHP File', tier: 'tier1_native' },
+  'application/x-perl': { previewType: 'text', icon: 'Code', label: 'Perl Script', tier: 'tier1_native' },
 };
 
 /**
  * Determine the preview type for a given MIME type.
  * Falls back to prefix-based matching, then 'none'.
+ * MODUL 50-51: Office MIME types now resolve to docx/xlsx/pptx specifically.
  */
 export function getMimePreviewType(mimeType: string): PreviewType {
   // Exact match
@@ -125,10 +139,44 @@ export function getMimePreviewType(mimeType: string): PreviewType {
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType === 'application/pdf') return 'pdf';
   if (mimeType.startsWith('text/')) return 'text';
-  // Office document types (Open XML formats, legacy MS Office)
-  if (mimeType.includes('officedocument') || mimeType.includes('msword') || mimeType.includes('ms-excel') || mimeType.includes('ms-powerpoint')) return 'office';
+  // Office document types — detect docx/xlsx/pptx specifically instead of blanket 'office'
+  if (mimeType.includes('wordprocessingml') || mimeType.includes('msword')) return 'docx';
+  if (mimeType.includes('spreadsheetml') || mimeType.includes('ms-excel')) return 'xlsx';
+  if (mimeType.includes('presentationml') || mimeType.includes('ms-powerpoint')) return 'pptx';
+  // Generic officedocument prefix that doesn't match known subtypes → download
+  if (mimeType.includes('officedocument')) return 'download';
 
   return 'none';
+}
+
+/**
+ * Determine the preview tier for a given MIME type.
+ * Falls back to prefix-based matching, then 'tier3_server'.
+ */
+export function getPreviewTier(mimeType: string): PreviewTier {
+  // Exact match
+  const exact = MIME_CATEGORIES[mimeType];
+  if (exact) return exact.tier;
+
+  // Prefix-based fallback (matches same logic as getMimePreviewType)
+  if (mimeType.startsWith('image/')) return 'tier1_native';
+  if (mimeType.startsWith('video/')) return 'tier1_native';
+  if (mimeType.startsWith('audio/')) return 'tier1_native';
+  if (mimeType === 'application/pdf') return 'tier1_native';
+  if (mimeType.startsWith('text/')) return 'tier1_native';
+  // Office documents
+  if (mimeType.includes('wordprocessingml') || mimeType.includes('msword')) return 'tier2_client';
+  if (mimeType.includes('spreadsheetml') || mimeType.includes('ms-excel')) return 'tier2_client';
+  if (mimeType.includes('presentationml') || mimeType.includes('ms-powerpoint')) return 'tier3_server';
+  // Everything else needs server-side handling
+  return 'tier3_server';
+}
+
+/**
+ * Check if a PreviewType is an Office preview type (docx, xlsx, or pptx).
+ */
+export function isOfficePreviewType(type: PreviewType): boolean {
+  return type === 'docx' || type === 'xlsx' || type === 'pptx';
 }
 
 /**

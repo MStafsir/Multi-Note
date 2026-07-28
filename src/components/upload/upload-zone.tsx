@@ -3,21 +3,25 @@
 // ============================================================
 // MODUL 5: Upload Zone — Drag-and-drop file upload overlay
 // Uses useUploadStore for drag state and upload progress
+// MODUL 51: Offline disabling — shows toast + different drag message
 // ============================================================
 
 import { useCallback, useEffect, useRef } from 'react';
-import { Upload, FileUp, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, FileUp, X, CheckCircle2, AlertCircle, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUploadStore } from '@/store/upload';
 import { useUploadFile } from '@/hooks/use-file-tree';
 import { useFileTreeStore } from '@/store/file-tree';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
 
 export function UploadZone() {
   const { isDragging, setDragging, uploads, clearCompleted } = useUploadStore();
   const uploadMutation = useUploadFile();
   const { currentFolderId } = useFileTreeStore();
+  const { isOffline } = useOnlineStatus();
   const dragCounterRef = useRef(0);
 
   // Drag enter/leave handlers with counter to handle nested elements
@@ -50,13 +54,22 @@ export function UploadZone() {
     dragCounterRef.current = 0;
     setDragging(false);
 
+    // MODUL 51: Check offline status before processing upload
+    if (isOffline) {
+      toast.error('Upload tidak tersedia saat offline. Perlu koneksi internet untuk upload.', {
+        duration: 5000,
+        icon: <WifiOff className="h-4 w-4" />,
+      });
+      return;
+    }
+
     const files = e.dataTransfer?.files;
     if (files) {
       for (const file of Array.from(files)) {
         uploadMutation.mutate({ file, parentId: currentFolderId });
       }
     }
-  }, [setDragging, uploadMutation, currentFolderId]);
+  }, [setDragging, uploadMutation, currentFolderId, isOffline]);
 
   // Register global drag listeners
   useEffect(() => {
@@ -93,13 +106,30 @@ export function UploadZone() {
             transition={{ duration: 0.15 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
           >
-            <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-primary bg-card p-12 shadow-2xl">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                <FileUp className="h-8 w-8 text-primary" />
+            <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed bg-card p-12 shadow-2xl"
+              style={{ borderColor: isOffline ? 'var(--destructive)' : 'var(--primary)' }}
+            >
+              <div className="flex h-16 w-16 items-center justify-center rounded-full"
+                style={{ backgroundColor: isOffline ? 'rgba(239,68,68,0.1)' : 'rgba(var(--primary-rgb),0.1)' }}
+              >
+                {isOffline ? (
+                  <WifiOff className="h-8 w-8 text-destructive" />
+                ) : (
+                  <FileUp className="h-8 w-8 text-primary" />
+                )}
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-foreground">Drop files here</p>
-                <p className="text-sm text-muted-foreground">Files will be uploaded to the current folder</p>
+                {isOffline ? (
+                  <>
+                    <p className="text-lg font-semibold text-destructive">Upload tidak tersedia saat offline</p>
+                    <p className="text-sm text-muted-foreground">Perlu koneksi internet untuk upload</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-semibold text-foreground">Drop files here</p>
+                    <p className="text-sm text-muted-foreground">Files will be uploaded to the current folder</p>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

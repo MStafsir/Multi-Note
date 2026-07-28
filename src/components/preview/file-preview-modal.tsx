@@ -26,6 +26,7 @@ interface FilePreviewModalProps {
   name: string;
   mimeType: string;
   sizeBytes?: number;
+  checksumSha256?: string | null;
 }
 
 export function FilePreviewModal({
@@ -35,6 +36,7 @@ export function FilePreviewModal({
   name,
   mimeType,
   sizeBytes,
+  checksumSha256,
 }: FilePreviewModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,6 +59,7 @@ export function FilePreviewModal({
             name={name}
             mimeType={mimeType}
             sizeBytes={sizeBytes}
+            checksumSha256={checksumSha256}
           />
         </ErrorBoundary>
       </DialogContent>
