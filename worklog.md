@@ -255,3 +255,25 @@ Stage Summary:
 - Fix: recreated both files with full functionality
 - Dev server: running on port 3000, GET / 200 responses
 - Application: fully functional, auth form visible, no runtime errors
+
+---
+Task ID: fix-nextauth-secret-env
+Agent: main
+Task: Fix FATAL NEXTAUTH_SECRET missing — .env wiped by ephemeral filesystem
+
+Work Log:
+- .env file was wiped by ephemeral filesystem, only DATABASE_URL survived
+- NEXTAUTH_SECRET was missing → middleware.ts fatal throw (49.9 remediation)
+- Generated new secret: openssl rand -base64 32 → UftayX+RujjptPGDKFtcce2HSziZ16mkwaUPlvXncns=
+- Added NEXTAUTH_SECRET and NEXTAUTH_URL to .env
+- Dev server auto-reloaded env ("Reload env: .env")
+- JWEDecryptionFailed for old sessions (expected — old secret is gone)
+- New sessions work correctly: registration + login → workspace dashboard
+- Browser verification: page renders, registration succeeds, workspace dashboard functional
+- Lint: clean pass
+
+Stage Summary:
+- Root cause: ephemeral filesystem wiped .env between sessions
+- Fix: restored NEXTAUTH_SECRET + NEXTAUTH_URL in .env
+- Application fully functional: auth, registration, workspace all working
+- Note: existing sessions from previous secret are invalidated (users need to re-login)
