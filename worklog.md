@@ -18,8 +18,11 @@ Work Log:
 - Changed content-area.tsx click behavior (Google Drive style):
   - Single click: selects item (visual highlight)
   - Double click: opens item (folder→navigate, note→editor, file→preview modal)
-- All code changes pass ESLint and TypeScript compilation
-- OOM issue prevents Agent Browser testing (4GB memory limit)
+- Attempted mini-service approach for Office preview (to reduce OOM) but reverted back to direct imports in main app since production build works
+- Cleaned up unused mini-service directory
+- All code changes pass ESLint
+- Production build succeeds
+- Server runs in production mode but OOM-killed during auth callback due to project module size vs 4GB memory constraint (pre-existing issue)
 
 Stage Summary:
 - All uploaded files can now be previewed INLINE without downloading
@@ -29,3 +32,4 @@ Stage Summary:
 - Code/text files → inline text preview (previously were 'none')
 - Images, PDFs, video, audio → unchanged (already worked)
 - Double-click opens preview modal (single-click now selects)
+- Browser testing not feasible due to 4GB memory constraint (OOM kills server)
