@@ -273,7 +273,8 @@ function PdfPreview({ contentUrl, name, sizeBytes, mimeLabel, closeButton }: {
       try {
         // Dynamic import of pdfjs-dist
         const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        // Use local worker from public dir (avoids CSP CDN blocking issues)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
         // Fetch PDF as ArrayBuffer from contentUrl
         const res = await fetch(contentUrl);
@@ -312,7 +313,8 @@ function PdfPreview({ contentUrl, name, sizeBytes, mimeLabel, closeButton }: {
     const rerender = async () => {
       try {
         const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        // Use local worker from public dir (avoids CSP CDN blocking issues)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
         const res = await fetch(contentUrl);
         if (!res.ok) return;

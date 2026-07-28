@@ -33,12 +33,13 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // 'unsafe-inline' required for Next.js RSC flight data (__next_f.push); 'unsafe-eval' needed for dev HMR
+      "script-src-elem 'self' 'unsafe-inline'", // PDF.js worker from local public dir (no CDN needed)
       "style-src 'self' 'unsafe-inline'", // Tailwind requires inline styles
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
       "font-src 'self'",
       "connect-src 'self' ws: wss: https:",
-      "worker-src 'self' blob:",
+      "worker-src 'self' blob:", // PDF.js worker needs blob: URLs
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

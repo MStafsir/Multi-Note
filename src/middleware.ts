@@ -94,12 +94,12 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   const cspDirectives = [
     `default-src 'self'`,
     `script-src 'self'${isDev ? " 'unsafe-eval' 'unsafe-inline'" : " 'unsafe-inline'"}`,  // 37.1 — 'unsafe-inline' required for Next.js RSC flight data (__next_f.push); nonce would replace in strict prod CSP
-    `script-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net`, // Allow PDF.js worker script from CDN
+    `script-src-elem 'self' 'unsafe-inline'`, // PDF.js worker from local public dir (no CDN needed)
     `style-src 'self' 'unsafe-inline'`, // Tailwind requires inline styles
     `img-src 'self' data: blob: https:`, // Allow images from storage/blobs
     `media-src 'self' blob:`,
     `font-src 'self'`,
-    `connect-src 'self' ws: wss:`, // WebSocket for collab + API
+    `connect-src 'self' ws: wss: https:`, // WebSocket for collab + API + external fetches
     `worker-src 'self' blob:`, // PDF.js worker needs blob: URLs
     `frame-ancestors 'none'`, // Prevent embedding
     `base-uri 'self'`,
@@ -311,6 +311,14 @@ export async function middleware(request: NextRequest) {
           { status: 429 }
         );
       }
+    }
+
+    // MODUL 52 fix — Upload POST routes must NOT have request headers modified,
+    // because NextResponse.next({ request: { headers } }) detaches the body stream,
+    // causing request.formData() to fail with "Failed to parse body as FormData".
+    // The upload route reads the user ID directly from the JWT token instead.
+    if (pathname.startsWith('/api/upload') && request.method === 'POST') {
+      return addSecurityHeaders(NextResponse.next());
     }
 
     // Add user info to headers for API routes to use
