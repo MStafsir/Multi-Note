@@ -52,7 +52,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  turbopack: {},
+  // Use webpack in dev mode to avoid OOM crashes on 4GB sandbox
+  // Turbopack uses ~2.8GB RSS which gets OOM-killed
+  turbopack: process.env.NODE_ENV === 'production' ? {} : undefined,
   // 37 — Apply security headers to ALL routes
   headers: async () => {
     return [
