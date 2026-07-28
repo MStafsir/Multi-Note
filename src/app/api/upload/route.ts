@@ -80,8 +80,43 @@ async function handleUpload(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Parse FormData
-    const formData = await request.formData();
+    // 2. Parse FormData — with robust error handling
+    // The request body can fail to parse as FormData when the middleware
+    // modifies headers via NextResponse.next({ request: { headers } }).
+    // This happens because the body stream may be detached from the original
+    // request when headers are modified. We handle this by reading the raw
+    // body and reconstructing a proper Request for parsing.
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (formDataError) {
+      const contentType = request.headers.get('content-type') || 'missing';
+      const contentLength = request.headers.get('content-length') || 'missing';
+      logger.error('formData_parse_failed', {
+        contentType,
+        contentLength,
+        errorMessage: formDataError instanceof Error ? formDataError.message : String(formDataError),
+      }, userId);
+
+      // Fallback: read raw body and reconstruct a new Request for parsing
+      try {
+        const rawBody = await request.arrayBuffer();
+        if (rawBody.byteLength === 0) {
+          return NextResponse.json({ success: false, error: 'Empty request body' }, { status: 400 });
+        }
+        // Create a new Request with the original body and Content-Type
+        const newRequest = new Request(request.url, {
+          method: 'POST',
+          headers: { 'Content-Type': contentType },
+          body: rawBody,
+        });
+        formData = await newRequest.formData();
+      } catch (fallbackError) {
+        const message = fallbackError instanceof Error ? fallbackError.message : 'Failed to parse body as FormData';
+        return NextResponse.json({ success: false, error: message }, { status: 400 });
+      }
+    }
+
     const file = formData.get('file') as File | null;
     const parentId = formData.get('parentId') as string | null;
 

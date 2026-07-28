@@ -94,11 +94,13 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   const cspDirectives = [
     `default-src 'self'`,
     `script-src 'self'${isDev ? " 'unsafe-eval' 'unsafe-inline'" : " 'unsafe-inline'"}`,  // 37.1 — 'unsafe-inline' required for Next.js RSC flight data (__next_f.push); nonce would replace in strict prod CSP
+    `script-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net`, // Allow PDF.js worker script from CDN
     `style-src 'self' 'unsafe-inline'`, // Tailwind requires inline styles
     `img-src 'self' data: blob: https:`, // Allow images from storage/blobs
     `media-src 'self' blob:`,
     `font-src 'self'`,
     `connect-src 'self' ws: wss:`, // WebSocket for collab + API
+    `worker-src 'self' blob:`, // PDF.js worker needs blob: URLs
     `frame-ancestors 'none'`, // Prevent embedding
     `base-uri 'self'`,
     `form-action 'self'`,

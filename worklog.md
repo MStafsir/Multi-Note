@@ -546,3 +546,22 @@ Stage Summary:
 - Root-level uploads now work (parentId: null is accepted)
 - File upload supports multiple files at once (input has multiple attribute)
 - No need to create a new folder just to add files - "Add New" card appears in every folder view
+---
+Task ID: 2
+Agent: main
+Task: Fix upload "Failed to parse body as FormData" error and CSP worker-src issue
+
+Work Log:
+- Diagnosed the "Failed to parse body as FormData" error: occurs when Next.js middleware modifies request headers via NextResponse.next({ request: { headers } }), which can detach the body stream from the original request
+- Added robust error handling in /api/upload/route.ts: try/catch around request.formData() with fallback that reads raw body via request.arrayBuffer() and reconstructs a new Request for parsing
+- Added detailed error logging for formData parse failures (Content-Type, Content-Length, error message)
+- Fixed CSP to add worker-src 'self' blob: directive (required for PDF.js worker)
+- Fixed CSP to add script-src-elem directive allowing CDN (pdfjs-dist worker from jsdelivr)
+- Fixed missing closing quote in form-action CSP directive in middleware.ts
+- Applied same CSP worker-src fix to next.config.ts
+- Rebuilt production and verified upload works via curl and browser
+
+Stage Summary:
+- Upload route now has fallback FormData parsing when request.formData() fails
+- CSP now allows worker-src blob: for PDF.js and script-src-elem for CDN
+- Error logging captures Content-Type and Content-Length for debugging future failures
