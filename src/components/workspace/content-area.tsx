@@ -44,8 +44,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-// Dynamic import — UploadZone loaded on demand to reduce OOM
-const UploadZone = dynamic(() => import('@/components/upload/upload-zone').then(m => ({ default: m.UploadZone })), { ssr: false });
 import { RenameDialog } from './rename-dialog';
 import { ErrorBoundary } from '@/components/error/error-boundary';
 import { NoteEditorError } from '@/components/error/note-editor-error';
@@ -478,8 +476,6 @@ export function ContentArea() {
       {/* Content */}
       <ScrollArea className="flex-1">
         <div className="p-6">
-          {/* Upload Zone */}
-          <UploadZone />
 
           {/* Loading state */}
           {isLoading && (

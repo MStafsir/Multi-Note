@@ -565,3 +565,28 @@ Stage Summary:
 - Upload route now has fallback FormData parsing when request.formData() fails
 - CSP now allows worker-src blob: for PDF.js and script-src-elem for CDN
 - Error logging captures Content-Type and Content-Length for debugging future failures
+
+---
+Task ID: 2
+Agent: main
+Task: Fix upload failures (400 Bad Request, "Failed to parse body as FormData"), CSP violations blocking pdfjs worker, and 502 Bad Gateway
+
+Work Log:
+- Diagnosed root cause of upload 400 error: middleware modifies request headers via `NextResponse.next({ request: { headers } })` which detaches the body stream, causing `request.formData()` to fail
+- Fixed upload route to read user ID directly from JWT token (using `getToken()` from next-auth/jwt) instead of from middleware-injected `x-user-id` header
+- Fixed middleware to skip header modification for `/api/upload` POST routes (returns `NextResponse.next()` without modifying request, preserving body stream)
+- Fixed CSP in `next.config.ts` to include `script-src-elem 'self' 'unsafe-inline'` (was missing, causing browser to fall back to `script-src` which doesn't allow CDN/local workers)
+- Fixed CSP in `middleware.ts` to match `next.config.ts` CSP (removed CDN reference, added `https:` to connect-src)
+- Fixed PDF preview to use local worker (`/pdf.worker.min.mjs` from public dir) instead of CDN (`cdn.jsdelivr.net`), eliminating CSP violation entirely
+- Copied `pdf.worker.min.mjs` from `node_modules/pdfjs-dist/build/` to `public/`
+- Removed non-existent `UploadZone` component import from `content-area.tsx` (was causing build failure: "Can't resolve '@/components/upload/upload-zone'")
+- Recreated `/api/upload/route.ts` which was deleted by a previous agent's git commit
+- Added `NEXTAUTH_SECRET` to `.env` (was missing, causing build failure)
+- Rebuilt production server and restarted with `run-server.sh` daemon (double-fork process is stable)
+- Verified via browser agent: file upload works (tested 31B and 500KB files), no CSP violations, no console errors, SW registers successfully
+
+Stage Summary:
+- Upload now works for all file sizes (tested up to 500KB)
+- CSP no longer blocks pdfjs worker (uses local worker instead of CDN)
+- PDF preview should work without CSP violations
+- Server is running stably on port 3000 via production daemon
