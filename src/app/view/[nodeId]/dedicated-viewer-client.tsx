@@ -1,8 +1,8 @@
 // ============================================================
-// MODUL 54.5: Dedicated Viewer Client Wrapper
-// 'use client' component that wraps DedicatedViewer with
-// additional props like publicAccessToken for Google Docs
-// Viewer integration.
+// MODUL 57: Dedicated Viewer Client Wrapper
+// 'use client' component that wraps DedicatedViewer.
+// No publicAccessToken — all rendering is client-side,
+// same-origin, session-authenticated.
 // ============================================================
 
 'use client';
@@ -19,7 +19,6 @@ interface DedicatedViewerClientProps {
   mimeLabel: string;
   sizeBytes: number;
   checksumSha256: string | null;
-  publicAccessToken: string;
 }
 
 export function DedicatedViewerClient(props: DedicatedViewerClientProps) {

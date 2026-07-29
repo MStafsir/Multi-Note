@@ -90,7 +90,7 @@ function SpreadsheetPreview({ data, name }: {
 }) {
   const [activeSheet, setActiveSheet] = useState(data.sheetNames[0] || '');
   const sheetData = data.sheets[activeSheet];
-  const maxRows = 100;
+  const maxRows = 200;
 
   if (!sheetData) {
     return <p className="text-sm text-muted-foreground">No data found in spreadsheet</p>;
@@ -277,7 +277,7 @@ function PdfPreview({ contentUrl, name, sizeBytes, mimeLabel, closeButton }: {
         pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
         // Fetch PDF as ArrayBuffer from contentUrl
-        const res = await fetch(contentUrl);
+        const res = await fetch(contentUrl, { credentials: 'same-origin' });
         if (!res.ok) throw new Error('Failed to fetch PDF');
         const arrayBuffer = await res.arrayBuffer();
 
@@ -316,7 +316,7 @@ function PdfPreview({ contentUrl, name, sizeBytes, mimeLabel, closeButton }: {
         // Use local worker from public dir (avoids CSP CDN blocking issues)
         pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
-        const res = await fetch(contentUrl);
+        const res = await fetch(contentUrl, { credentials: 'same-origin' });
         if (!res.ok) return;
         const arrayBuffer = await res.arrayBuffer();
         const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -478,7 +478,7 @@ function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
     const loadDocx = async () => {
       try {
         // Fetch raw bytes from contentUrl
-        const res = await fetch(contentUrl);
+        const res = await fetch(contentUrl, { credentials: 'same-origin' });
         if (!res.ok) throw new Error('Failed to fetch document');
         const arrayBuffer = await res.arrayBuffer();
 
@@ -660,7 +660,7 @@ function XlsxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
     const loadXlsx = async () => {
       try {
         // Fetch raw bytes from contentUrl
-        const res = await fetch(contentUrl);
+        const res = await fetch(contentUrl, { credentials: 'same-origin' });
         if (!res.ok) throw new Error('Failed to fetch spreadsheet');
         const arrayBuffer = await res.arrayBuffer();
 
@@ -675,11 +675,11 @@ function XlsxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
           const worksheet = workbook.Sheets[sheetName];
           if (!worksheet) continue;
 
-          const jsonData = XLSX.utils.sheet_to_json<Record<string, string | number | boolean | null>>(worksheet, { defval: null });
+          const jsonData = XLSX.utils.sheet_to_json<Record<string, string | number | boolean | null>>(worksheet, { defval: null, raw: false });
           const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
 
           sheets[sheetName] = {
-            rows: jsonData.slice(0, 100),
+            rows: jsonData.slice(0, 200),
             headers,
           };
         }
@@ -815,7 +815,7 @@ function PptxPreview({ previewUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
 
     const loadPptx = async () => {
       try {
-        const res = await fetch(previewUrl);
+        const res = await fetch(previewUrl, { credentials: 'same-origin' });
         if (!res.ok) throw new Error('Failed to load presentation preview');
         const data = await res.json();
 
@@ -953,7 +953,7 @@ export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onC
       let cancelled = false;
       const loadText = async () => {
         try {
-          const res = await fetch(previewUrl);
+          const res = await fetch(previewUrl, { credentials: 'same-origin' });
           if (!res.ok) throw new Error('Failed to load text content');
           const content = await res.text();
           if (!cancelled) {

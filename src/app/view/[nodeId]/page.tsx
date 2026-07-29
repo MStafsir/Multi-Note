@@ -1,7 +1,8 @@
 // ============================================================
-// Dedicated New-Tab Viewer — ALL file types supported
+// MODUL 57: Dedicated New-Tab Viewer — ALL file types supported
 // Opens in a new browser tab like Google Drive — no download prompt
 // Server component validates session + ownership before rendering
+// NO publicAccessToken — all rendering via client-side libraries
 // ============================================================
 
 import { getServerSession } from 'next-auth/next';
@@ -10,7 +11,6 @@ import { db } from '@/lib/db';
 import { checkNodeAccess } from '@/lib/permissions';
 import { getMimePreviewType, getPreviewTier, getMimeLabel, type PreviewType, type PreviewTier } from '@/lib/mime-icons';
 import { bigintToNumber } from '@/lib/bigint';
-import { generatePublicAccessToken } from '@/lib/public-file-access';
 import { redirect } from 'next/navigation';
 import { DedicatedViewerClient } from './dedicated-viewer-client';
 
@@ -19,7 +19,7 @@ interface ViewerPageProps {
 }
 
 export default async function ViewerPage({ params }: ViewerPageProps) {
-  // 1. Validate session — if no session, redirect to signIn page
+  // 1. Validate session — if no session, redirect to home
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect('/');
@@ -78,10 +78,8 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
   const sizeBytes = bigintToNumber(node.metadata.sizeBytes) ?? 0;
   const checksumSha256 = node.metadata.checksumSha256 ?? null;
 
-  // 8. Generate a temporary public access token for Google Docs Viewer
-  const publicAccessToken = generatePublicAccessToken(nodeId);
-
-  // Pass data to client component wrapper for rendering
+  // Pass data to client component — no publicAccessToken needed
+  // All content fetched via /api/files/[nodeId]/content (session-authenticated)
   return (
     <DedicatedViewerClient
       nodeId={nodeId}
@@ -92,7 +90,6 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
       mimeLabel={mimeLabel}
       sizeBytes={sizeBytes}
       checksumSha256={checksumSha256}
-      publicAccessToken={publicAccessToken}
     />
   );
 }

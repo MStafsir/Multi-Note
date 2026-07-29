@@ -1,22 +1,24 @@
 ---
-Task ID: 3
-Agent: main
-Task: Fix DOCX preview text visibility, image preview, and dedicated viewer Google Drive-style rendering
+Task ID: 57-60
+Agent: Main Agent
+Task: Modul 57-60 — Remove Google gview, fix XLSX, fix upload validation, fix PWA icons
 
 Work Log:
-- Analyzed 5 uploaded screenshots using VLM to understand the visual issues
-- Identified root cause: dark mode CSS (.dark class on html) overrides text color to near-white, making DOCX text invisible on white background
-- Fixed globals.css: Added .docx-preview-wrapper CSS override with !important to force black text on white background
-- Fixed dedicated-viewer.tsx: Updated DOCX, image, text/code, PDF rendering sections with forced black text, A4 paper styling, Google Drive-like gray background
-- Fixed file-preview.tsx: Updated mammoth HTML rendering, docx-preview container, image preview, and text/code preview with forced black text
-- Created test files on disk for test user (test-upload.txt, large-test-file.bin)
-- Created database entries for test files (DOCX, PDF, PNG)
-- Tested all file types with agent-browser: DOCX viewer shows clear text, image viewer works, PDF viewer works, text viewer works
+- **Modul 57**: Deleted `src/app/api/files/[nodeId]/public-content/route.ts` and `src/lib/public-file-access.ts` — completely removed Google Docs Viewer (gview) integration and public-content endpoint
+- **Modul 57**: Rewrote `src/components/preview/dedicated-viewer.tsx` — removed publicAccessToken prop, removed Google Docs button, all rendering is client-side (docx-preview primary, mammoth fallback, SheetJS for XLSX, pdf.js for PDF)
+- **Modul 57**: Updated `src/app/view/[nodeId]/page.tsx` — removed generatePublicAccessToken call and import
+- **Modul 57**: Updated `src/app/view/[nodeId]/dedicated-viewer-client.tsx` — removed publicAccessToken prop
+- **Modul 57**: Updated `src/middleware.ts` — removed public-content route exception (lines 146-150)
+- **Modul 57**: Added `credentials: 'same-origin'` to all fetch calls in both dedicated-viewer.tsx and file-preview.tsx
+- **Modul 58**: Verified SheetJS wiring in both preview components — both have multi-sheet tab switcher, now uses `raw: false` for computed values (not formula strings), increased row limit to 200
+- **Modul 59**: Rewrote upload route with resolveMimeType() — loose MIME with fallback to extension when browser sends generic MIME (application/octet-stream), preserves original filename in DB
+- **Modul 60**: Fixed PWA icons — replaced JPEG-mislabeled-as-PNG files with proper PNG icons generated via sharp
+- **Verified**: All references to gview/public-content/publicAccessToken removed from codebase (grep confirmed zero hits)
+- **Browser tested**: DOCX opens in new tab with full content (headings, bold, italic, links), PDF renders with zoom controls, image displays correctly, no JS errors
 
 Stage Summary:
-- DOCX preview text is now clearly visible with forced black text on white background
-- Image preview renders correctly with white background
-- Dedicated viewer has Google Drive-style gray background with white A4 paper
-- PDF viewer renders all pages with zoom controls
-- Text/code viewer renders with A4 paper styling
-- All file types tested and working via agent-browser
+- Google Docs Viewer (gview) completely removed — no external calls, no public token system
+- All file rendering is client-side: docx-preview (primary), mammoth (fallback), SheetJS (XLSX), pdf.js (PDF)
+- Upload MIME resolution now falls back to extension when browser sends generic MIME
+- PWA icons are now proper PNG files
+- No security regression — all file access goes through session-authenticated /api/files/[nodeId]/content
