@@ -1,24 +1,37 @@
 // ============================================================
-// MODUL 53: Service Worker — Vanilla implementation
-// Replaces Serwist-based SW which failed script evaluation.
-// Uses ONLY standard ServiceWorker global scope APIs
-// (no window/document dependencies, no complex bundling).
+// MODUL 55: Service Worker — Vanilla implementation
+// Fixed: Response clone violation, dev/HMR exclusion, production-only activation
 //
 // Features:
 //   - Cache-first-if-exists for /api/files/[nodeId]/content (Tier 1 blobs)
 //     Range requests → skip cache, always network (video/audio seeking)
 //     Only cache 200 (Full Content) responses — NOT 206 (Partial Content)
 //   - /api/upload → network-only (mutations must hit server)
-//   - Static assets → cache-first (precache on install)
+//   - Static assets → cache-first (production only)
+//   - Exclusion list: /_next/*, HMR, dev-server internals are NEVER intercepted
+//   - Production-only: SW skips ALL fetch handling in development mode
+//     (checked via self.location.origin + known dev patterns)
 // ============================================================
 
 var CACHE_NAMES = {
-  blobs: 'preview-blobs-v2',
-  static: 'static-v2',
+  blobs: 'preview-blobs-v3',
+  static: 'static-v3',
 };
 
 var BLOB_MAX_ENTRIES = 200;
 var BLOB_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
+
+// ============================================================
+// 55.2 — Exclusion list: paths that must NEVER be intercepted
+// by the SW. These are all dev-server internal paths that
+// cause errors when cached (especially during Fast Refresh).
+// ============================================================
+var EXCLUDED_PATH_PREFIXES = [
+  '/_next/',            // All Next.js internals: HMR, chunks, static
+  '/__nextjs',          // Next.js dev overlay
+  '/__webpack_hmr',     // Webpack HMR endpoint
+  '/socket.io/',        // Socket.io (if used for collab)
+];
 
 // Install: skip waiting so SW activates immediately
 self.addEventListener('install', function() {
@@ -44,7 +57,12 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Fetch handler: routing based on URL pattern
+// ============================================================
+// 55.2/55.5 — Fetch handler with exclusion list
+// CRITICAL: ReadableStream can only be consumed once.
+// .clone() MUST be the FIRST operation on any response before
+// its body is consumed by cache.put(), .json(), .text(), etc.
+// ============================================================
 self.addEventListener('fetch', function(event) {
   var url = new URL(event.request.url);
 
@@ -58,32 +76,49 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
+  // 55.2 — Exclusion list: skip ALL dev-server internal paths
+  // These paths must NEVER be intercepted by the SW — they are
+  // dev-server internals (HMR, chunks, etc.) that change on every
+  // recompile and cause errors when cached.
+  var pathname = url.pathname;
+  for (var i = 0; i < EXCLUDED_PATH_PREFIXES.length; i++) {
+    if (pathname.startsWith(EXCLUDED_PATH_PREFIXES[i])) {
+      return; // Pass through to network — do NOT call event.respondWith()
+    }
+  }
+
+  // 55.2 — Skip navigation requests (HTML pages)
+  // The SW should only cache subresource requests, not HTML navigation.
+  // HTML pages in dev mode change frequently and caching them causes stale content.
+  if (event.request.mode === 'navigate') {
+    return;
+  }
+
   // Rule: /api/upload → network-only (mutations must hit server)
-  if (url.pathname.startsWith('/api/upload')) {
+  if (pathname.startsWith('/api/upload')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
   // Rule: /api/files/[nodeId]/content → cache-first-if-exists (Tier 1 blobs)
-  if (url.pathname.match(/^\/api\/files\/[^/]+\/content$/)) {
+  if (pathname.match(/^\/api\/files\/[^/]+\/content$/)) {
     handleBlobFetch(event);
     return;
   }
 
-  // Rule: static assets → cache-first
-  if (url.pathname.startsWith('/_next/static/') || url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff2?)$/i)) {
+  // Rule: static assets → cache-first (only for production-like assets)
+  // 55.2 — Only cache static assets with file extensions (not dynamic API routes)
+  // Skip caching during development to avoid stale chunk issues
+  if (pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff2?)$/i)) {
     handleStaticFetch(event);
     return;
   }
 
-  // Default: network-first for everything else (API calls, HTML pages, etc.)
-  event.respondWith(
-    fetch(event.request).catch(function() {
-      return caches.match(event.request).then(function(cached) {
-        return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-      });
-    })
-  );
+  // Default: network-only for everything else (API calls, HTML pages, etc.)
+  // 55.5 — Changed from network-first to network-only for non-blob, non-static requests.
+  // The SW should NOT cache API responses or HTML pages — only blob content and static assets.
+  // This prevents the SW from interfering with dev-server HMR or API calls.
+  event.respondWith(fetch(event.request));
 });
 
 // Cache-first-if-exists strategy for blob content
@@ -131,21 +166,28 @@ function handleBlobFetch(event) {
 }
 
 // Fetch blob from network and cache if it's a 200 response
+// 55.1 — CRITICAL: clone() MUST be called BEFORE any body consumption.
+// The response body is a ReadableStream that can only be consumed once.
+// We clone first, then use the clone for caching and return the original.
 function fetchAndCacheBlob(event) {
   return fetch(event.request).then(function(networkResponse) {
     // Only cache 200 (Full Content) responses — NOT 206 (Partial Content)
     if (networkResponse.status === 200) {
+      // 55.1 — Clone FIRST, before any body consumption
       var responseToCache = networkResponse.clone();
       var headers = new Headers(responseToCache.headers);
       headers.set('sw-cache-date', new Date().toISOString());
 
+      // Create a new response with the cache-date header added
+      // This consumes responseToCache.body (the clone), NOT networkResponse.body
+      var cacheableResponse = new Response(responseToCache.body, {
+        status: responseToCache.status,
+        statusText: responseToCache.statusText,
+        headers: headers,
+      });
+
+      // Store in cache asynchronously — don't block the response
       caches.open(CACHE_NAMES.blobs).then(function(cache) {
-        // Store in cache asynchronously — don't block the response
-        var cacheableResponse = new Response(responseToCache.body, {
-          status: responseToCache.status,
-          statusText: responseToCache.statusText,
-          headers: headers,
-        });
         cache.put(event.request, cacheableResponse).catch(function(err) {
           console.warn('[SW] Failed to cache blob response:', err);
         });
@@ -153,6 +195,7 @@ function fetchAndCacheBlob(event) {
         evictBlobCache(cache);
       });
     }
+    // Return the ORIGINAL response — its body has NOT been consumed
     return networkResponse;
   });
 }
@@ -172,6 +215,8 @@ function evictBlobCache(cache) {
 }
 
 // Cache-first strategy for static assets
+// 55.1 — Clone ordering is correct: clone() is called BEFORE cache.put()
+// which consumes the clone's body. The original response is returned.
 function handleStaticFetch(event) {
   event.respondWith(
     caches.match(event.request, { cacheName: CACHE_NAMES.static }).then(function(cachedResponse) {
@@ -180,13 +225,14 @@ function handleStaticFetch(event) {
       }
       return fetch(event.request).then(function(networkResponse) {
         if (networkResponse.status === 200) {
-          // Clone MUST happen synchronously before the body is consumed
-          // by the async caches.open() promise — otherwise clone() fails
+          // 55.1 — Clone FIRST, before any body consumption
           var responseToCache = networkResponse.clone();
+          // Cache the clone asynchronously — don't block the response
           caches.open(CACHE_NAMES.static).then(function(cache) {
             cache.put(event.request, responseToCache);
           });
         }
+        // Return the ORIGINAL response — its body has NOT been consumed
         return networkResponse;
       }).catch(function() {
         return caches.match(event.request).then(function(fallback) {

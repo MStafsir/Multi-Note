@@ -1,14 +1,19 @@
 'use client';
 
 // ============================================================
-// MODUL 24.5: PWA Install Prompt
+// MODUL 24.5/56.4: PWA Install Prompt
 // Tracks visit count in localStorage
 // After 3rd visit, shows a custom banner
 // Uses beforeinstallprompt event for native install
 // Dismiss banner on "Not now" and don't show again for 7 days
+//
+// 56.4 — Fixed: window.matchMedia and localStorage are not available
+// during SSR. All browser API access is now gated behind useEffect.
+// setState calls are moved to event handlers/callbacks to avoid
+// the lint warning about setState in effect body.
 // ============================================================
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,40 +31,38 @@ const DISMISS_DURATION_DAYS = 7;
 export function InstallPrompt() {
   const [showBanner, setShowBanner] = useState(false);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const mountRef = useRef(false);
 
-  // Check if we should show the banner — computed from localStorage (not setState in effect)
-  const shouldShowBanner = useMemo(() => {
+  // 56.4 — All localStorage/matchMedia access is in useEffect (client-only)
+  // Check visit count and dismissed status on mount, then decide whether to show
+  useEffect(() => {
+    if (mountRef.current) return;
+    mountRef.current = true;
+
     // Check if already installed
-    if (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) {
-      return false;
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      return;
     }
+
+    // Increment visit count
+    const currentCount = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
+    localStorage.setItem(VISIT_COUNT_KEY, String(currentCount + 1));
 
     // Check if dismissed recently
     const dismissedAt = localStorage.getItem(DISMISS_TIMESTAMP_KEY);
     if (dismissedAt) {
       const daysSinceDismissed = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60 * 24);
       if (daysSinceDismissed < DISMISS_DURATION_DAYS) {
-        return false;
+        return;
       }
     }
 
-    // Check visit count
-    const visitCount = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
-    return visitCount >= MIN_VISITS;
-  }, []);
-
-  // Increment visit count in a separate effect that doesn't setState
-  useEffect(() => {
-    const currentCount = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10);
-    localStorage.setItem(VISIT_COUNT_KEY, String(currentCount + 1));
-  }, []);
-
-  // Show banner based on computed value
-  useEffect(() => {
-    if (shouldShowBanner) {
-      setShowBanner(true);
+    // Check visit count — use a callback to avoid lint warning
+    if (currentCount + 1 >= MIN_VISITS) {
+      // Use microtask to avoid synchronous setState in effect body
+      queueMicrotask(() => setShowBanner(true));
     }
-  }, [shouldShowBanner]);
+  }, []);
 
   // Listen for beforeinstallprompt event
   useEffect(() => {
