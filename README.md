@@ -24,11 +24,21 @@ A comprehensive, feature-rich note-taking application built with Next.js 16, Typ
 | Framework | Next.js 16 (App Router) |
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS 4 + shadcn/ui |
-| Database | SQLite via Prisma ORM |
+| Database | SQLite (local) / PostgreSQL (production) via Prisma ORM |
 | Auth | NextAuth.js v4 |
 | State | Zustand + TanStack Query |
-| Real-time | Socket.IO |
+| Real-time | Socket.IO (local) / disabled on Vercel |
 | Editor | Tiptap |
+
+## Upload Limits
+
+| Setting | Value |
+|---------|-------|
+| Max file size | **500 MB** |
+| Storage quota | **5 TB** (effectively unlimited) |
+| Supported formats | All file types (PDF, DOCX, XLSX, images, audio, video, etc.) |
+
+> **Note:** On Vercel free tier, serverless functions have a 4.5MB body limit. For large uploads on Vercel, use Vercel Blob.
 
 ## Prerequisites
 
@@ -40,7 +50,7 @@ Install Bun:
 curl -fsSL https://bun.sh/install | bash
 ```
 
-## Quick Start
+## Quick Start (Local Development)
 
 ### 1. Clone the repository
 ```bash
@@ -94,8 +104,15 @@ chmod +x stop.sh
 
 Create a `.env` file in the project root (auto-created by `setup.sh`):
 
+**For local development (SQLite):**
 ```env
 DATABASE_URL=file:./db/custom.db
+NEXTAUTH_SECRET=your-secret-key-here
+```
+
+**For Vercel/Supabase (PostgreSQL):**
+```env
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
 NEXTAUTH_SECRET=your-secret-key-here
 ```
 
@@ -116,15 +133,17 @@ Multi-Note/
 │   │   └── ui/                 # shadcn/ui components
 │   ├── hooks/                  # Custom React hooks
 │   └── lib/                    # Utility functions & configurations
-├── mini-services/              # Socket.IO microservices
+├── mini-services/              # Socket.IO microservices (local only)
 │   ├── collab-service/         # Real-time collaboration (port 3003)
 │   └── comment-sync-service/   # Comment sync (port 3004)
 ├── prisma/
-│   └── schema.prisma           # Database schema
+│   ├── schema.prisma           # Active database schema (SQLite by default)
+│   └── schema.postgresql.prisma # PostgreSQL schema for Vercel/Supabase
 ├── public/                     # Static assets
 ├── setup.sh                    # First-time setup script
 ├── start.sh                    # Start all services
-└── stop.sh                     # Stop all services
+├── stop.sh                     # Stop all services
+└── switch-db.sh                # Switch between SQLite ↔ PostgreSQL
 ```
 
 ## Mini-Services (Real-time Features)
@@ -136,34 +155,127 @@ The app uses two Socket.IO microservices for real-time features:
 | collab-service | 3003 | Real-time note collaboration |
 | comment-sync-service | 3004 | Real-time comment synchronization |
 
-**Note:** The app works without these services, but real-time collaboration and comment sync features will be disabled.
+**Note:** The app works without these services, but real-time collaboration and comment sync features will be disabled. On Vercel, these services are not available.
 
-## Deployment
+---
 
-### Production Build
+## 🚀 Deploy to Vercel (with Supabase)
+
+### Step 1: Create Supabase Project (Free)
+
+1. Go to [https://supabase.com](https://supabase.com) and sign up
+2. Click **"New Project"**
+3. Fill in project name and database password
+4. Select the closest region
+5. Click **"Create new project"**
+6. Wait for the project to be ready (~2 minutes)
+
+### Step 2: Get Supabase Connection String
+
+1. Go to **Supabase Dashboard → Settings → Database**
+2. Scroll down to **"Connection string"**
+3. Copy the **URI** format connection string
+4. Replace `[YOUR-PASSWORD]` with your database password
+
+Example:
+```
+postgresql://postgres.xxxxx:YOUR-PASSWORD@aws-0-region.pooler.supabase.com:6543/postgres
+```
+
+### Step 3: Switch to PostgreSQL Schema
+
 ```bash
-bun run build
+chmod +x switch-db.sh
+./switch-db.sh postgresql
 ```
 
-### Switching to PostgreSQL
-The project uses SQLite by default. For production, switch to PostgreSQL:
+### Step 4: Update .env for PostgreSQL
 
-1. Update `prisma/schema.prisma`:
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-2. Update `.env`:
+Edit `.env`:
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/multinote
+DATABASE_URL=postgresql://postgres.xxxxx:YOUR-PASSWORD@aws-0-region.pooler.supabase.com:6543/postgres
+NEXTAUTH_SECRET=generate-a-random-secret-here
 ```
 
-3. Run migrations:
+Generate a random secret:
+```bash
+openssl rand -base64 32
+```
+
+### Step 5: Push Schema to Supabase
+
 ```bash
 bun run db:push
+bun run db:generate
+```
+
+### Step 6: Deploy to Vercel
+
+1. Go to [https://vercel.com](https://vercel.com) and sign up
+2. Click **"Add New → Project"**
+3. Import your GitHub repo: `MStafsir/Multi-Note`
+4. In **Environment Variables**, add:
+   - `DATABASE_URL` = your Supabase connection string
+   - `NEXTAUTH_SECRET` = your generated secret
+5. Click **"Deploy"**
+
+### Step 7: Update Vercel Build Settings
+
+In Vercel project settings → General:
+- **Framework Preset**: Next.js
+- **Build Command**: `npx prisma generate && next build`
+- **Output Directory**: Leave default
+
+### Important Vercel Limitations
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| File upload | ⚠️ Limited | 4.5MB max on free tier; use Vercel Blob for larger files |
+| Real-time collab | ❌ Disabled | Socket.IO not supported on serverless |
+| Comment sync | ❌ Disabled | Same as above |
+| SQLite database | ❌ Not supported | Must use PostgreSQL (Supabase) |
+| All other features | ✅ Works | Notes, editor, files, auth, etc. |
+
+---
+
+## 🆓 Free Hosting Alternatives (with SQLite support)
+
+If you want to keep SQLite and real-time features, use these instead of Vercel:
+
+| Platform | Free Tier | SQLite | WebSocket | Notes |
+|----------|-----------|--------|-----------|-------|
+| **[Render](https://render.com)** | ✅ Free | ✅ Yes | ✅ Yes | Best for SQLite apps |
+| **[Railway](https://railway.app)** | ✅ $5 credit/mo | ✅ Yes | ✅ Yes | Easy deploy |
+| **[Fly.io](https://fly.io)** | ✅ Free tier | ✅ Yes | ✅ Yes | Needs Dockerfile |
+| **[VPS (DigitalOcean)](https://digitalocean.com)** | $4/mo | ✅ Yes | ✅ Yes | Full control |
+
+### Deploy to Render (Recommended for SQLite)
+
+1. Go to [https://render.com](https://render.com) and sign up
+2. Click **"New → Web Service"**
+3. Connect your GitHub repo: `MStafsir/Multi-Note`
+4. Set:
+   - **Build Command**: `bun install && bun run db:generate && bun run db:push && bun run build`
+   - **Start Command**: `bun run start`
+5. Add environment variables:
+   - `DATABASE_URL` = `file:./db/custom.db`
+   - `NEXTAUTH_SECRET` = generate a random secret
+6. Click **"Create Web Service"**
+
+---
+
+## Switching Database Provider
+
+```bash
+# Switch to PostgreSQL (for Vercel/Supabase)
+./switch-db.sh postgresql
+
+# Switch back to SQLite (for local dev)
+./switch-db.sh sqlite
+
+# After switching, always run:
+bun run db:push
+bun run db:generate
 ```
 
 ## License

@@ -25,7 +25,7 @@ import { bigintToNumber } from '@/lib/bigint';
 
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 const UPLOAD_DIR = join(process.cwd(), 'upload');
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB — set to 0 to disable limit
 
 // MIME type mapping by file extension — comprehensive list
 const EXT_TO_MIME: Record<string, string> = {
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
             userId,
             role: 'user',
             storageUsedBytes: BigInt(file.size),
-            quotaLimitBytes: BigInt(5368709120), // 5GB
+            quotaLimitBytes: BigInt(5368709120000), // 5TB — effectively unlimited
           },
         });
       } catch {
