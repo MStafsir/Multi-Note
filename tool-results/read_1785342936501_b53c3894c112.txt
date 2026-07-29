@@ -1,0 +1,656 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→// ============================================================
+     4→     4→// MODUL 22: Workspace Layout — Global Command Palette & Keyboard Shortcuts
+     5→     5→// Cmd/Ctrl+K opens command palette (previously opened calculator)
+     6→     6→// Calculator now uses Ctrl+Shift+K
+     7→     7→// Additional global shortcuts: N (new note), F (new folder),
+     8→     8→//   Delete (trash selected), Ctrl+Z (undo)
+     9→     9→// All shortcuts check if user is typing (input/textarea/[contenteditable])
+    10→    10→// ============================================================
+    11→    11→
+    12→    12→import { useState, useEffect, useRef, useCallback } from 'react';
+    13→    13→import dynamic from 'next/dynamic';
+    14→    14→import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+    15→    15→import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings, Building2, Mail } from 'lucide-react';
+    16→    16→import { signOut } from 'next-auth/react';
+    17→    17→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+    18→    18→import { NotificationBadge } from '@/components/notifications/notification-badge';
+    19→    19→import { Button } from '@/components/ui/button';
+    20→    20→import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+    21→    21→import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+    22→    22→import { Sidebar } from './sidebar';
+    23→    23→import { ContentArea } from './content-area';
+    24→    24→// Dynamic imports to reduce initial compilation memory (OOM prevention)
+    25→    25→const CreateDialog = dynamic(() => import('./create-dialog').then(m => ({ default: m.CreateDialog })), { ssr: false });
+    26→    26→const WorkspaceSwitcher = dynamic(() => import('./workspace-switcher').then(m => ({ default: m.WorkspaceSwitcher })), { ssr: false });
+    27→    27→const WorkspaceSettingsDialog = dynamic(() => import('./workspace-settings-dialog').then(m => ({ default: m.WorkspaceSettingsDialog })), { ssr: false });
+    28→    28→const WorkspaceInvitationView = dynamic(() => import('./workspace-invitation-view').then(m => ({ default: m.WorkspaceInvitationView })), { ssr: false });
+    29→    29→import { useAuthStore } from '@/store/auth';
+    30→    30→import { useWorkspaceStore } from '@/store/workspace';
+    31→    31→import { useWorkspaces } from '@/hooks/use-workspace';
+    32→    32→import { useCalculatorStore } from '@/store/calculator';
+    33→    33→import { useFileTreeStore } from '@/store/file-tree';
+    34→    34→import { useUndoStore } from '@/store/undo';
+    35→    35→import { useDeleteNode } from '@/hooks/use-file-tree';
+    36→    36→import { WorkspaceDndProvider } from '@/components/dnd/dnd-context';
+    37→    37→import { LocaleSwitcher } from './locale-switcher';
+    38→    38→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+    39→    39→// Heavy components loaded dynamically to reduce OOM during initial compilation
+    40→    40→const CalculatorWidget = dynamic(() => import('@/components/calculator/calculator-widget').then(m => ({ default: m.CalculatorWidget })), { ssr: false });
+    41→    41→const SearchDropdown = dynamic(() => import('@/components/search/search-dropdown').then(m => ({ default: m.SearchDropdown })), { ssr: false });
+    42→    42→const TrashView = dynamic(() => import('@/components/trash/trash-view').then(m => ({ default: m.TrashView })), { ssr: false });
+    43→    43→const AdminDashboard = dynamic(() => import('@/components/admin/admin-dashboard').then(m => ({ default: m.AdminDashboard })), { ssr: false });
+    44→    44→const CommandPalette = dynamic(() => import('@/components/command/command-palette').then(m => ({ default: m.CommandPalette })), { ssr: false });
+    45→    45→const InstallPrompt = dynamic(() => import('@/components/pwa/install-prompt').then(m => ({ default: m.InstallPrompt })), { ssr: false });
+    46→    46→const WorkspaceAdvancedSettings = dynamic(() => import('./workspace-advanced-settings').then(m => ({ default: m.WorkspaceAdvancedSettings })), { ssr: false });
+    47→    47→const WelcomeSlides = dynamic(() => import('@/components/onboarding/welcome-slides').then(m => ({ default: m.WelcomeSlides })), { ssr: false });
+    48→    48→const OnboardingChecklist = dynamic(() => import('@/components/onboarding/onboarding-checklist').then(m => ({ default: m.OnboardingChecklist })), { ssr: false });
+    49→    49→// markOnboardingStep is a utility function, not a component — imported statically
+    50→    50→import { markOnboardingStep } from '@/components/onboarding/onboarding-checklist';
+    51→    51→
+    52→    52→// Mobile breakpoint constant
+    53→    53→const MOBILE_BREAKPOINT = 640;
+    54→    54→
+    55→    55→export function WorkspaceLayout() {
+    56→    56→  const [sidebarOpen, setSidebarOpen] = useState(false);
+    57→    57→  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    58→    58→  const [headerSearchOpen, setHeaderSearchOpen] = useState(false);
+    59→    59→  const [isMobile, setIsMobile] = useState(false);
+    60→    60→
+    61→    61→  // 22 — Command palette state
+    62→    62→  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+    63→    63→
+    64→    64→  // 22 — Create dialogs triggered from command palette
+    65→    65→  const [paletteCreateDialogOpen, setPaletteCreateDialogOpen] = useState(false);
+    66→    66→  const [paletteCreateType, setPaletteCreateType] = useState<'folder' | 'note'>('note');
+    67→    67→
+    68→    68→  // 28 — Settings dialog state
+    69→    69→  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+    70→    70→
+    71→    71→  // 40-41 — Workspace settings & invitation dialog state
+    72→    72→  const [workspaceSettingsOpen, setWorkspaceSettingsOpen] = useState(false);
+    73→    73→  const [invitationViewOpen, setInvitationViewOpen] = useState(false);
+    74→    74→
+    75→    75→  // Auth state — must be defined before queries that reference user
+    76→    76→  const { user } = useAuthStore();
+    77→    77→  const { currentWorkspaceId, currentWorkspaceRole, workspaces } = useWorkspaceStore();
+    78→    78→  const { toggleOpen, isOpen } = useCalculatorStore();
+    79→    79→  const { setCurrentFolder, flatNodes, activeView, selectedNodeIds } = useFileTreeStore();
+    80→    80→  const { popAction } = useUndoStore();
+    81→    81→  const deleteMutation = useDeleteNode();
+    82→    82→
+    83→    83→  // 40-41 — Fetch workspaces list (populates workspace store)
+    84→    84→  useWorkspaces();
+    85→    85→
+    86→    86→  // 39 — Onboarding state
+    87→    87→  const [welcomeSlidesDismissed, setWelcomeSlidesDismissed] = useState(false);
+    88→    88→  const queryClient = useQueryClient();
+    89→    89→
+    90→    90→  const { data: onboardingData, isLoading: onboardingLoading } = useQuery({
+    91→    91→    queryKey: ['onboarding'],
+    92→    92→    queryFn: async () => {
+    93→    93→      const res = await fetch('/api/onboarding');
+    94→    94→      const data = await res.json();
+    95→    95→      if (!data.success) {
+    96→    96→        // Return default onboarding state instead of undefined
+    97→    97→        return {
+    98→    98→          welcomeCompleted: false,
+    99→    99→          sampleContentLoaded: false,
+   100→   100→          checklistProgress: {},
+   101→   101→          dismissedAt: null,
+   102→   102→          steps: [],
+   103→   103→        };
+   104→   104→      }
+   105→   105→      return data.data as {
+   106→   106→        welcomeCompleted: boolean;
+   107→   107→        sampleContentLoaded: boolean;
+   108→   108→        checklistProgress: Record<string, boolean>;
+   109→   109→        dismissedAt: string | null;
+   110→   110→        steps: string[];
+   111→   111→      };
+   112→   112→    },
+   113→   113→    enabled: !!user,
+   114→   114→  });
+   115→   115→
+   116→   116→  // 39 — Derived: show welcome slides when onboarding data indicates it's needed
+   117→   117→  const showWelcomeSlides = onboardingData && !onboardingData.welcomeCompleted && !onboardingData.dismissedAt && !welcomeSlidesDismissed;
+   118→   118→
+   119→   119→  const onboardingCompleteMutation = useMutation({
+   120→   120→    mutationFn: async (payload: { welcomeCompleted?: boolean; dismiss?: boolean }) => {
+   121→   121→      const res = await fetch('/api/onboarding', {
+   122→   122→        method: 'POST',
+   123→   123→        headers: { 'Content-Type': 'application/json' },
+   124→   124→        body: JSON.stringify(payload),
+   125→   125→      });
+   126→   126→      return res.json();
+   127→   127→    },
+   128→   128→    onSuccess: () => {
+   129→   129→      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+   130→   130→    },
+   131→   131→  });
+   132→   132→
+   133→   133→  const handleWelcomeComplete = useCallback(() => {
+   134→   134→    setWelcomeSlidesDismissed(true);
+   135→   135→    onboardingCompleteMutation.mutate({ welcomeCompleted: true });
+   136→   136→  }, [onboardingCompleteMutation]);
+   137→   137→
+   138→   138→  const handleWelcomeDismiss = useCallback(() => {
+   139→   139→    setWelcomeSlidesDismissed(true);
+   140→   140→    onboardingCompleteMutation.mutate({ dismiss: true });
+   141→   141→  }, [onboardingCompleteMutation]);
+   142→   142→
+   143→   143→  const handleOnboardingDismiss = useCallback(() => {
+   144→   144→    // Checklist was dismissed — no further action needed, state is already updated via mutation
+   145→   145→  }, []);
+   146→   146→
+   147→   147→  // 39 — Track onboarding step completions from user actions
+   148→   148→  const handlePaletteCreateNote = useCallback(() => {
+   149→   149→    setPaletteCreateType('note');
+   150→   150→    setPaletteCreateDialogOpen(true);
+   151→   151→    markOnboardingStep('create_note');
+   152→   152→  }, []);
+   153→   153→
+   154→   154→  const handlePaletteCreateFolder = useCallback(() => {
+   155→   155→    setPaletteCreateType('folder');
+   156→   156→    setPaletteCreateDialogOpen(true);
+   157→   157→    markOnboardingStep('create_folder');
+   158→   158→  }, []);
+   159→   159→
+   160→   160→  // Auto-open sidebar on desktop, auto-close on mobile
+   161→   161→  useEffect(() => {
+   162→   162→    const handleResize = () => {
+   163→   163→      const mobile = window.innerWidth < MOBILE_BREAKPOINT;
+   164→   164→      setIsMobile(mobile);
+   165→   165→      if (!mobile) {
+   166→   166→        setSidebarOpen(true);
+   167→   167→        setSidebarCollapsed(false);
+   168→   168→      } else {
+   169→   169→        setSidebarOpen(false);
+   170→   170→      }
+   171→   171→    };
+   172→   172→    handleResize();
+   173→   173→    window.addEventListener('resize', handleResize);
+   174→   174→    return () => window.removeEventListener('resize', handleResize);
+   175→   175→  }, []);
+   176→   176→
+   177→   177→  const searchRef = useRef<HTMLDivElement>(null);
+   178→   178→
+   179→   179→  // 22 — Helper: check if user is typing in an input field
+   180→   180→  const isUserTyping = useCallback((e: KeyboardEvent): boolean => {
+   181→   181→    const target = e.target as HTMLElement;
+   182→   182→    if (!target) return false;
+   183→   183→    const tagName = target.tagName.toLowerCase();
+   184→   184→    // Check if target is input, textarea, or contenteditable
+   185→   185→    if (tagName === 'input' || tagName === 'textarea') return true;
+   186→   186→    if (target.isContentEditable) return true;
+   187→   187→    // Also check if target is inside a cmdk input (command palette)
+   188→   188→    if (target.closest('[cmdk-input]')) return true;
+   189→   189→    return false;
+   190→   190→  }, []);
+   191→   191→
+   192→   192→  // 22 — Global keyboard shortcuts (single useEffect with keydown listener)
+   193→   193→  const handleKeyDown = useCallback(
+   194→   194→    (e: KeyboardEvent) => {
+   195→   195→      // Command Palette: Cmd/Ctrl+K (new shortcut, replaces old calculator shortcut)
+   196→   196→      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'k') {
+   197→   197→        e.preventDefault();
+   198→   198→        setCommandPaletteOpen(true);
+   199→   199→        markOnboardingStep('use_command_palette');
+   200→   200→        return;
+   201→   201→      }
+   202→   202→
+   203→   203→      // Calculator: Cmd/Ctrl+Shift+K (moved from Ctrl+K)
+   204→   204→      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
+   205→   205→        e.preventDefault();
+   206→   206→        toggleOpen();
+   207→   207→        markOnboardingStep('use_calculator');
+   208→   208→        return;
+   209→   209→      }
+   210→   210→
+   211→   211→      // Search: Cmd/Ctrl+Shift+F
+   212→   212→      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+   213→   213→        e.preventDefault();
+   214→   214→        setHeaderSearchOpen(true);
+   215→   215→        markOnboardingStep('use_search');
+   216→   216→        setTimeout(() => {
+   217→   217→          const input = searchRef.current?.querySelector('input');
+   218→   218→          if (input) input.focus();
+   219→   219→        }, 50);
+   220→   220→        return;
+   221→   221→      }
+   222→   222→
+   223→   223→      // Undo: Cmd/Ctrl+Z
+   224→   224→      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+   225→   225→        e.preventDefault();
+   226→   226→        const action = popAction();
+   227→   227→        if (action) {
+   228→   228→          // Note: actual undo logic would be implemented per action type
+   229→   229→          // This just pops from the stack; the real undo needs to be wired per action
+   230→   230→          console.log('Undo action:', action.description);
+   231→   231→        }
+   232→   232→        return;
+   233→   233→      }
+   234→   234→
+   235→   235→      // Single-key shortcuts only work when user is NOT typing
+   236→   236→      if (isUserTyping(e)) return;
+   237→   237→
+   238→   238→      // Only process single-key shortcuts when no dialog/palette is open
+   239→   239→      if (commandPaletteOpen) return;
+   240→   240→
+   241→   241→      // New Note: N key
+   242→   242→      if (e.key === 'n' || e.key === 'N') {
+   243→   243→        e.preventDefault();
+   244→   244→        setPaletteCreateType('note');
+   245→   245→        setPaletteCreateDialogOpen(true);
+   246→   246→        return;
+   247→   247→      }
+   248→   248→
+   249→   249→      // New Folder: F key
+   250→   250→      if (e.key === 'f' || e.key === 'F') {
+   251→   251→        e.preventDefault();
+   252→   252→        setPaletteCreateType('folder');
+   253→   253→        setPaletteCreateDialogOpen(true);
+   254→   254→        return;
+   255→   255→      }
+   256→   256→
+   257→   257→      // Delete selected: Delete/Backspace key
+   258→   258→      if (e.key === 'Delete' || e.key === 'Backspace') {
+   259→   259→        const selectedIds = Array.from(selectedNodeIds);
+   260→   260→        if (selectedIds.length > 0) {
+   261→   261→          e.preventDefault();
+   262→   262→          // Delete the first selected item
+   263→   263→          deleteMutation.mutate({ nodeId: selectedIds[0] });
+   264→   264→        }
+   265→   265→        return;
+   266→   266→      }
+   267→   267→    },
+   268→   268→    [toggleOpen, isUserTyping, popAction, commandPaletteOpen, selectedNodeIds, deleteMutation]
+   269→   269→  );
+   270→   270→
+   271→   271→  useEffect(() => {
+   272→   272→    document.addEventListener('keydown', handleKeyDown);
+   273→   273→    return () => document.removeEventListener('keydown', handleKeyDown);
+   274→   274→  }, [handleKeyDown]);
+   275→   275→
+   276→   276→  // Navigate to node from header search
+   277→   277→  const handleHeaderSearchNavigate = useCallback((
+   278→   278→    nodeId: string,
+   279→   279→    nodeType: string,
+   280→   280→    parentId: string | null
+   281→   281→  ) => {
+   282→   282→    setHeaderSearchOpen(false);
+   283→   283→    if (nodeType === 'folder') {
+   284→   284→      const folderNode = flatNodes.get(nodeId);
+   285→   285→      if (folderNode) {
+   286→   286→        setCurrentFolder(nodeId, []);
+   287→   287→      }
+   288→   288→    } else if (nodeType === 'note') {
+   289→   289→      if (parentId) {
+   290→   290→        setCurrentFolder(parentId, []);
+   291→   291→      }
+   292→   292→    } else {
+   293→   293→      if (parentId) {
+   294→   294→        setCurrentFolder(parentId, []);
+   295→   295→      }
+   296→   296→    }
+   297→   297→  }, [flatNodes, setCurrentFolder]);
+   298→   298→
+   299→   299→  // Handle sidebar toggle
+   300→   300→  const toggleSidebar = useCallback(() => {
+   301→   301→    if (isMobile) {
+   302→   302→      setSidebarOpen(prev => !prev);
+   303→   303→    } else {
+   304→   304→      if (sidebarOpen) {
+   305→   305→        setSidebarCollapsed(!sidebarCollapsed);
+   306→   306→      } else {
+   307→   307→        setSidebarOpen(true);
+   308→   308→        setSidebarCollapsed(false);
+   309→   309→      }
+   310→   310→    }
+   311→   311→  }, [isMobile, sidebarOpen, sidebarCollapsed]);
+   312→   312→
+   313→   313→  // Close sidebar (for backdrop click or swipe-down on mobile)
+   314→   314→  const closeSidebar = useCallback(() => {
+   315→   315→    setSidebarOpen(false);
+   316→   316→  }, []);
+   317→   317→
+   318→   318→  // Drag state for mobile bottom-sheet
+   319→   319→  const sheetY = useMotionValue(0);
+   320→   320→  const sheetOpacity = useTransform(sheetY, [0, 200], [1, 0]);
+   321→   321→
+   322→   322→  // Handle pan gesture on bottom sheet
+   323→   323→  const handleSheetPan = useCallback((event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+   324→   324→    if (info.offset.y > 80) {
+   325→   325→      closeSidebar();
+   326→   326→    }
+   327→   327→  }, [closeSidebar]);
+   328→   328→
+   329→   329→
+   330→   330→
+   331→   331→  return (
+   332→   332→    <WorkspaceDndProvider>
+   333→   333→      <TooltipProvider>
+   334→   334→        <div className="min-h-screen flex flex-col bg-background">
+   335→   335→          {/* 29 — Skip-to-content link for keyboard users */}
+   336→   336→          <a
+   337→   337→            href="#main-content"
+   338→   338→            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md focus:text-sm focus:font-medium focus:shadow-lg"
+   339→   339→          >
+   340→   340→            Skip to main content
+   341→   341→          </a>
+   342→   342→
+   343→   343→          {/* Header */}
+   344→   344→          <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+   345→   345→            <div className="flex items-center h-14 px-4 gap-4">
+   346→   346→              <Button
+   347→   347→                variant="ghost"
+   348→   348→                size="icon"
+   349→   349→                className="shrink-0 min-h-[44px] min-w-[44px]"
+   350→   350→                onClick={toggleSidebar}
+   351→   351→                aria-label={sidebarOpen ? (isMobile ? 'Close sidebar' : 'Collapse sidebar') : 'Open sidebar'}
+   352→   352→              >
+   353→   353→                {!sidebarOpen ? (
+   354→   354→                  <PanelLeftOpen className="h-5 w-5" />
+   355→   355→                ) : (
+   356→   356→                  <PanelLeftClose className="h-5 w-5" />
+   357→   357→                )}
+   358→   358→              </Button>
+   359→   359→
+   360→   360→              {/* 40-41 — Workspace Switcher replaces static logo */}
+   361→   361→              <WorkspaceSwitcher />
+   362→   362→
+   363→   363→              <div className="flex-1" />
+   364→   364→
+   365→   365→              {/* Search button + command palette trigger */}
+   366→   366→              <div className="flex items-center gap-2">
+   367→   367→                {!headerSearchOpen ? (
+   368→   368→                  <Button
+   369→   369→                    variant="ghost"
+   370→   370→                    size="sm"
+   371→   371→                    className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground min-h-[44px]"
+   372→   372→                    onClick={() => setCommandPaletteOpen(true)}
+   373→   373→                    aria-label="Open command palette"
+   374→   374→                  >
+   375→   375→                    <Search className="h-4 w-4" />
+   376→   376→                    <span className="text-sm">Search</span>
+   377→   377→                    <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+   378→   378→                      ⌘K
+   379→   379→                    </kbd>
+   380→   380→                  </Button>
+   381→   381→                ) : (
+   382→   382→                  <div ref={searchRef} className="w-64">
+   383→   383→                    <SearchDropdown
+   384→   384→                      onNavigateToNode={handleHeaderSearchNavigate}
+   385→   385→                      className="w-64"
+   386→   386→                    />
+   387→   387→                  </div>
+   388→   388→                )}
+   389→   389→
+   390→   390→                {/* Mobile search/command palette button */}
+   391→   391→                {!headerSearchOpen && (
+   392→   392→                  <Button
+   393→   393→                    variant="ghost"
+   394→   394→                    size="icon"
+   395→   395→                    className="md:hidden min-h-[44px] min-w-[44px]"
+   396→   396→                    onClick={() => setCommandPaletteOpen(true)}
+   397→   397→                    aria-label="Open command palette"
+   398→   398→                  >
+   399→   399→                    <Search className="h-5 w-5" />
+   400→   400→                  </Button>
+   401→   401→                )}
+   402→   402→              </div>
+   403→   403→
+   404→   404→              <div className="flex items-center gap-3">
+   405→   405→                {/* MODUL 47 — Locale switcher */}
+   406→   406→                <LocaleSwitcher />
+   407→   407→
+   408→   408→                {/* Notification badge */}
+   409→   409→                <NotificationBadge />
+   410→   410→
+   411→   411→                {/* Calculator toggle button — updated shortcut tooltip */}
+   412→   412→                <Tooltip>
+   413→   413→                  <TooltipTrigger asChild>
+   414→   414→                    <Button
+   415→   415→                      variant={isOpen ? 'secondary' : 'ghost'}
+   416→   416→                      size="icon"
+   417→   417→                      className="h-9 w-9 shrink-0 min-h-[44px] min-w-[44px]"
+   418→   418→                      onClick={toggleOpen}
+   419→   419→                      aria-label="Toggle calculator (Ctrl+Shift+K)"
+   420→   420→                    >
+   421→   421→                      <Calculator className={`h-4 w-4 ${isOpen ? 'text-orange-500' : 'text-muted-foreground'}`} />
+   422→   422→                    </Button>
+   423→   423→                  </TooltipTrigger>
+   424→   424→                  <TooltipContent>
+   425→   425→                    <p>Calculator (Ctrl+Shift+K)</p>
+   426→   426→                  </TooltipContent>
+   427→   427→                </Tooltip>
+   428→   428→
+   429→   429→                {/* User menu dropdown */}
+   430→   430→                <DropdownMenu>
+   431→   431→                  <DropdownMenuTrigger asChild>
+   432→   432→                    <Button variant="ghost" className="flex items-center gap-2 h-auto p-1 rounded-full min-h-[44px] min-w-[44px]" aria-label={`User menu for ${user?.name || user?.email || 'User'}`}>
+   433→   433→                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium">
+   434→   434→                        {user?.name?.charAt(0) || user?.email?.charAt(0) || '?'}
+   435→   435→                      </div>
+   436→   436→                      <span className="hidden sm:inline text-sm text-muted-foreground">{user?.email}</span>
+   437→   437→                    </Button>
+   438→   438→                  </DropdownMenuTrigger>
+   439→   439→                  <DropdownMenuContent align="end" className="w-56">
+   440→   440→                    <DropdownMenuLabel>
+   441→   441→                      <div className="flex flex-col">
+   442→   442→                        <span className="font-medium">{user?.name || 'User'}</span>
+   443→   443→                        <span className="text-xs text-muted-foreground">{user?.email}</span>
+   444→   444→                      </div>
+   445→   445→                    </DropdownMenuLabel>
+   446→   446→                    <DropdownMenuSeparator />
+   447→   447→                    {currentWorkspaceId && (currentWorkspaceRole === 'owner' || currentWorkspaceRole === 'admin') && (
+   448→   448→                      <DropdownMenuItem
+   449→   449→                        onClick={() => setWorkspaceSettingsOpen(true)}
+   450→   450→                      >
+   451→   451→                        <Building2 className="h-4 w-4 mr-2" />
+   452→   452→                        Workspace Settings
+   453→   453→                      </DropdownMenuItem>
+   454→   454→                    )}
+   455→   455→                    <DropdownMenuItem
+   456→   456→                      onClick={() => setInvitationViewOpen(true)}
+   457→   457→                    >
+   458→   458→                      <Mail className="h-4 w-4 mr-2" />
+   459→   459→                      Invitations
+   460→   460→                    </DropdownMenuItem>
+   461→   461→                    <DropdownMenuItem
+   462→   462→                      onClick={() => setSettingsDialogOpen(true)}
+   463→   463→                    >
+   464→   464→                      <Settings className="h-4 w-4 mr-2" />
+   465→   465→                      Settings
+   466→   466→                    </DropdownMenuItem>
+   467→   467→                    <DropdownMenuSeparator />
+   468→   468→                    <DropdownMenuItem
+   469→   469→                      onClick={() => {
+   470→   470→                        useAuthStore.getState().logout();
+   471→   471→                        signOut({ redirect: false });
+   472→   472→                      }}
+   473→   473→                      className="text-destructive focus:text-destructive"
+   474→   474→                    >
+   475→   475→                      <LogOut className="h-4 w-4 mr-2" />
+   476→   476→                      Sign Out
+   477→   477→                    </DropdownMenuItem>
+   478→   478→                  </DropdownMenuContent>
+   479→   479→                </DropdownMenu>
+   480→   480→              </div>
+   481→   481→            </div>
+   482→   482→          </header>
+   483→   483→
+   484→   484→          {/* Main content: sidebar + workspace */}
+   485→   485→          <div className="flex-1 flex overflow-hidden relative">
+   486→   486→            {/* 29 — aria-live region for toast announcements */}
+   487→   487→            <div aria-live="polite" aria-atomic="true" className="sr-only" id="a11y-announcements" />
+   488→   488→
+   489→   489→            {/* ===== Mobile: Bottom-sheet drawer pattern ===== */}
+   490→   490→            {isMobile && (
+   491→   491→              <AnimatePresence initial={false}>
+   492→   492→                {sidebarOpen && (
+   493→   493→                  <>
+   494→   494→                    {/* Backdrop */}
+   495→   495→                    <motion.div
+   496→   496→                      initial={{ opacity: 0 }}
+   497→   497→                      animate={{ opacity: 1 }}
+   498→   498→                      exit={{ opacity: 0 }}
+   499→   499→                      transition={{ duration: 0.2 }}
+   500→   500→                      className="fixed inset-0 bg-black/40 z-20"
+   501→   501→                      onClick={closeSidebar}
+   502→   502→                      role="button"
+   503→   503→                      tabIndex={-1}
+   504→   504→                      aria-label="Close sidebar overlay"
+   505→   505→                    />
+   506→   506→
+   507→   507→                    {/* Bottom sheet */}
+   508→   508→                    <motion.aside
+   509→   509→                      role="complementary"
+   510→   510→                      aria-label="Sidebar navigation"
+   511→   511→                      initial={{ y: '100%' }}
+   512→   512→                      animate={{ y: 0 }}
+   513→   513→                      exit={{ y: '100%' }}
+   514→   514→                      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+   515→   515→                      drag="y"
+   516→   516→                      dragConstraints={{ top: 0 }}
+   517→   517→                      dragElastic={0.2}
+   518→   518→                      onDragEnd={handleSheetPan}
+   519→   519→                      style={{ y: sheetY, opacity: sheetOpacity }}
+   520→   520→                      className="fixed bottom-0 left-0 right-0 z-20 bg-sidebar border-t border-border rounded-t-2xl overflow-hidden shadow-xl"
+   521→   521→                    >
+   522→   522→                      {/* Drag handle bar */}
+   523→   523→                      <div className="flex items-center justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
+   524→   524→                        <div className="w-12 h-1.5 rounded-full bg-neutral-300 dark:bg-neutral-700" />
+   525→   525→                      </div>
+   526→   526→
+   527→   527→                      {/* Close button */}
+   528→   528→                      <div className="absolute top-3 right-3">
+   529→   529→                        <Button
+   530→   530→                          variant="ghost"
+   531→   531→                          size="icon"
+   532→   532→                          className="h-8 w-8 min-h-[44px] min-w-[44px]"
+   533→   533→                          onClick={closeSidebar}
+   534→   534→                          aria-label="Close sidebar"
+   535→   535→                        >
+   536→   536→                          <X className="h-4 w-4" />
+   537→   537→                        </Button>
+   538→   538→                      </div>
+   539→   539→
+   540→   540→                      {/* Sheet content */}
+   541→   541→                      <div className="h-[60vh] overflow-auto">
+   542→   542→                        <Sidebar collapsed={false} />
+   543→   543→                      </div>
+   544→   544→                    </motion.aside>
+   545→   545→                  </>
+   546→   546→                )}
+   547→   547→              </AnimatePresence>
+   548→   548→            )}
+   549→   549→
+   550→   550→            {/* ===== Desktop: Left-side sidebar ===== */}
+   551→   551→            {!isMobile && (
+   552→   552→              <AnimatePresence initial={false}>
+   553→   553→                {sidebarOpen && (
+   554→   554→                  <motion.aside
+   555→   555→                    role="complementary"
+   556→   556→                    aria-label="Sidebar navigation"
+   557→   557→                    initial={{ width: 0 }}
+   558→   558→                    animate={{ width: sidebarCollapsed ? 60 : 280 }}
+   559→   559→                    exit={{ width: 0 }}
+   560→   560→                    transition={{ duration: 0.2, ease: 'easeInOut' }}
+   561→   561→                    className="shrink-0 border-r border-border bg-sidebar overflow-hidden relative"
+   562→   562→                  >
+   563→   563→                    <Sidebar collapsed={sidebarCollapsed} />
+   564→   564→                  </motion.aside>
+   565→   565→                )}
+   566→   566→              </AnimatePresence>
+   567→   567→            )}
+   568→   568→
+   569→   569→            {/* Content area */}
+   570→   570→            <main id="main-content" className="flex-1 overflow-auto min-w-0">
+   571→   571→              {activeView === 'trash' ? (
+   572→   572→                <TrashView />
+   573→   573→              ) : activeView === 'admin' ? (
+   574→   574→                <AdminDashboard />
+   575→   575→              ) : (
+   576→   576→                <ContentArea />
+   577→   577→              )}
+   578→   578→            </main>
+   579→   579→          </div>
+   580→   580→
+   581→   581→          {/* Sticky footer */}
+   582→   582→          <footer className="mt-auto border-t border-border bg-background px-4 py-3 text-center text-xs text-muted-foreground">
+   583→   583→            <p>Unified Workspace &copy; 2024 — Drive + Notes + Calculator</p>
+   584→   584→          </footer>
+   585→   585→
+   586→   586→          {/* Floating Calculator Widget */}
+   587→   587→          <AnimatePresence>
+   588→   588→            {isOpen && <CalculatorWidget />}
+   589→   589→          </AnimatePresence>
+   590→   590→
+   591→   591→          {/* 22 — Command Palette */}
+   592→   592→          <CommandPalette
+   593→   593→            open={commandPaletteOpen}
+   594→   594→            onOpenChange={setCommandPaletteOpen}
+   595→   595→            onCreateNote={handlePaletteCreateNote}
+   596→   596→            onCreateFolder={handlePaletteCreateFolder}
+   597→   597→          />
+   598→   598→
+   599→   599→          {/* 22 — Create Dialog (triggered from command palette shortcuts) */}
+   600→   600→          <CreateDialog
+   601→   601→            open={paletteCreateDialogOpen}
+   602→   602→            onOpenChange={setPaletteCreateDialogOpen}
+   603→   603→            type={paletteCreateType}
+   604→   604→          />
+   605→   605→
+   606→   606→          {/* 39 — Onboarding: Welcome Slides */}
+   607→   607→          <AnimatePresence>
+   608→   608→            {showWelcomeSlides && (
+   609→   609→              <WelcomeSlides
+   610→   610→                onComplete={handleWelcomeComplete}
+   611→   611→                onDismiss={handleWelcomeDismiss}
+   612→   612→              />
+   613→   613→            )}
+   614→   614→          </AnimatePresence>
+   615→   615→
+   616→   616→          {/* 39 — Onboarding: Checklist Widget */}
+   617→   617→          {onboardingData && !onboardingData.dismissedAt && !showWelcomeSlides && (
+   618→   618→            <OnboardingChecklist onDismiss={handleOnboardingDismiss} />
+   619→   619→          )}
+   620→   620→
+   621→   621→          {/* PWA Install Prompt */}
+   622→   622→          <InstallPrompt />
+   623→   623→
+   624→   624→          {/* 40-41 — Workspace Settings Dialog */}
+   625→   625→          <WorkspaceSettingsDialog
+   626→   626→            open={workspaceSettingsOpen}
+   627→   627→            onOpenChange={setWorkspaceSettingsOpen}
+   628→   628→          />
+   629→   629→
+   630→   630→          {/* 40-41 — Workspace Invitation View */}
+   631→   631→          <WorkspaceInvitationView
+   632→   632→            open={invitationViewOpen}
+   633→   633→            onOpenChange={setInvitationViewOpen}
+   634→   634→          />
+   635→   635→
+   636→   636→          {/* 28/42-44 — Settings Dialog (Data Portability + Billing + API Keys + Webhooks) */}
+   637→   637→          <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+   638→   638→            <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+   639→   639→              <DialogHeader>
+   640→   640→                <DialogTitle>Settings</DialogTitle>
+   641→   641→                <DialogDescription>
+   642→   642→                  Manage your data, billing, API keys, and webhook subscriptions.
+   643→   643→                </DialogDescription>
+   644→   644→              </DialogHeader>
+   645→   645→              <WorkspaceAdvancedSettings
+   646→   646→                workspaceId={currentWorkspaceId}
+   647→   647→                planTier={currentWorkspaceId ? (workspaces.find(w => w.id === currentWorkspaceId)?.planTier || 'free') : undefined}
+   648→   648→              />
+   649→   649→            </DialogContent>
+   650→   650→          </Dialog>
+   651→   651→        </div>
+   652→   652→      </TooltipProvider>
+   653→   653→    </WorkspaceDndProvider>
+   654→   654→  );
+   655→   655→}
+   656→   656→

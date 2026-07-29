@@ -117,7 +117,7 @@ export function FileTreeItem({ node, depth }: FileTreeItemProps) {
         ref={combinedRef}
         className={`
           group flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer
-          transition-colors text-sm
+          transition-colors text-sm min-w-0
           ${isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'}
           ${isHighlighted ? 'ring-2 ring-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20' : ''}
           ${thisItemDragging ? 'opacity-30' : ''}
@@ -150,7 +150,7 @@ export function FileTreeItem({ node, depth }: FileTreeItemProps) {
           </button>
         )}
 
-        {!isFolder && <span className="w-5 shrink-0" />}
+        {!isFolder && <span className="w-4 shrink-0" />}
 
         {/* Icon */}
         <span className="shrink-0">{getIcon()}</span>

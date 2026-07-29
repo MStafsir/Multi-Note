@@ -63,3 +63,27 @@ Stage Summary:
 - Server-side logging now includes content-length header for body size diagnostics
 - GET endpoint added for upload diagnostics
 - No code changes needed to the upload route's MIME handling — it already correctly maps .pdf → application/pdf
+
+---
+Task ID: sidebar-ui-fix
+Agent: Main Agent
+Task: Fix Left Sidebar UI/CSS issues — action buttons overflow, file tree text truncation, and add resizable sidebar
+
+Work Log:
+- Examined sidebar component (sidebar.tsx), workspace-layout.tsx, file-tree-item.tsx, file-tree-view.tsx
+- Identified root causes: sidebar width was fixed at 280px (too narrow), action buttons using flex-1 causing truncation, file tree items missing min-w-0, ScrollArea not properly bounded
+- **Action Buttons Fix**: Changed from `flex gap-2` to `grid grid-cols-3 gap-1.5` layout with smaller text-xs labels and compact padding. Added `truncate` class to button text spans.
+- **File Tree Fix**: Added `min-w-0` to file tree item container div, changed non-folder spacer from `w-5` to `w-4` to save space, ensured `truncate min-w-0 flex-1` on name span works correctly.
+- **Sidebar Width**: Increased default from 280px to 320px, min from 240px to 260px, max from 480px to 520px.
+- **Resizable Sidebar**: Implemented mouse drag resize in workspace-layout.tsx — added `sidebarWidth` state, `handleSidebarResizeStart` callback, and a visible resize handle on the right edge of the sidebar with visual indicator.
+- **Sidebar Overflow**: Added `overflow-hidden w-full` to sidebar root div, `flex-1 min-h-0 overflow-hidden` to nav element, `h-full` to ScrollArea.
+- **Workspace Quick Links**: Added `flex-wrap` and `shrink-0` to quick link buttons, wrapped text in `<span className="truncate">`.
+- **Verified with Agent Browser + VLM**: Buttons visible with full text, file tree items properly truncated with ellipsis, resize handle functional (tested drag from 320px to 402px), mobile view correctly hides sidebar.
+
+Stage Summary:
+- Default sidebar width increased from 280px to 320px with resizable support (260-520px range)
+- Action buttons now use CSS Grid (3-column) instead of flex, preventing text truncation
+- File tree items properly truncate long names with ellipsis
+- Resize handle added on right edge of sidebar — drag to resize, with visual indicator
+- All changes verified via Agent Browser and VLM analysis
+- Lint passes cleanly

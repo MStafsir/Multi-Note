@@ -225,7 +225,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden w-full">
       {/* 40-41 — Workspace context indicator */}
       {currentWorkspaceId && (
         <div className="px-4 py-2 bg-primary/5 border-b border-primary/10">
@@ -239,34 +239,34 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
 
       {/* 40-41 — Workspace quick links (when in workspace context) */}
       {currentWorkspaceId && (currentWorkspaceRole === 'owner' || currentWorkspaceRole === 'admin') && (
-        <div className="px-3 py-1 flex gap-1">
+        <div className="px-3 py-1 flex gap-1 flex-wrap">
           <button
             onClick={() => setWorkspaceSettingsOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm"
+            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm shrink-0"
             aria-label="Workspace settings"
           >
             <Settings className="h-3.5 w-3.5" />
-            Settings
+            <span className="truncate">Settings</span>
           </button>
           <button
             onClick={() => setWorkspaceMembersOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm"
+            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm shrink-0"
             aria-label="Workspace members"
           >
             <Users className="h-3.5 w-3.5" />
-            Members
+            <span className="truncate">Members</span>
           </button>
         </div>
       )}
       {currentWorkspaceId && currentWorkspaceRole !== 'owner' && currentWorkspaceRole !== 'admin' && (
-        <div className="px-3 py-1 flex gap-1">
+        <div className="px-3 py-1 flex gap-1 flex-wrap">
           <button
             onClick={() => setWorkspaceMembersOpen(true)}
-            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm"
+            className="flex items-center gap-1.5 px-2 py-1.5 min-h-[44px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors rounded-sm shrink-0"
             aria-label="Workspace members"
           >
             <Users className="h-3.5 w-3.5" />
-            Members
+            <span className="truncate">Members</span>
           </button>
         </div>
       )}
@@ -283,20 +283,20 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 min-h-[44px]"
+                className="min-h-[44px] flex items-center justify-center gap-1 px-1"
                 onClick={() => {
                   setCreateType('folder');
                   setCreateDialogOpen(true);
                 }}
               >
-                <FolderPlus className="h-4 w-4 mr-1" />
-                Folder
+                <FolderPlus className="h-4 w-4 shrink-0" />
+                <span className="truncate text-xs">Folder</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -308,14 +308,14 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 min-h-[44px]"
+                className="min-h-[44px] flex items-center justify-center gap-1 px-1"
                 onClick={() => {
                   setCreateType('note');
                   setCreateDialogOpen(true);
                 }}
               >
-                <FileText className="h-4 w-4 mr-1" />
-                Note
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate text-xs">Note</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -327,14 +327,14 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 min-h-[44px]"
+                className="min-h-[44px] flex items-center justify-center gap-1 px-1"
                 onClick={() => {
                   // Trigger file upload via a global event
                   window.dispatchEvent(new CustomEvent('workspace-upload-trigger'));
                 }}
               >
-                <Upload className="h-4 w-4 mr-1" />
-                Upload
+                <Upload className="h-4 w-4 shrink-0" />
+                <span className="truncate text-xs">Upload</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -347,8 +347,8 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       <Separator />
 
       {/* Navigation — 29: semantic <nav> */}
-      <nav aria-label="Folder navigation">
-        <ScrollArea className="flex-1">
+      <nav aria-label="Folder navigation" className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full">
           <div className="p-2">
             <FileTreeView />
           </div>

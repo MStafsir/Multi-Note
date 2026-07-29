@@ -52,11 +52,49 @@ import { markOnboardingStep } from '@/components/onboarding/onboarding-checklist
 // Mobile breakpoint constant
 const MOBILE_BREAKPOINT = 640;
 
+// Sidebar resize constants
+const SIDEBAR_MIN_WIDTH = 260;
+const SIDEBAR_MAX_WIDTH = 520;
+const SIDEBAR_DEFAULT_WIDTH = 320;
+const SIDEBAR_COLLAPSED_WIDTH = 60;
+
 export function WorkspaceLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [headerSearchOpen, setHeaderSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Sidebar resize: drag handler
+  const sidebarResizeRef = useRef<HTMLDivElement>(null);
+  const isResizingRef = useRef(false);
+
+  const handleSidebarResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const delta = moveEvent.clientX - startX;
+      const newWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, startWidth + delta));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [sidebarWidth]);
 
   // 22 — Command palette state
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -555,12 +593,24 @@ export function WorkspaceLayout() {
                     role="complementary"
                     aria-label="Sidebar navigation"
                     initial={{ width: 0 }}
-                    animate={{ width: sidebarCollapsed ? 60 : 280 }}
+                    animate={{ width: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth }}
                     exit={{ width: 0 }}
                     transition={{ duration: 0.2, ease: 'easeInOut' }}
                     className="shrink-0 border-r border-border bg-sidebar overflow-hidden relative"
                   >
                     <Sidebar collapsed={sidebarCollapsed} />
+                    {/* Resize handle — only visible when sidebar is expanded */}
+                    {!sidebarCollapsed && (
+                      <div
+                        ref={sidebarResizeRef}
+                        onMouseDown={handleSidebarResizeStart}
+                        className="absolute top-0 right-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10 group"
+                        aria-label="Resize sidebar"
+                        role="separator"
+                      >
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-10 bg-muted-foreground/30 rounded-full group-hover:bg-primary/50 transition-colors" />
+                      </div>
+                    )}
                   </motion.aside>
                 )}
               </AnimatePresence>
