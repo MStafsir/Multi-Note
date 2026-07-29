@@ -249,8 +249,19 @@ export function useUploadFile() {
               errorMessage = errorData.error;
             }
           } catch {
-            // Response body is not JSON — use default error message
+            // Response body is not JSON — try to read as text for more detail
+            try {
+              const textBody = await res.text();
+              if (textBody) {
+                // Truncate long HTML error pages
+                const snippet = textBody.length > 200 ? textBody.substring(0, 200) + '…' : textBody;
+                errorMessage = `Upload failed (${res.status}): ${snippet}`;
+              }
+            } catch {
+              // Can't read response body at all
+            }
           }
+          console.error('[Upload] Upload failed:', res.status, errorMessage);
           updateUpload(fileId, { status: 'error', error: errorMessage });
           throw new Error(errorMessage);
         }

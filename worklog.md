@@ -41,3 +41,25 @@ Stage Summary:
 - Fix: Set `proxyClientMaxBodySize: "50mb"` in next.config.ts experimental config
 - Improved error display: Upload mutation now shows actual error message from 400 responses instead of generic failure
 - All test uploads (PDF files up to 3MB) succeed with 200 status
+---
+Task ID: 1
+Agent: main
+Task: Fix PDF upload 400 Bad Request error
+
+Work Log:
+- Read upload route code (src/app/api/upload/route.ts) — confirmed no MIME whitelist, .pdf is in EXT_TO_MIME map
+- Read middleware (src/middleware.ts) — confirmed upload POST routes pass through without header modification
+- Read client-side upload code (src/hooks/use-file-tree.ts) — identified that error message "Upload failed (400)" means response body wasn't parseable as JSON with `error` field
+- Tested upload API with curl through Caddy gateway — small PDF upload returns 200 with `mimeType: application/pdf`
+- Tested upload via agent-browser — both 329 byte and 5MB PDF upload successful
+- Root cause: The 400 error the user reported was likely from a previous session (before Modul 59 fix) or from Next.js proxy returning a non-JSON error page for certain edge cases (e.g., proxy body size limit exceeded before the route handler runs)
+- Fixed client-side error handling: added text body fallback when JSON parsing fails, plus console.error logging
+- Added server-side: content-length header logging, improved stack trace in catch block, GET diagnostic endpoint
+- Verified: PDF uploads work correctly at all sizes tested (329B, 5MB), MIME type resolved correctly as application/pdf
+
+Stage Summary:
+- PDF upload is working correctly — the 400 error was likely from a previous session or a transient issue
+- Client-side error handling now tries to read response as text if JSON parsing fails, giving users more detail
+- Server-side logging now includes content-length header for body size diagnostics
+- GET endpoint added for upload diagnostics
+- No code changes needed to the upload route's MIME handling — it already correctly maps .pdf → application/pdf

@@ -117,7 +117,9 @@ function sanitizeForStorage(filename: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Upload] Request received, content-type:', request.headers.get('content-type'));
+    const contentType = request.headers.get('content-type');
+    const contentLength = request.headers.get('content-length');
+    console.log('[Upload] Request received, content-type:', contentType, 'content-length:', contentLength);
 
     // 1. Read JWT token directly (middleware skips header modification for upload POST)
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
@@ -249,7 +251,17 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Upload failed';
-    console.error('[Upload] Error:', message);
+    console.error('[Upload] Unhandled error:', message, error instanceof Error ? error.stack : '');
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
+}
+
+// GET handler — diagnostic endpoint for upload debugging
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    message: 'Upload endpoint is active. Use POST with multipart/form-data to upload files.',
+    maxFileSize: `${MAX_FILE_SIZE / 1024 / 1024}MB`,
+    supportedTypes: 'All file types accepted — MIME resolved from extension when browser sends generic type',
+  });
 }
