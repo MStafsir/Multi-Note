@@ -63,4 +63,4 @@ server.log
 worklog.md
 
 # Mini services node_modules
-/mini-services/*/node_modules/
+/mini-services/*/node_modules/.github/workflows/
