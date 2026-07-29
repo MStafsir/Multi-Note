@@ -590,3 +590,21 @@ Stage Summary:
 - CSP no longer blocks pdfjs worker (uses local worker instead of CDN)
 - PDF preview should work without CSP violations
 - Server is running stably on port 3000 via production daemon
+
+---
+Task ID: 3
+Agent: main
+Task: Fix Service Worker infinite loop causing 707+ errors and blank page
+
+Work Log:
+- Diagnosed the root cause: sw.js line 184 called `networkResponse.clone()` INSIDE the `caches.open().then()` async callback — by the time the callback runs, the Response body has already been consumed by the browser, so `clone()` throws "Failed to execute 'clone' on 'Response': Response body is already used"
+- This error fires on EVERY static asset request (JS, CSS, images, fonts), causing 707+ errors that flood the console and break the page
+- Fixed by moving `networkResponse.clone()` to execute synchronously BEFORE the async `caches.open()` call (same pattern already used correctly in `fetchAndCacheBlob`)
+- Bumped cache version from v1 to v2 to force old buggy SW to be replaced
+- Rebuilt production server, restarted daemon, verified via browser agent
+
+Stage Summary:
+- Service Worker clone() bug fixed — no more infinite error loop
+- Cache version bumped to v2 — forces SW update on all clients
+- Page loads correctly with zero errors
+- All workspace features functional: sidebar, file tree, upload, grid view

@@ -13,8 +13,8 @@
 // ============================================================
 
 var CACHE_NAMES = {
-  blobs: 'preview-blobs-v1',
-  static: 'static-v1',
+  blobs: 'preview-blobs-v2',
+  static: 'static-v2',
 };
 
 var BLOB_MAX_ENTRIES = 200;
@@ -180,8 +180,11 @@ function handleStaticFetch(event) {
       }
       return fetch(event.request).then(function(networkResponse) {
         if (networkResponse.status === 200) {
+          // Clone MUST happen synchronously before the body is consumed
+          // by the async caches.open() promise — otherwise clone() fails
+          var responseToCache = networkResponse.clone();
           caches.open(CACHE_NAMES.static).then(function(cache) {
-            cache.put(event.request, networkResponse.clone());
+            cache.put(event.request, responseToCache);
           });
         }
         return networkResponse;

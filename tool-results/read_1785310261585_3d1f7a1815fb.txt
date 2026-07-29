@@ -1,0 +1,2002 @@
+     1→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+     2→    at sw.js:184:54
+     3→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+     4→    at sw.js:184:54
+     5→(anonymous) @ sw.js:184
+     6→Promise.then
+     7→(anonymous) @ sw.js:183
+     8→Promise.then
+     9→(anonymous) @ sw.js:181
+    10→Promise.then
+    11→handleStaticFetch @ sw.js:177
+    12→(anonymous) @ sw.js:75
+    13→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    14→    at sw.js:184:54
+    15→(anonymous) @ sw.js:184
+    16→Promise.then
+    17→(anonymous) @ sw.js:183
+    18→Promise.then
+    19→(anonymous) @ sw.js:181
+    20→Promise.then
+    21→handleStaticFetch @ sw.js:177
+    22→(anonymous) @ sw.js:75
+    23→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    24→    at sw.js:184:54
+    25→(anonymous) @ sw.js:184
+    26→Promise.then
+    27→(anonymous) @ sw.js:183
+    28→Promise.then
+    29→(anonymous) @ sw.js:181
+    30→Promise.then
+    31→handleStaticFetch @ sw.js:177
+    32→(anonymous) @ sw.js:75
+    33→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    34→    at sw.js:184:54
+    35→(anonymous) @ sw.js:184
+    36→Promise.then
+    37→(anonymous) @ sw.js:183
+    38→Promise.then
+    39→(anonymous) @ sw.js:181
+    40→Promise.then
+    41→handleStaticFetch @ sw.js:177
+    42→(anonymous) @ sw.js:75
+    43→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    44→    at sw.js:184:54
+    45→(anonymous) @ sw.js:184
+    46→Promise.then
+    47→(anonymous) @ sw.js:183
+    48→Promise.then
+    49→(anonymous) @ sw.js:181
+    50→Promise.then
+    51→handleStaticFetch @ sw.js:177
+    52→(anonymous) @ sw.js:75
+    53→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    54→    at sw.js:184:54
+    55→(anonymous) @ sw.js:184
+    56→Promise.then
+    57→(anonymous) @ sw.js:183
+    58→Promise.then
+    59→(anonymous) @ sw.js:181
+    60→Promise.then
+    61→handleStaticFetch @ sw.js:177
+    62→(anonymous) @ sw.js:75
+    63→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    64→    at sw.js:184:54
+    65→(anonymous) @ sw.js:184
+    66→Promise.then
+    67→(anonymous) @ sw.js:183
+    68→Promise.then
+    69→(anonymous) @ sw.js:181
+    70→Promise.then
+    71→handleStaticFetch @ sw.js:177
+    72→(anonymous) @ sw.js:75
+    73→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    74→    at sw.js:184:54
+    75→(anonymous) @ sw.js:184
+    76→Promise.then
+    77→(anonymous) @ sw.js:183
+    78→Promise.then
+    79→(anonymous) @ sw.js:181
+    80→Promise.then
+    81→handleStaticFetch @ sw.js:177
+    82→(anonymous) @ sw.js:75
+    83→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    84→    at sw.js:184:54
+    85→(anonymous) @ sw.js:184
+    86→Promise.then
+    87→(anonymous) @ sw.js:183
+    88→Promise.then
+    89→(anonymous) @ sw.js:181
+    90→Promise.then
+    91→handleStaticFetch @ sw.js:177
+    92→(anonymous) @ sw.js:75
+    93→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+    94→    at sw.js:184:54
+    95→(anonymous) @ sw.js:184
+    96→Promise.then
+    97→(anonymous) @ sw.js:183
+    98→Promise.then
+    99→(anonymous) @ sw.js:181
+   100→Promise.then
+   101→handleStaticFetch @ sw.js:177
+   102→(anonymous) @ sw.js:75
+   103→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   104→    at sw.js:184:54
+   105→(anonymous) @ sw.js:184
+   106→Promise.then
+   107→(anonymous) @ sw.js:183
+   108→Promise.then
+   109→(anonymous) @ sw.js:181
+   110→Promise.then
+   111→handleStaticFetch @ sw.js:177
+   112→(anonymous) @ sw.js:75
+   113→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   114→    at sw.js:184:54
+   115→(anonymous) @ sw.js:184
+   116→Promise.then
+   117→(anonymous) @ sw.js:183
+   118→Promise.then
+   119→(anonymous) @ sw.js:181
+   120→Promise.then
+   121→handleStaticFetch @ sw.js:177
+   122→(anonymous) @ sw.js:75
+   123→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   124→    at sw.js:184:54
+   125→(anonymous) @ sw.js:184
+   126→Promise.then
+   127→(anonymous) @ sw.js:183
+   128→Promise.then
+   129→(anonymous) @ sw.js:181
+   130→Promise.then
+   131→handleStaticFetch @ sw.js:177
+   132→(anonymous) @ sw.js:75
+   133→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   134→    at sw.js:184:54
+   135→(anonymous) @ sw.js:184
+   136→Promise.then
+   137→(anonymous) @ sw.js:183
+   138→Promise.then
+   139→(anonymous) @ sw.js:181
+   140→Promise.then
+   141→handleStaticFetch @ sw.js:177
+   142→(anonymous) @ sw.js:75
+   143→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   144→    at sw.js:184:54
+   145→(anonymous) @ sw.js:184
+   146→Promise.then
+   147→(anonymous) @ sw.js:183
+   148→Promise.then
+   149→(anonymous) @ sw.js:181
+   150→Promise.then
+   151→handleStaticFetch @ sw.js:177
+   152→(anonymous) @ sw.js:75
+   153→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   154→    at sw.js:184:54
+   155→(anonymous) @ sw.js:184
+   156→Promise.then
+   157→(anonymous) @ sw.js:183
+   158→Promise.then
+   159→(anonymous) @ sw.js:181
+   160→Promise.then
+   161→handleStaticFetch @ sw.js:177
+   162→(anonymous) @ sw.js:75
+   163→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   164→    at sw.js:184:54
+   165→(anonymous) @ sw.js:184
+   166→Promise.then
+   167→(anonymous) @ sw.js:183
+   168→Promise.then
+   169→(anonymous) @ sw.js:181
+   170→Promise.then
+   171→handleStaticFetch @ sw.js:177
+   172→(anonymous) @ sw.js:75
+   173→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   174→    at sw.js:184:54
+   175→(anonymous) @ sw.js:184
+   176→Promise.then
+   177→(anonymous) @ sw.js:183
+   178→Promise.then
+   179→(anonymous) @ sw.js:181
+   180→Promise.then
+   181→handleStaticFetch @ sw.js:177
+   182→(anonymous) @ sw.js:75
+   183→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   184→    at sw.js:184:54
+   185→(anonymous) @ sw.js:184
+   186→Promise.then
+   187→(anonymous) @ sw.js:183
+   188→Promise.then
+   189→(anonymous) @ sw.js:181
+   190→Promise.then
+   191→handleStaticFetch @ sw.js:177
+   192→(anonymous) @ sw.js:75
+   193→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   194→    at sw.js:184:54
+   195→(anonymous) @ sw.js:184
+   196→Promise.then
+   197→(anonymous) @ sw.js:183
+   198→Promise.then
+   199→(anonymous) @ sw.js:181
+   200→Promise.then
+   201→handleStaticFetch @ sw.js:177
+   202→(anonymous) @ sw.js:75
+   203→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   204→    at sw.js:184:54
+   205→(anonymous) @ sw.js:184
+   206→Promise.then
+   207→(anonymous) @ sw.js:183
+   208→Promise.then
+   209→(anonymous) @ sw.js:181
+   210→Promise.then
+   211→handleStaticFetch @ sw.js:177
+   212→(anonymous) @ sw.js:75
+   213→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   214→    at sw.js:184:54
+   215→(anonymous) @ sw.js:184
+   216→Promise.then
+   217→(anonymous) @ sw.js:183
+   218→Promise.then
+   219→(anonymous) @ sw.js:181
+   220→Promise.then
+   221→handleStaticFetch @ sw.js:177
+   222→(anonymous) @ sw.js:75
+   223→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   224→    at sw.js:184:54
+   225→(anonymous) @ sw.js:184
+   226→Promise.then
+   227→(anonymous) @ sw.js:183
+   228→Promise.then
+   229→(anonymous) @ sw.js:181
+   230→Promise.then
+   231→handleStaticFetch @ sw.js:177
+   232→(anonymous) @ sw.js:75
+   233→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   234→    at sw.js:184:54
+   235→(anonymous) @ sw.js:184
+   236→Promise.then
+   237→(anonymous) @ sw.js:183
+   238→Promise.then
+   239→(anonymous) @ sw.js:181
+   240→Promise.then
+   241→handleStaticFetch @ sw.js:177
+   242→(anonymous) @ sw.js:75
+   243→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   244→    at sw.js:184:54
+   245→(anonymous) @ sw.js:184
+   246→Promise.then
+   247→(anonymous) @ sw.js:183
+   248→Promise.then
+   249→(anonymous) @ sw.js:181
+   250→Promise.then
+   251→handleStaticFetch @ sw.js:177
+   252→(anonymous) @ sw.js:75
+   253→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   254→    at sw.js:184:54
+   255→(anonymous) @ sw.js:184
+   256→Promise.then
+   257→(anonymous) @ sw.js:183
+   258→Promise.then
+   259→(anonymous) @ sw.js:181
+   260→Promise.then
+   261→handleStaticFetch @ sw.js:177
+   262→(anonymous) @ sw.js:75
+   263→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   264→    at sw.js:184:54
+   265→(anonymous) @ sw.js:184
+   266→Promise.then
+   267→(anonymous) @ sw.js:183
+   268→Promise.then
+   269→(anonymous) @ sw.js:181
+   270→Promise.then
+   271→handleStaticFetch @ sw.js:177
+   272→(anonymous) @ sw.js:75
+   273→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   274→    at sw.js:184:54
+   275→(anonymous) @ sw.js:184
+   276→Promise.then
+   277→(anonymous) @ sw.js:183
+   278→Promise.then
+   279→(anonymous) @ sw.js:181
+   280→Promise.then
+   281→handleStaticFetch @ sw.js:177
+   282→(anonymous) @ sw.js:75
+   283→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   284→    at sw.js:184:54
+   285→(anonymous) @ sw.js:184
+   286→Promise.then
+   287→(anonymous) @ sw.js:183
+   288→Promise.then
+   289→(anonymous) @ sw.js:181
+   290→Promise.then
+   291→handleStaticFetch @ sw.js:177
+   292→(anonymous) @ sw.js:75
+   293→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   294→    at sw.js:184:54
+   295→(anonymous) @ sw.js:184
+   296→Promise.then
+   297→(anonymous) @ sw.js:183
+   298→Promise.then
+   299→(anonymous) @ sw.js:181
+   300→Promise.then
+   301→handleStaticFetch @ sw.js:177
+   302→(anonymous) @ sw.js:75
+   303→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   304→    at sw.js:184:54
+   305→(anonymous) @ sw.js:184
+   306→Promise.then
+   307→(anonymous) @ sw.js:183
+   308→Promise.then
+   309→(anonymous) @ sw.js:181
+   310→Promise.then
+   311→handleStaticFetch @ sw.js:177
+   312→(anonymous) @ sw.js:75
+   313→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   314→    at sw.js:184:54
+   315→(anonymous) @ sw.js:184
+   316→Promise.then
+   317→(anonymous) @ sw.js:183
+   318→Promise.then
+   319→(anonymous) @ sw.js:181
+   320→Promise.then
+   321→handleStaticFetch @ sw.js:177
+   322→(anonymous) @ sw.js:75
+   323→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   324→    at sw.js:184:54
+   325→(anonymous) @ sw.js:184
+   326→Promise.then
+   327→(anonymous) @ sw.js:183
+   328→Promise.then
+   329→(anonymous) @ sw.js:181
+   330→Promise.then
+   331→handleStaticFetch @ sw.js:177
+   332→(anonymous) @ sw.js:75
+   333→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   334→    at sw.js:184:54
+   335→(anonymous) @ sw.js:184
+   336→Promise.then
+   337→(anonymous) @ sw.js:183
+   338→Promise.then
+   339→(anonymous) @ sw.js:181
+   340→Promise.then
+   341→handleStaticFetch @ sw.js:177
+   342→(anonymous) @ sw.js:75
+   343→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   344→    at sw.js:184:54
+   345→(anonymous) @ sw.js:184
+   346→Promise.then
+   347→(anonymous) @ sw.js:183
+   348→Promise.then
+   349→(anonymous) @ sw.js:181
+   350→Promise.then
+   351→handleStaticFetch @ sw.js:177
+   352→(anonymous) @ sw.js:75
+   353→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   354→    at sw.js:184:54
+   355→(anonymous) @ sw.js:184
+   356→Promise.then
+   357→(anonymous) @ sw.js:183
+   358→Promise.then
+   359→(anonymous) @ sw.js:181
+   360→Promise.then
+   361→handleStaticFetch @ sw.js:177
+   362→(anonymous) @ sw.js:75
+   363→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   364→    at sw.js:184:54
+   365→(anonymous) @ sw.js:184
+   366→Promise.then
+   367→(anonymous) @ sw.js:183
+   368→Promise.then
+   369→(anonymous) @ sw.js:181
+   370→Promise.then
+   371→handleStaticFetch @ sw.js:177
+   372→(anonymous) @ sw.js:75
+   373→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   374→    at sw.js:184:54
+   375→(anonymous) @ sw.js:184
+   376→Promise.then
+   377→(anonymous) @ sw.js:183
+   378→Promise.then
+   379→(anonymous) @ sw.js:181
+   380→Promise.then
+   381→handleStaticFetch @ sw.js:177
+   382→(anonymous) @ sw.js:75
+   383→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   384→    at sw.js:184:54
+   385→(anonymous) @ sw.js:184
+   386→Promise.then
+   387→(anonymous) @ sw.js:183
+   388→Promise.then
+   389→(anonymous) @ sw.js:181
+   390→Promise.then
+   391→handleStaticFetch @ sw.js:177
+   392→(anonymous) @ sw.js:75
+   393→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   394→    at sw.js:184:54
+   395→(anonymous) @ sw.js:184
+   396→Promise.then
+   397→(anonymous) @ sw.js:183
+   398→Promise.then
+   399→(anonymous) @ sw.js:181
+   400→Promise.then
+   401→handleStaticFetch @ sw.js:177
+   402→(anonymous) @ sw.js:75
+   403→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   404→    at sw.js:184:54
+   405→(anonymous) @ sw.js:184
+   406→Promise.then
+   407→(anonymous) @ sw.js:183
+   408→Promise.then
+   409→(anonymous) @ sw.js:181
+   410→Promise.then
+   411→handleStaticFetch @ sw.js:177
+   412→(anonymous) @ sw.js:75
+   413→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   414→    at sw.js:184:54
+   415→(anonymous) @ sw.js:184
+   416→Promise.then
+   417→(anonymous) @ sw.js:183
+   418→Promise.then
+   419→(anonymous) @ sw.js:181
+   420→Promise.then
+   421→handleStaticFetch @ sw.js:177
+   422→(anonymous) @ sw.js:75
+   423→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   424→    at sw.js:184:54
+   425→(anonymous) @ sw.js:184
+   426→Promise.then
+   427→(anonymous) @ sw.js:183
+   428→Promise.then
+   429→(anonymous) @ sw.js:181
+   430→Promise.then
+   431→handleStaticFetch @ sw.js:177
+   432→(anonymous) @ sw.js:75
+   433→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   434→    at sw.js:184:54
+   435→(anonymous) @ sw.js:184
+   436→Promise.then
+   437→(anonymous) @ sw.js:183
+   438→Promise.then
+   439→(anonymous) @ sw.js:181
+   440→Promise.then
+   441→handleStaticFetch @ sw.js:177
+   442→(anonymous) @ sw.js:75
+   443→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   444→    at sw.js:184:54
+   445→(anonymous) @ sw.js:184
+   446→Promise.then
+   447→(anonymous) @ sw.js:183
+   448→Promise.then
+   449→(anonymous) @ sw.js:181
+   450→Promise.then
+   451→handleStaticFetch @ sw.js:177
+   452→(anonymous) @ sw.js:75
+   453→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   454→    at sw.js:184:54
+   455→(anonymous) @ sw.js:184
+   456→Promise.then
+   457→(anonymous) @ sw.js:183
+   458→Promise.then
+   459→(anonymous) @ sw.js:181
+   460→Promise.then
+   461→handleStaticFetch @ sw.js:177
+   462→(anonymous) @ sw.js:75
+   463→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   464→    at sw.js:184:54
+   465→(anonymous) @ sw.js:184
+   466→Promise.then
+   467→(anonymous) @ sw.js:183
+   468→Promise.then
+   469→(anonymous) @ sw.js:181
+   470→Promise.then
+   471→handleStaticFetch @ sw.js:177
+   472→(anonymous) @ sw.js:75
+   473→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   474→    at sw.js:184:54
+   475→(anonymous) @ sw.js:184
+   476→Promise.then
+   477→(anonymous) @ sw.js:183
+   478→Promise.then
+   479→(anonymous) @ sw.js:181
+   480→Promise.then
+   481→handleStaticFetch @ sw.js:177
+   482→(anonymous) @ sw.js:75
+   483→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   484→    at sw.js:184:54
+   485→(anonymous) @ sw.js:184
+   486→Promise.then
+   487→(anonymous) @ sw.js:183
+   488→Promise.then
+   489→(anonymous) @ sw.js:181
+   490→Promise.then
+   491→handleStaticFetch @ sw.js:177
+   492→(anonymous) @ sw.js:75
+   493→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   494→    at sw.js:184:54
+   495→(anonymous) @ sw.js:184
+   496→Promise.then
+   497→(anonymous) @ sw.js:183
+   498→Promise.then
+   499→(anonymous) @ sw.js:181
+   500→Promise.then
+   501→handleStaticFetch @ sw.js:177
+   502→(anonymous) @ sw.js:75
+   503→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   504→    at sw.js:184:54
+   505→(anonymous) @ sw.js:184
+   506→Promise.then
+   507→(anonymous) @ sw.js:183
+   508→Promise.then
+   509→(anonymous) @ sw.js:181
+   510→Promise.then
+   511→handleStaticFetch @ sw.js:177
+   512→(anonymous) @ sw.js:75
+   513→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   514→    at sw.js:184:54
+   515→(anonymous) @ sw.js:184
+   516→Promise.then
+   517→(anonymous) @ sw.js:183
+   518→Promise.then
+   519→(anonymous) @ sw.js:181
+   520→Promise.then
+   521→handleStaticFetch @ sw.js:177
+   522→(anonymous) @ sw.js:75
+   523→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   524→    at sw.js:184:54
+   525→(anonymous) @ sw.js:184
+   526→Promise.then
+   527→(anonymous) @ sw.js:183
+   528→Promise.then
+   529→(anonymous) @ sw.js:181
+   530→Promise.then
+   531→handleStaticFetch @ sw.js:177
+   532→(anonymous) @ sw.js:75
+   533→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   534→    at sw.js:184:54
+   535→(anonymous) @ sw.js:184
+   536→Promise.then
+   537→(anonymous) @ sw.js:183
+   538→Promise.then
+   539→(anonymous) @ sw.js:181
+   540→Promise.then
+   541→handleStaticFetch @ sw.js:177
+   542→(anonymous) @ sw.js:75
+   543→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   544→    at sw.js:184:54
+   545→(anonymous) @ sw.js:184
+   546→Promise.then
+   547→(anonymous) @ sw.js:183
+   548→Promise.then
+   549→(anonymous) @ sw.js:181
+   550→Promise.then
+   551→handleStaticFetch @ sw.js:177
+   552→(anonymous) @ sw.js:75
+   553→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   554→    at sw.js:184:54
+   555→(anonymous) @ sw.js:184
+   556→Promise.then
+   557→(anonymous) @ sw.js:183
+   558→Promise.then
+   559→(anonymous) @ sw.js:181
+   560→Promise.then
+   561→handleStaticFetch @ sw.js:177
+   562→(anonymous) @ sw.js:75
+   563→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   564→    at sw.js:184:54
+   565→(anonymous) @ sw.js:184
+   566→Promise.then
+   567→(anonymous) @ sw.js:183
+   568→Promise.then
+   569→(anonymous) @ sw.js:181
+   570→Promise.then
+   571→handleStaticFetch @ sw.js:177
+   572→(anonymous) @ sw.js:75
+   573→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   574→    at sw.js:184:54
+   575→(anonymous) @ sw.js:184
+   576→Promise.then
+   577→(anonymous) @ sw.js:183
+   578→Promise.then
+   579→(anonymous) @ sw.js:181
+   580→Promise.then
+   581→handleStaticFetch @ sw.js:177
+   582→(anonymous) @ sw.js:75
+   583→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   584→    at sw.js:184:54
+   585→(anonymous) @ sw.js:184
+   586→Promise.then
+   587→(anonymous) @ sw.js:183
+   588→Promise.then
+   589→(anonymous) @ sw.js:181
+   590→Promise.then
+   591→handleStaticFetch @ sw.js:177
+   592→(anonymous) @ sw.js:75
+   593→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   594→    at sw.js:184:54
+   595→(anonymous) @ sw.js:184
+   596→Promise.then
+   597→(anonymous) @ sw.js:183
+   598→Promise.then
+   599→(anonymous) @ sw.js:181
+   600→Promise.then
+   601→handleStaticFetch @ sw.js:177
+   602→(anonymous) @ sw.js:75
+   603→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   604→    at sw.js:184:54
+   605→(anonymous) @ sw.js:184
+   606→Promise.then
+   607→(anonymous) @ sw.js:183
+   608→Promise.then
+   609→(anonymous) @ sw.js:181
+   610→Promise.then
+   611→handleStaticFetch @ sw.js:177
+   612→(anonymous) @ sw.js:75
+   613→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   614→    at sw.js:184:54
+   615→(anonymous) @ sw.js:184
+   616→Promise.then
+   617→(anonymous) @ sw.js:183
+   618→Promise.then
+   619→(anonymous) @ sw.js:181
+   620→Promise.then
+   621→handleStaticFetch @ sw.js:177
+   622→(anonymous) @ sw.js:75
+   623→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   624→    at sw.js:184:54
+   625→(anonymous) @ sw.js:184
+   626→Promise.then
+   627→(anonymous) @ sw.js:183
+   628→Promise.then
+   629→(anonymous) @ sw.js:181
+   630→Promise.then
+   631→handleStaticFetch @ sw.js:177
+   632→(anonymous) @ sw.js:75
+   633→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   634→    at sw.js:184:54
+   635→(anonymous) @ sw.js:184
+   636→Promise.then
+   637→(anonymous) @ sw.js:183
+   638→Promise.then
+   639→(anonymous) @ sw.js:181
+   640→Promise.then
+   641→handleStaticFetch @ sw.js:177
+   642→(anonymous) @ sw.js:75
+   643→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   644→    at sw.js:184:54
+   645→(anonymous) @ sw.js:184
+   646→Promise.then
+   647→(anonymous) @ sw.js:183
+   648→Promise.then
+   649→(anonymous) @ sw.js:181
+   650→Promise.then
+   651→handleStaticFetch @ sw.js:177
+   652→(anonymous) @ sw.js:75
+   653→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   654→    at sw.js:184:54
+   655→(anonymous) @ sw.js:184
+   656→Promise.then
+   657→(anonymous) @ sw.js:183
+   658→Promise.then
+   659→(anonymous) @ sw.js:181
+   660→Promise.then
+   661→handleStaticFetch @ sw.js:177
+   662→(anonymous) @ sw.js:75
+   663→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   664→    at sw.js:184:54
+   665→(anonymous) @ sw.js:184
+   666→Promise.then
+   667→(anonymous) @ sw.js:183
+   668→Promise.then
+   669→(anonymous) @ sw.js:181
+   670→Promise.then
+   671→handleStaticFetch @ sw.js:177
+   672→(anonymous) @ sw.js:75
+   673→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   674→    at sw.js:184:54
+   675→(anonymous) @ sw.js:184
+   676→Promise.then
+   677→(anonymous) @ sw.js:183
+   678→Promise.then
+   679→(anonymous) @ sw.js:181
+   680→Promise.then
+   681→handleStaticFetch @ sw.js:177
+   682→(anonymous) @ sw.js:75
+   683→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   684→    at sw.js:184:54
+   685→(anonymous) @ sw.js:184
+   686→Promise.then
+   687→(anonymous) @ sw.js:183
+   688→Promise.then
+   689→(anonymous) @ sw.js:181
+   690→Promise.then
+   691→handleStaticFetch @ sw.js:177
+   692→(anonymous) @ sw.js:75
+   693→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   694→    at sw.js:184:54
+   695→(anonymous) @ sw.js:184
+   696→Promise.then
+   697→(anonymous) @ sw.js:183
+   698→Promise.then
+   699→(anonymous) @ sw.js:181
+   700→Promise.then
+   701→handleStaticFetch @ sw.js:177
+   702→(anonymous) @ sw.js:75
+   703→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   704→    at sw.js:184:54
+   705→(anonymous) @ sw.js:184
+   706→Promise.then
+   707→(anonymous) @ sw.js:183
+   708→Promise.then
+   709→(anonymous) @ sw.js:181
+   710→Promise.then
+   711→handleStaticFetch @ sw.js:177
+   712→(anonymous) @ sw.js:75
+   713→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   714→    at sw.js:184:54
+   715→(anonymous) @ sw.js:184
+   716→Promise.then
+   717→(anonymous) @ sw.js:183
+   718→Promise.then
+   719→(anonymous) @ sw.js:181
+   720→Promise.then
+   721→handleStaticFetch @ sw.js:177
+   722→(anonymous) @ sw.js:75
+   723→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   724→    at sw.js:184:54
+   725→(anonymous) @ sw.js:184
+   726→Promise.then
+   727→(anonymous) @ sw.js:183
+   728→Promise.then
+   729→(anonymous) @ sw.js:181
+   730→Promise.then
+   731→handleStaticFetch @ sw.js:177
+   732→(anonymous) @ sw.js:75
+   733→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   734→    at sw.js:184:54
+   735→(anonymous) @ sw.js:184
+   736→Promise.then
+   737→(anonymous) @ sw.js:183
+   738→Promise.then
+   739→(anonymous) @ sw.js:181
+   740→Promise.then
+   741→handleStaticFetch @ sw.js:177
+   742→(anonymous) @ sw.js:75
+   743→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   744→    at sw.js:184:54
+   745→(anonymous) @ sw.js:184
+   746→Promise.then
+   747→(anonymous) @ sw.js:183
+   748→Promise.then
+   749→(anonymous) @ sw.js:181
+   750→Promise.then
+   751→handleStaticFetch @ sw.js:177
+   752→(anonymous) @ sw.js:75
+   753→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   754→    at sw.js:184:54
+   755→(anonymous) @ sw.js:184
+   756→Promise.then
+   757→(anonymous) @ sw.js:183
+   758→Promise.then
+   759→(anonymous) @ sw.js:181
+   760→Promise.then
+   761→handleStaticFetch @ sw.js:177
+   762→(anonymous) @ sw.js:75
+   763→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   764→    at sw.js:184:54
+   765→(anonymous) @ sw.js:184
+   766→Promise.then
+   767→(anonymous) @ sw.js:183
+   768→Promise.then
+   769→(anonymous) @ sw.js:181
+   770→Promise.then
+   771→handleStaticFetch @ sw.js:177
+   772→(anonymous) @ sw.js:75
+   773→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   774→    at sw.js:184:54
+   775→(anonymous) @ sw.js:184
+   776→Promise.then
+   777→(anonymous) @ sw.js:183
+   778→Promise.then
+   779→(anonymous) @ sw.js:181
+   780→Promise.then
+   781→handleStaticFetch @ sw.js:177
+   782→(anonymous) @ sw.js:75
+   783→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   784→    at sw.js:184:54
+   785→(anonymous) @ sw.js:184
+   786→Promise.then
+   787→(anonymous) @ sw.js:183
+   788→Promise.then
+   789→(anonymous) @ sw.js:181
+   790→Promise.then
+   791→handleStaticFetch @ sw.js:177
+   792→(anonymous) @ sw.js:75
+   793→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   794→    at sw.js:184:54
+   795→(anonymous) @ sw.js:184
+   796→Promise.then
+   797→(anonymous) @ sw.js:183
+   798→Promise.then
+   799→(anonymous) @ sw.js:181
+   800→Promise.then
+   801→handleStaticFetch @ sw.js:177
+   802→(anonymous) @ sw.js:75
+   803→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   804→    at sw.js:184:54
+   805→(anonymous) @ sw.js:184
+   806→Promise.then
+   807→(anonymous) @ sw.js:183
+   808→Promise.then
+   809→(anonymous) @ sw.js:181
+   810→Promise.then
+   811→handleStaticFetch @ sw.js:177
+   812→(anonymous) @ sw.js:75
+   813→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   814→    at sw.js:184:54
+   815→(anonymous) @ sw.js:184
+   816→Promise.then
+   817→(anonymous) @ sw.js:183
+   818→Promise.then
+   819→(anonymous) @ sw.js:181
+   820→Promise.then
+   821→handleStaticFetch @ sw.js:177
+   822→(anonymous) @ sw.js:75
+   823→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   824→    at sw.js:184:54
+   825→(anonymous) @ sw.js:184
+   826→Promise.then
+   827→(anonymous) @ sw.js:183
+   828→Promise.then
+   829→(anonymous) @ sw.js:181
+   830→Promise.then
+   831→handleStaticFetch @ sw.js:177
+   832→(anonymous) @ sw.js:75
+   833→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   834→    at sw.js:184:54
+   835→(anonymous) @ sw.js:184
+   836→Promise.then
+   837→(anonymous) @ sw.js:183
+   838→Promise.then
+   839→(anonymous) @ sw.js:181
+   840→Promise.then
+   841→handleStaticFetch @ sw.js:177
+   842→(anonymous) @ sw.js:75
+   843→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   844→    at sw.js:184:54
+   845→(anonymous) @ sw.js:184
+   846→Promise.then
+   847→(anonymous) @ sw.js:183
+   848→Promise.then
+   849→(anonymous) @ sw.js:181
+   850→Promise.then
+   851→handleStaticFetch @ sw.js:177
+   852→(anonymous) @ sw.js:75
+   853→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   854→    at sw.js:184:54
+   855→(anonymous) @ sw.js:184
+   856→Promise.then
+   857→(anonymous) @ sw.js:183
+   858→Promise.then
+   859→(anonymous) @ sw.js:181
+   860→Promise.then
+   861→handleStaticFetch @ sw.js:177
+   862→(anonymous) @ sw.js:75
+   863→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   864→    at sw.js:184:54
+   865→(anonymous) @ sw.js:184
+   866→Promise.then
+   867→(anonymous) @ sw.js:183
+   868→Promise.then
+   869→(anonymous) @ sw.js:181
+   870→Promise.then
+   871→handleStaticFetch @ sw.js:177
+   872→(anonymous) @ sw.js:75
+   873→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   874→    at sw.js:184:54
+   875→(anonymous) @ sw.js:184
+   876→Promise.then
+   877→(anonymous) @ sw.js:183
+   878→Promise.then
+   879→(anonymous) @ sw.js:181
+   880→Promise.then
+   881→handleStaticFetch @ sw.js:177
+   882→(anonymous) @ sw.js:75
+   883→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   884→    at sw.js:184:54
+   885→(anonymous) @ sw.js:184
+   886→Promise.then
+   887→(anonymous) @ sw.js:183
+   888→Promise.then
+   889→(anonymous) @ sw.js:181
+   890→Promise.then
+   891→handleStaticFetch @ sw.js:177
+   892→(anonymous) @ sw.js:75
+   893→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   894→    at sw.js:184:54
+   895→(anonymous) @ sw.js:184
+   896→Promise.then
+   897→(anonymous) @ sw.js:183
+   898→Promise.then
+   899→(anonymous) @ sw.js:181
+   900→Promise.then
+   901→handleStaticFetch @ sw.js:177
+   902→(anonymous) @ sw.js:75
+   903→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   904→    at sw.js:184:54
+   905→(anonymous) @ sw.js:184
+   906→Promise.then
+   907→(anonymous) @ sw.js:183
+   908→Promise.then
+   909→(anonymous) @ sw.js:181
+   910→Promise.then
+   911→handleStaticFetch @ sw.js:177
+   912→(anonymous) @ sw.js:75
+   913→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   914→    at sw.js:184:54
+   915→(anonymous) @ sw.js:184
+   916→Promise.then
+   917→(anonymous) @ sw.js:183
+   918→Promise.then
+   919→(anonymous) @ sw.js:181
+   920→Promise.then
+   921→handleStaticFetch @ sw.js:177
+   922→(anonymous) @ sw.js:75
+   923→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   924→    at sw.js:184:54
+   925→(anonymous) @ sw.js:184
+   926→Promise.then
+   927→(anonymous) @ sw.js:183
+   928→Promise.then
+   929→(anonymous) @ sw.js:181
+   930→Promise.then
+   931→handleStaticFetch @ sw.js:177
+   932→(anonymous) @ sw.js:75
+   933→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   934→    at sw.js:184:54
+   935→(anonymous) @ sw.js:184
+   936→Promise.then
+   937→(anonymous) @ sw.js:183
+   938→Promise.then
+   939→(anonymous) @ sw.js:181
+   940→Promise.then
+   941→handleStaticFetch @ sw.js:177
+   942→(anonymous) @ sw.js:75
+   943→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   944→    at sw.js:184:54
+   945→(anonymous) @ sw.js:184
+   946→Promise.then
+   947→(anonymous) @ sw.js:183
+   948→Promise.then
+   949→(anonymous) @ sw.js:181
+   950→Promise.then
+   951→handleStaticFetch @ sw.js:177
+   952→(anonymous) @ sw.js:75
+   953→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   954→    at sw.js:184:54
+   955→(anonymous) @ sw.js:184
+   956→Promise.then
+   957→(anonymous) @ sw.js:183
+   958→Promise.then
+   959→(anonymous) @ sw.js:181
+   960→Promise.then
+   961→handleStaticFetch @ sw.js:177
+   962→(anonymous) @ sw.js:75
+   963→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   964→    at sw.js:184:54
+   965→(anonymous) @ sw.js:184
+   966→Promise.then
+   967→(anonymous) @ sw.js:183
+   968→Promise.then
+   969→(anonymous) @ sw.js:181
+   970→Promise.then
+   971→handleStaticFetch @ sw.js:177
+   972→(anonymous) @ sw.js:75
+   973→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   974→    at sw.js:184:54
+   975→(anonymous) @ sw.js:184
+   976→Promise.then
+   977→(anonymous) @ sw.js:183
+   978→Promise.then
+   979→(anonymous) @ sw.js:181
+   980→Promise.then
+   981→handleStaticFetch @ sw.js:177
+   982→(anonymous) @ sw.js:75
+   983→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   984→    at sw.js:184:54
+   985→(anonymous) @ sw.js:184
+   986→Promise.then
+   987→(anonymous) @ sw.js:183
+   988→Promise.then
+   989→(anonymous) @ sw.js:181
+   990→Promise.then
+   991→handleStaticFetch @ sw.js:177
+   992→(anonymous) @ sw.js:75
+   993→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+   994→    at sw.js:184:54
+   995→(anonymous) @ sw.js:184
+   996→Promise.then
+   997→(anonymous) @ sw.js:183
+   998→Promise.then
+   999→(anonymous) @ sw.js:181
+  1000→Promise.then
+  1001→handleStaticFetch @ sw.js:177
+  1002→(anonymous) @ sw.js:75
+  1003→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1004→    at sw.js:184:54
+  1005→(anonymous) @ sw.js:184
+  1006→Promise.then
+  1007→(anonymous) @ sw.js:183
+  1008→Promise.then
+  1009→(anonymous) @ sw.js:181
+  1010→Promise.then
+  1011→handleStaticFetch @ sw.js:177
+  1012→(anonymous) @ sw.js:75
+  1013→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1014→    at sw.js:184:54
+  1015→(anonymous) @ sw.js:184
+  1016→Promise.then
+  1017→(anonymous) @ sw.js:183
+  1018→Promise.then
+  1019→(anonymous) @ sw.js:181
+  1020→Promise.then
+  1021→handleStaticFetch @ sw.js:177
+  1022→(anonymous) @ sw.js:75
+  1023→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1024→    at sw.js:184:54
+  1025→(anonymous) @ sw.js:184
+  1026→Promise.then
+  1027→(anonymous) @ sw.js:183
+  1028→Promise.then
+  1029→(anonymous) @ sw.js:181
+  1030→Promise.then
+  1031→handleStaticFetch @ sw.js:177
+  1032→(anonymous) @ sw.js:75
+  1033→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1034→    at sw.js:184:54
+  1035→(anonymous) @ sw.js:184
+  1036→Promise.then
+  1037→(anonymous) @ sw.js:183
+  1038→Promise.then
+  1039→(anonymous) @ sw.js:181
+  1040→Promise.then
+  1041→handleStaticFetch @ sw.js:177
+  1042→(anonymous) @ sw.js:75
+  1043→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1044→    at sw.js:184:54
+  1045→(anonymous) @ sw.js:184
+  1046→Promise.then
+  1047→(anonymous) @ sw.js:183
+  1048→Promise.then
+  1049→(anonymous) @ sw.js:181
+  1050→Promise.then
+  1051→handleStaticFetch @ sw.js:177
+  1052→(anonymous) @ sw.js:75
+  1053→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1054→    at sw.js:184:54
+  1055→(anonymous) @ sw.js:184
+  1056→Promise.then
+  1057→(anonymous) @ sw.js:183
+  1058→Promise.then
+  1059→(anonymous) @ sw.js:181
+  1060→Promise.then
+  1061→handleStaticFetch @ sw.js:177
+  1062→(anonymous) @ sw.js:75
+  1063→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1064→    at sw.js:184:54
+  1065→(anonymous) @ sw.js:184
+  1066→Promise.then
+  1067→(anonymous) @ sw.js:183
+  1068→Promise.then
+  1069→(anonymous) @ sw.js:181
+  1070→Promise.then
+  1071→handleStaticFetch @ sw.js:177
+  1072→(anonymous) @ sw.js:75
+  1073→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1074→    at sw.js:184:54
+  1075→(anonymous) @ sw.js:184
+  1076→Promise.then
+  1077→(anonymous) @ sw.js:183
+  1078→Promise.then
+  1079→(anonymous) @ sw.js:181
+  1080→Promise.then
+  1081→handleStaticFetch @ sw.js:177
+  1082→(anonymous) @ sw.js:75
+  1083→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1084→    at sw.js:184:54
+  1085→(anonymous) @ sw.js:184
+  1086→Promise.then
+  1087→(anonymous) @ sw.js:183
+  1088→Promise.then
+  1089→(anonymous) @ sw.js:181
+  1090→Promise.then
+  1091→handleStaticFetch @ sw.js:177
+  1092→(anonymous) @ sw.js:75
+  1093→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1094→    at sw.js:184:54
+  1095→(anonymous) @ sw.js:184
+  1096→Promise.then
+  1097→(anonymous) @ sw.js:183
+  1098→Promise.then
+  1099→(anonymous) @ sw.js:181
+  1100→Promise.then
+  1101→handleStaticFetch @ sw.js:177
+  1102→(anonymous) @ sw.js:75
+  1103→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1104→    at sw.js:184:54
+  1105→(anonymous) @ sw.js:184
+  1106→Promise.then
+  1107→(anonymous) @ sw.js:183
+  1108→Promise.then
+  1109→(anonymous) @ sw.js:181
+  1110→Promise.then
+  1111→handleStaticFetch @ sw.js:177
+  1112→(anonymous) @ sw.js:75
+  1113→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1114→    at sw.js:184:54
+  1115→(anonymous) @ sw.js:184
+  1116→Promise.then
+  1117→(anonymous) @ sw.js:183
+  1118→Promise.then
+  1119→(anonymous) @ sw.js:181
+  1120→Promise.then
+  1121→handleStaticFetch @ sw.js:177
+  1122→(anonymous) @ sw.js:75
+  1123→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1124→    at sw.js:184:54
+  1125→(anonymous) @ sw.js:184
+  1126→Promise.then
+  1127→(anonymous) @ sw.js:183
+  1128→Promise.then
+  1129→(anonymous) @ sw.js:181
+  1130→Promise.then
+  1131→handleStaticFetch @ sw.js:177
+  1132→(anonymous) @ sw.js:75
+  1133→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1134→    at sw.js:184:54
+  1135→(anonymous) @ sw.js:184
+  1136→Promise.then
+  1137→(anonymous) @ sw.js:183
+  1138→Promise.then
+  1139→(anonymous) @ sw.js:181
+  1140→Promise.then
+  1141→handleStaticFetch @ sw.js:177
+  1142→(anonymous) @ sw.js:75
+  1143→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1144→    at sw.js:184:54
+  1145→(anonymous) @ sw.js:184
+  1146→Promise.then
+  1147→(anonymous) @ sw.js:183
+  1148→Promise.then
+  1149→(anonymous) @ sw.js:181
+  1150→Promise.then
+  1151→handleStaticFetch @ sw.js:177
+  1152→(anonymous) @ sw.js:75
+  1153→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1154→    at sw.js:184:54
+  1155→(anonymous) @ sw.js:184
+  1156→Promise.then
+  1157→(anonymous) @ sw.js:183
+  1158→Promise.then
+  1159→(anonymous) @ sw.js:181
+  1160→Promise.then
+  1161→handleStaticFetch @ sw.js:177
+  1162→(anonymous) @ sw.js:75
+  1163→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1164→    at sw.js:184:54
+  1165→(anonymous) @ sw.js:184
+  1166→Promise.then
+  1167→(anonymous) @ sw.js:183
+  1168→Promise.then
+  1169→(anonymous) @ sw.js:181
+  1170→Promise.then
+  1171→handleStaticFetch @ sw.js:177
+  1172→(anonymous) @ sw.js:75
+  1173→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1174→    at sw.js:184:54
+  1175→(anonymous) @ sw.js:184
+  1176→Promise.then
+  1177→(anonymous) @ sw.js:183
+  1178→Promise.then
+  1179→(anonymous) @ sw.js:181
+  1180→Promise.then
+  1181→handleStaticFetch @ sw.js:177
+  1182→(anonymous) @ sw.js:75
+  1183→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1184→    at sw.js:184:54
+  1185→(anonymous) @ sw.js:184
+  1186→Promise.then
+  1187→(anonymous) @ sw.js:183
+  1188→Promise.then
+  1189→(anonymous) @ sw.js:181
+  1190→Promise.then
+  1191→handleStaticFetch @ sw.js:177
+  1192→(anonymous) @ sw.js:75
+  1193→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1194→    at sw.js:184:54
+  1195→(anonymous) @ sw.js:184
+  1196→Promise.then
+  1197→(anonymous) @ sw.js:183
+  1198→Promise.then
+  1199→(anonymous) @ sw.js:181
+  1200→Promise.then
+  1201→handleStaticFetch @ sw.js:177
+  1202→(anonymous) @ sw.js:75
+  1203→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1204→    at sw.js:184:54
+  1205→(anonymous) @ sw.js:184
+  1206→Promise.then
+  1207→(anonymous) @ sw.js:183
+  1208→Promise.then
+  1209→(anonymous) @ sw.js:181
+  1210→Promise.then
+  1211→handleStaticFetch @ sw.js:177
+  1212→(anonymous) @ sw.js:75
+  1213→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1214→    at sw.js:184:54
+  1215→(anonymous) @ sw.js:184
+  1216→Promise.then
+  1217→(anonymous) @ sw.js:183
+  1218→Promise.then
+  1219→(anonymous) @ sw.js:181
+  1220→Promise.then
+  1221→handleStaticFetch @ sw.js:177
+  1222→(anonymous) @ sw.js:75
+  1223→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1224→    at sw.js:184:54
+  1225→(anonymous) @ sw.js:184
+  1226→Promise.then
+  1227→(anonymous) @ sw.js:183
+  1228→Promise.then
+  1229→(anonymous) @ sw.js:181
+  1230→Promise.then
+  1231→handleStaticFetch @ sw.js:177
+  1232→(anonymous) @ sw.js:75
+  1233→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1234→    at sw.js:184:54
+  1235→(anonymous) @ sw.js:184
+  1236→Promise.then
+  1237→(anonymous) @ sw.js:183
+  1238→Promise.then
+  1239→(anonymous) @ sw.js:181
+  1240→Promise.then
+  1241→handleStaticFetch @ sw.js:177
+  1242→(anonymous) @ sw.js:75
+  1243→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1244→    at sw.js:184:54
+  1245→(anonymous) @ sw.js:184
+  1246→Promise.then
+  1247→(anonymous) @ sw.js:183
+  1248→Promise.then
+  1249→(anonymous) @ sw.js:181
+  1250→Promise.then
+  1251→handleStaticFetch @ sw.js:177
+  1252→(anonymous) @ sw.js:75
+  1253→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1254→    at sw.js:184:54
+  1255→(anonymous) @ sw.js:184
+  1256→Promise.then
+  1257→(anonymous) @ sw.js:183
+  1258→Promise.then
+  1259→(anonymous) @ sw.js:181
+  1260→Promise.then
+  1261→handleStaticFetch @ sw.js:177
+  1262→(anonymous) @ sw.js:75
+  1263→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1264→    at sw.js:184:54
+  1265→(anonymous) @ sw.js:184
+  1266→Promise.then
+  1267→(anonymous) @ sw.js:183
+  1268→Promise.then
+  1269→(anonymous) @ sw.js:181
+  1270→Promise.then
+  1271→handleStaticFetch @ sw.js:177
+  1272→(anonymous) @ sw.js:75
+  1273→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1274→    at sw.js:184:54
+  1275→(anonymous) @ sw.js:184
+  1276→Promise.then
+  1277→(anonymous) @ sw.js:183
+  1278→Promise.then
+  1279→(anonymous) @ sw.js:181
+  1280→Promise.then
+  1281→handleStaticFetch @ sw.js:177
+  1282→(anonymous) @ sw.js:75
+  1283→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1284→    at sw.js:184:54
+  1285→(anonymous) @ sw.js:184
+  1286→Promise.then
+  1287→(anonymous) @ sw.js:183
+  1288→Promise.then
+  1289→(anonymous) @ sw.js:181
+  1290→Promise.then
+  1291→handleStaticFetch @ sw.js:177
+  1292→(anonymous) @ sw.js:75
+  1293→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1294→    at sw.js:184:54
+  1295→(anonymous) @ sw.js:184
+  1296→Promise.then
+  1297→(anonymous) @ sw.js:183
+  1298→Promise.then
+  1299→(anonymous) @ sw.js:181
+  1300→Promise.then
+  1301→handleStaticFetch @ sw.js:177
+  1302→(anonymous) @ sw.js:75
+  1303→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1304→    at sw.js:184:54
+  1305→(anonymous) @ sw.js:184
+  1306→Promise.then
+  1307→(anonymous) @ sw.js:183
+  1308→Promise.then
+  1309→(anonymous) @ sw.js:181
+  1310→Promise.then
+  1311→handleStaticFetch @ sw.js:177
+  1312→(anonymous) @ sw.js:75
+  1313→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1314→    at sw.js:184:54
+  1315→(anonymous) @ sw.js:184
+  1316→Promise.then
+  1317→(anonymous) @ sw.js:183
+  1318→Promise.then
+  1319→(anonymous) @ sw.js:181
+  1320→Promise.then
+  1321→handleStaticFetch @ sw.js:177
+  1322→(anonymous) @ sw.js:75
+  1323→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1324→    at sw.js:184:54
+  1325→(anonymous) @ sw.js:184
+  1326→Promise.then
+  1327→(anonymous) @ sw.js:183
+  1328→Promise.then
+  1329→(anonymous) @ sw.js:181
+  1330→Promise.then
+  1331→handleStaticFetch @ sw.js:177
+  1332→(anonymous) @ sw.js:75
+  1333→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1334→    at sw.js:184:54
+  1335→(anonymous) @ sw.js:184
+  1336→Promise.then
+  1337→(anonymous) @ sw.js:183
+  1338→Promise.then
+  1339→(anonymous) @ sw.js:181
+  1340→Promise.then
+  1341→handleStaticFetch @ sw.js:177
+  1342→(anonymous) @ sw.js:75
+  1343→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1344→    at sw.js:184:54
+  1345→(anonymous) @ sw.js:184
+  1346→Promise.then
+  1347→(anonymous) @ sw.js:183
+  1348→Promise.then
+  1349→(anonymous) @ sw.js:181
+  1350→Promise.then
+  1351→handleStaticFetch @ sw.js:177
+  1352→(anonymous) @ sw.js:75
+  1353→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1354→    at sw.js:184:54
+  1355→(anonymous) @ sw.js:184
+  1356→Promise.then
+  1357→(anonymous) @ sw.js:183
+  1358→Promise.then
+  1359→(anonymous) @ sw.js:181
+  1360→Promise.then
+  1361→handleStaticFetch @ sw.js:177
+  1362→(anonymous) @ sw.js:75
+  1363→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1364→    at sw.js:184:54
+  1365→(anonymous) @ sw.js:184
+  1366→Promise.then
+  1367→(anonymous) @ sw.js:183
+  1368→Promise.then
+  1369→(anonymous) @ sw.js:181
+  1370→Promise.then
+  1371→handleStaticFetch @ sw.js:177
+  1372→(anonymous) @ sw.js:75
+  1373→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1374→    at sw.js:184:54
+  1375→(anonymous) @ sw.js:184
+  1376→Promise.then
+  1377→(anonymous) @ sw.js:183
+  1378→Promise.then
+  1379→(anonymous) @ sw.js:181
+  1380→Promise.then
+  1381→handleStaticFetch @ sw.js:177
+  1382→(anonymous) @ sw.js:75
+  1383→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1384→    at sw.js:184:54
+  1385→(anonymous) @ sw.js:184
+  1386→Promise.then
+  1387→(anonymous) @ sw.js:183
+  1388→Promise.then
+  1389→(anonymous) @ sw.js:181
+  1390→Promise.then
+  1391→handleStaticFetch @ sw.js:177
+  1392→(anonymous) @ sw.js:75
+  1393→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1394→    at sw.js:184:54
+  1395→(anonymous) @ sw.js:184
+  1396→Promise.then
+  1397→(anonymous) @ sw.js:183
+  1398→Promise.then
+  1399→(anonymous) @ sw.js:181
+  1400→Promise.then
+  1401→handleStaticFetch @ sw.js:177
+  1402→(anonymous) @ sw.js:75
+  1403→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1404→    at sw.js:184:54
+  1405→(anonymous) @ sw.js:184
+  1406→Promise.then
+  1407→(anonymous) @ sw.js:183
+  1408→Promise.then
+  1409→(anonymous) @ sw.js:181
+  1410→Promise.then
+  1411→handleStaticFetch @ sw.js:177
+  1412→(anonymous) @ sw.js:75
+  1413→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1414→    at sw.js:184:54
+  1415→(anonymous) @ sw.js:184
+  1416→Promise.then
+  1417→(anonymous) @ sw.js:183
+  1418→Promise.then
+  1419→(anonymous) @ sw.js:181
+  1420→Promise.then
+  1421→handleStaticFetch @ sw.js:177
+  1422→(anonymous) @ sw.js:75
+  1423→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1424→    at sw.js:184:54
+  1425→(anonymous) @ sw.js:184
+  1426→Promise.then
+  1427→(anonymous) @ sw.js:183
+  1428→Promise.then
+  1429→(anonymous) @ sw.js:181
+  1430→Promise.then
+  1431→handleStaticFetch @ sw.js:177
+  1432→(anonymous) @ sw.js:75
+  1433→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1434→    at sw.js:184:54
+  1435→(anonymous) @ sw.js:184
+  1436→Promise.then
+  1437→(anonymous) @ sw.js:183
+  1438→Promise.then
+  1439→(anonymous) @ sw.js:181
+  1440→Promise.then
+  1441→handleStaticFetch @ sw.js:177
+  1442→(anonymous) @ sw.js:75
+  1443→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1444→    at sw.js:184:54
+  1445→(anonymous) @ sw.js:184
+  1446→Promise.then
+  1447→(anonymous) @ sw.js:183
+  1448→Promise.then
+  1449→(anonymous) @ sw.js:181
+  1450→Promise.then
+  1451→handleStaticFetch @ sw.js:177
+  1452→(anonymous) @ sw.js:75
+  1453→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1454→    at sw.js:184:54
+  1455→(anonymous) @ sw.js:184
+  1456→Promise.then
+  1457→(anonymous) @ sw.js:183
+  1458→Promise.then
+  1459→(anonymous) @ sw.js:181
+  1460→Promise.then
+  1461→handleStaticFetch @ sw.js:177
+  1462→(anonymous) @ sw.js:75
+  1463→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1464→    at sw.js:184:54
+  1465→(anonymous) @ sw.js:184
+  1466→Promise.then
+  1467→(anonymous) @ sw.js:183
+  1468→Promise.then
+  1469→(anonymous) @ sw.js:181
+  1470→Promise.then
+  1471→handleStaticFetch @ sw.js:177
+  1472→(anonymous) @ sw.js:75
+  1473→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1474→    at sw.js:184:54
+  1475→(anonymous) @ sw.js:184
+  1476→Promise.then
+  1477→(anonymous) @ sw.js:183
+  1478→Promise.then
+  1479→(anonymous) @ sw.js:181
+  1480→Promise.then
+  1481→handleStaticFetch @ sw.js:177
+  1482→(anonymous) @ sw.js:75
+  1483→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1484→    at sw.js:184:54
+  1485→(anonymous) @ sw.js:184
+  1486→Promise.then
+  1487→(anonymous) @ sw.js:183
+  1488→Promise.then
+  1489→(anonymous) @ sw.js:181
+  1490→Promise.then
+  1491→handleStaticFetch @ sw.js:177
+  1492→(anonymous) @ sw.js:75
+  1493→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1494→    at sw.js:184:54
+  1495→(anonymous) @ sw.js:184
+  1496→Promise.then
+  1497→(anonymous) @ sw.js:183
+  1498→Promise.then
+  1499→(anonymous) @ sw.js:181
+  1500→Promise.then
+  1501→handleStaticFetch @ sw.js:177
+  1502→(anonymous) @ sw.js:75
+  1503→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1504→    at sw.js:184:54
+  1505→(anonymous) @ sw.js:184
+  1506→Promise.then
+  1507→(anonymous) @ sw.js:183
+  1508→Promise.then
+  1509→(anonymous) @ sw.js:181
+  1510→Promise.then
+  1511→handleStaticFetch @ sw.js:177
+  1512→(anonymous) @ sw.js:75
+  1513→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1514→    at sw.js:184:54
+  1515→(anonymous) @ sw.js:184
+  1516→Promise.then
+  1517→(anonymous) @ sw.js:183
+  1518→Promise.then
+  1519→(anonymous) @ sw.js:181
+  1520→Promise.then
+  1521→handleStaticFetch @ sw.js:177
+  1522→(anonymous) @ sw.js:75
+  1523→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1524→    at sw.js:184:54
+  1525→(anonymous) @ sw.js:184
+  1526→Promise.then
+  1527→(anonymous) @ sw.js:183
+  1528→Promise.then
+  1529→(anonymous) @ sw.js:181
+  1530→Promise.then
+  1531→handleStaticFetch @ sw.js:177
+  1532→(anonymous) @ sw.js:75
+  1533→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1534→    at sw.js:184:54
+  1535→(anonymous) @ sw.js:184
+  1536→Promise.then
+  1537→(anonymous) @ sw.js:183
+  1538→Promise.then
+  1539→(anonymous) @ sw.js:181
+  1540→Promise.then
+  1541→handleStaticFetch @ sw.js:177
+  1542→(anonymous) @ sw.js:75
+  1543→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1544→    at sw.js:184:54
+  1545→(anonymous) @ sw.js:184
+  1546→Promise.then
+  1547→(anonymous) @ sw.js:183
+  1548→Promise.then
+  1549→(anonymous) @ sw.js:181
+  1550→Promise.then
+  1551→handleStaticFetch @ sw.js:177
+  1552→(anonymous) @ sw.js:75
+  1553→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1554→    at sw.js:184:54
+  1555→(anonymous) @ sw.js:184
+  1556→Promise.then
+  1557→(anonymous) @ sw.js:183
+  1558→Promise.then
+  1559→(anonymous) @ sw.js:181
+  1560→Promise.then
+  1561→handleStaticFetch @ sw.js:177
+  1562→(anonymous) @ sw.js:75
+  1563→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1564→    at sw.js:184:54
+  1565→(anonymous) @ sw.js:184
+  1566→Promise.then
+  1567→(anonymous) @ sw.js:183
+  1568→Promise.then
+  1569→(anonymous) @ sw.js:181
+  1570→Promise.then
+  1571→handleStaticFetch @ sw.js:177
+  1572→(anonymous) @ sw.js:75
+  1573→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1574→    at sw.js:184:54
+  1575→(anonymous) @ sw.js:184
+  1576→Promise.then
+  1577→(anonymous) @ sw.js:183
+  1578→Promise.then
+  1579→(anonymous) @ sw.js:181
+  1580→Promise.then
+  1581→handleStaticFetch @ sw.js:177
+  1582→(anonymous) @ sw.js:75
+  1583→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1584→    at sw.js:184:54
+  1585→(anonymous) @ sw.js:184
+  1586→Promise.then
+  1587→(anonymous) @ sw.js:183
+  1588→Promise.then
+  1589→(anonymous) @ sw.js:181
+  1590→Promise.then
+  1591→handleStaticFetch @ sw.js:177
+  1592→(anonymous) @ sw.js:75
+  1593→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1594→    at sw.js:184:54
+  1595→(anonymous) @ sw.js:184
+  1596→Promise.then
+  1597→(anonymous) @ sw.js:183
+  1598→Promise.then
+  1599→(anonymous) @ sw.js:181
+  1600→Promise.then
+  1601→handleStaticFetch @ sw.js:177
+  1602→(anonymous) @ sw.js:75
+  1603→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1604→    at sw.js:184:54
+  1605→(anonymous) @ sw.js:184
+  1606→Promise.then
+  1607→(anonymous) @ sw.js:183
+  1608→Promise.then
+  1609→(anonymous) @ sw.js:181
+  1610→Promise.then
+  1611→handleStaticFetch @ sw.js:177
+  1612→(anonymous) @ sw.js:75
+  1613→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1614→    at sw.js:184:54
+  1615→(anonymous) @ sw.js:184
+  1616→Promise.then
+  1617→(anonymous) @ sw.js:183
+  1618→Promise.then
+  1619→(anonymous) @ sw.js:181
+  1620→Promise.then
+  1621→handleStaticFetch @ sw.js:177
+  1622→(anonymous) @ sw.js:75
+  1623→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1624→    at sw.js:184:54
+  1625→(anonymous) @ sw.js:184
+  1626→Promise.then
+  1627→(anonymous) @ sw.js:183
+  1628→Promise.then
+  1629→(anonymous) @ sw.js:181
+  1630→Promise.then
+  1631→handleStaticFetch @ sw.js:177
+  1632→(anonymous) @ sw.js:75
+  1633→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1634→    at sw.js:184:54
+  1635→(anonymous) @ sw.js:184
+  1636→Promise.then
+  1637→(anonymous) @ sw.js:183
+  1638→Promise.then
+  1639→(anonymous) @ sw.js:181
+  1640→Promise.then
+  1641→handleStaticFetch @ sw.js:177
+  1642→(anonymous) @ sw.js:75
+  1643→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1644→    at sw.js:184:54
+  1645→(anonymous) @ sw.js:184
+  1646→Promise.then
+  1647→(anonymous) @ sw.js:183
+  1648→Promise.then
+  1649→(anonymous) @ sw.js:181
+  1650→Promise.then
+  1651→handleStaticFetch @ sw.js:177
+  1652→(anonymous) @ sw.js:75
+  1653→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1654→    at sw.js:184:54
+  1655→(anonymous) @ sw.js:184
+  1656→Promise.then
+  1657→(anonymous) @ sw.js:183
+  1658→Promise.then
+  1659→(anonymous) @ sw.js:181
+  1660→Promise.then
+  1661→handleStaticFetch @ sw.js:177
+  1662→(anonymous) @ sw.js:75
+  1663→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1664→    at sw.js:184:54
+  1665→(anonymous) @ sw.js:184
+  1666→Promise.then
+  1667→(anonymous) @ sw.js:183
+  1668→Promise.then
+  1669→(anonymous) @ sw.js:181
+  1670→Promise.then
+  1671→handleStaticFetch @ sw.js:177
+  1672→(anonymous) @ sw.js:75
+  1673→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1674→    at sw.js:184:54
+  1675→(anonymous) @ sw.js:184
+  1676→Promise.then
+  1677→(anonymous) @ sw.js:183
+  1678→Promise.then
+  1679→(anonymous) @ sw.js:181
+  1680→Promise.then
+  1681→handleStaticFetch @ sw.js:177
+  1682→(anonymous) @ sw.js:75
+  1683→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1684→    at sw.js:184:54
+  1685→(anonymous) @ sw.js:184
+  1686→Promise.then
+  1687→(anonymous) @ sw.js:183
+  1688→Promise.then
+  1689→(anonymous) @ sw.js:181
+  1690→Promise.then
+  1691→handleStaticFetch @ sw.js:177
+  1692→(anonymous) @ sw.js:75
+  1693→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1694→    at sw.js:184:54
+  1695→(anonymous) @ sw.js:184
+  1696→Promise.then
+  1697→(anonymous) @ sw.js:183
+  1698→Promise.then
+  1699→(anonymous) @ sw.js:181
+  1700→Promise.then
+  1701→handleStaticFetch @ sw.js:177
+  1702→(anonymous) @ sw.js:75
+  1703→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1704→    at sw.js:184:54
+  1705→(anonymous) @ sw.js:184
+  1706→Promise.then
+  1707→(anonymous) @ sw.js:183
+  1708→Promise.then
+  1709→(anonymous) @ sw.js:181
+  1710→Promise.then
+  1711→handleStaticFetch @ sw.js:177
+  1712→(anonymous) @ sw.js:75
+  1713→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1714→    at sw.js:184:54
+  1715→(anonymous) @ sw.js:184
+  1716→Promise.then
+  1717→(anonymous) @ sw.js:183
+  1718→Promise.then
+  1719→(anonymous) @ sw.js:181
+  1720→Promise.then
+  1721→handleStaticFetch @ sw.js:177
+  1722→(anonymous) @ sw.js:75
+  1723→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1724→    at sw.js:184:54
+  1725→(anonymous) @ sw.js:184
+  1726→Promise.then
+  1727→(anonymous) @ sw.js:183
+  1728→Promise.then
+  1729→(anonymous) @ sw.js:181
+  1730→Promise.then
+  1731→handleStaticFetch @ sw.js:177
+  1732→(anonymous) @ sw.js:75
+  1733→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1734→    at sw.js:184:54
+  1735→(anonymous) @ sw.js:184
+  1736→Promise.then
+  1737→(anonymous) @ sw.js:183
+  1738→Promise.then
+  1739→(anonymous) @ sw.js:181
+  1740→Promise.then
+  1741→handleStaticFetch @ sw.js:177
+  1742→(anonymous) @ sw.js:75
+  1743→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1744→    at sw.js:184:54
+  1745→(anonymous) @ sw.js:184
+  1746→Promise.then
+  1747→(anonymous) @ sw.js:183
+  1748→Promise.then
+  1749→(anonymous) @ sw.js:181
+  1750→Promise.then
+  1751→handleStaticFetch @ sw.js:177
+  1752→(anonymous) @ sw.js:75
+  1753→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1754→    at sw.js:184:54
+  1755→(anonymous) @ sw.js:184
+  1756→Promise.then
+  1757→(anonymous) @ sw.js:183
+  1758→Promise.then
+  1759→(anonymous) @ sw.js:181
+  1760→Promise.then
+  1761→handleStaticFetch @ sw.js:177
+  1762→(anonymous) @ sw.js:75
+  1763→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1764→    at sw.js:184:54
+  1765→(anonymous) @ sw.js:184
+  1766→Promise.then
+  1767→(anonymous) @ sw.js:183
+  1768→Promise.then
+  1769→(anonymous) @ sw.js:181
+  1770→Promise.then
+  1771→handleStaticFetch @ sw.js:177
+  1772→(anonymous) @ sw.js:75
+  1773→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1774→    at sw.js:184:54
+  1775→(anonymous) @ sw.js:184
+  1776→Promise.then
+  1777→(anonymous) @ sw.js:183
+  1778→Promise.then
+  1779→(anonymous) @ sw.js:181
+  1780→Promise.then
+  1781→handleStaticFetch @ sw.js:177
+  1782→(anonymous) @ sw.js:75
+  1783→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1784→    at sw.js:184:54
+  1785→(anonymous) @ sw.js:184
+  1786→Promise.then
+  1787→(anonymous) @ sw.js:183
+  1788→Promise.then
+  1789→(anonymous) @ sw.js:181
+  1790→Promise.then
+  1791→handleStaticFetch @ sw.js:177
+  1792→(anonymous) @ sw.js:75
+  1793→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1794→    at sw.js:184:54
+  1795→(anonymous) @ sw.js:184
+  1796→Promise.then
+  1797→(anonymous) @ sw.js:183
+  1798→Promise.then
+  1799→(anonymous) @ sw.js:181
+  1800→Promise.then
+  1801→handleStaticFetch @ sw.js:177
+  1802→(anonymous) @ sw.js:75
+  1803→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1804→    at sw.js:184:54
+  1805→(anonymous) @ sw.js:184
+  1806→Promise.then
+  1807→(anonymous) @ sw.js:183
+  1808→Promise.then
+  1809→(anonymous) @ sw.js:181
+  1810→Promise.then
+  1811→handleStaticFetch @ sw.js:177
+  1812→(anonymous) @ sw.js:75
+  1813→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1814→    at sw.js:184:54
+  1815→(anonymous) @ sw.js:184
+  1816→Promise.then
+  1817→(anonymous) @ sw.js:183
+  1818→Promise.then
+  1819→(anonymous) @ sw.js:181
+  1820→Promise.then
+  1821→handleStaticFetch @ sw.js:177
+  1822→(anonymous) @ sw.js:75
+  1823→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1824→    at sw.js:184:54
+  1825→(anonymous) @ sw.js:184
+  1826→Promise.then
+  1827→(anonymous) @ sw.js:183
+  1828→Promise.then
+  1829→(anonymous) @ sw.js:181
+  1830→Promise.then
+  1831→handleStaticFetch @ sw.js:177
+  1832→(anonymous) @ sw.js:75
+  1833→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1834→    at sw.js:184:54
+  1835→(anonymous) @ sw.js:184
+  1836→Promise.then
+  1837→(anonymous) @ sw.js:183
+  1838→Promise.then
+  1839→(anonymous) @ sw.js:181
+  1840→Promise.then
+  1841→handleStaticFetch @ sw.js:177
+  1842→(anonymous) @ sw.js:75
+  1843→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1844→    at sw.js:184:54
+  1845→(anonymous) @ sw.js:184
+  1846→Promise.then
+  1847→(anonymous) @ sw.js:183
+  1848→Promise.then
+  1849→(anonymous) @ sw.js:181
+  1850→Promise.then
+  1851→handleStaticFetch @ sw.js:177
+  1852→(anonymous) @ sw.js:75
+  1853→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1854→    at sw.js:184:54
+  1855→(anonymous) @ sw.js:184
+  1856→Promise.then
+  1857→(anonymous) @ sw.js:183
+  1858→Promise.then
+  1859→(anonymous) @ sw.js:181
+  1860→Promise.then
+  1861→handleStaticFetch @ sw.js:177
+  1862→(anonymous) @ sw.js:75
+  1863→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1864→    at sw.js:184:54
+  1865→(anonymous) @ sw.js:184
+  1866→Promise.then
+  1867→(anonymous) @ sw.js:183
+  1868→Promise.then
+  1869→(anonymous) @ sw.js:181
+  1870→Promise.then
+  1871→handleStaticFetch @ sw.js:177
+  1872→(anonymous) @ sw.js:75
+  1873→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1874→    at sw.js:184:54
+  1875→(anonymous) @ sw.js:184
+  1876→Promise.then
+  1877→(anonymous) @ sw.js:183
+  1878→Promise.then
+  1879→(anonymous) @ sw.js:181
+  1880→Promise.then
+  1881→handleStaticFetch @ sw.js:177
+  1882→(anonymous) @ sw.js:75
+  1883→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1884→    at sw.js:184:54
+  1885→(anonymous) @ sw.js:184
+  1886→Promise.then
+  1887→(anonymous) @ sw.js:183
+  1888→Promise.then
+  1889→(anonymous) @ sw.js:181
+  1890→Promise.then
+  1891→handleStaticFetch @ sw.js:177
+  1892→(anonymous) @ sw.js:75
+  1893→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1894→    at sw.js:184:54
+  1895→(anonymous) @ sw.js:184
+  1896→Promise.then
+  1897→(anonymous) @ sw.js:183
+  1898→Promise.then
+  1899→(anonymous) @ sw.js:181
+  1900→Promise.then
+  1901→handleStaticFetch @ sw.js:177
+  1902→(anonymous) @ sw.js:75
+  1903→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1904→    at sw.js:184:54
+  1905→(anonymous) @ sw.js:184
+  1906→Promise.then
+  1907→(anonymous) @ sw.js:183
+  1908→Promise.then
+  1909→(anonymous) @ sw.js:181
+  1910→Promise.then
+  1911→handleStaticFetch @ sw.js:177
+  1912→(anonymous) @ sw.js:75
+  1913→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1914→    at sw.js:184:54
+  1915→(anonymous) @ sw.js:184
+  1916→Promise.then
+  1917→(anonymous) @ sw.js:183
+  1918→Promise.then
+  1919→(anonymous) @ sw.js:181
+  1920→Promise.then
+  1921→handleStaticFetch @ sw.js:177
+  1922→(anonymous) @ sw.js:75
+  1923→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1924→    at sw.js:184:54
+  1925→(anonymous) @ sw.js:184
+  1926→Promise.then
+  1927→(anonymous) @ sw.js:183
+  1928→Promise.then
+  1929→(anonymous) @ sw.js:181
+  1930→Promise.then
+  1931→handleStaticFetch @ sw.js:177
+  1932→(anonymous) @ sw.js:75
+  1933→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1934→    at sw.js:184:54
+  1935→(anonymous) @ sw.js:184
+  1936→Promise.then
+  1937→(anonymous) @ sw.js:183
+  1938→Promise.then
+  1939→(anonymous) @ sw.js:181
+  1940→Promise.then
+  1941→handleStaticFetch @ sw.js:177
+  1942→(anonymous) @ sw.js:75
+  1943→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1944→    at sw.js:184:54
+  1945→(anonymous) @ sw.js:184
+  1946→Promise.then
+  1947→(anonymous) @ sw.js:183
+  1948→Promise.then
+  1949→(anonymous) @ sw.js:181
+  1950→Promise.then
+  1951→handleStaticFetch @ sw.js:177
+  1952→(anonymous) @ sw.js:75
+  1953→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1954→    at sw.js:184:54
+  1955→(anonymous) @ sw.js:184
+  1956→Promise.then
+  1957→(anonymous) @ sw.js:183
+  1958→Promise.then
+  1959→(anonymous) @ sw.js:181
+  1960→Promise.then
+  1961→handleStaticFetch @ sw.js:177
+  1962→(anonymous) @ sw.js:75
+  1963→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1964→    at sw.js:184:54
+  1965→(anonymous) @ sw.js:184
+  1966→Promise.then
+  1967→(anonymous) @ sw.js:183
+  1968→Promise.then
+  1969→(anonymous) @ sw.js:181
+  1970→Promise.then
+  1971→handleStaticFetch @ sw.js:177
+  1972→(anonymous) @ sw.js:75
+  1973→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1974→    at sw.js:184:54
+  1975→(anonymous) @ sw.js:184
+  1976→Promise.then
+  1977→(anonymous) @ sw.js:183
+  1978→Promise.then
+  1979→(anonymous) @ sw.js:181
+  1980→Promise.then
+  1981→handleStaticFetch @ sw.js:177
+  1982→(anonymous) @ sw.js:75
+  1983→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1984→    at sw.js:184:54
+  1985→(anonymous) @ sw.js:184
+  1986→Promise.then
+  1987→(anonymous) @ sw.js:183
+  1988→Promise.then
+  1989→(anonymous) @ sw.js:181
+  1990→Promise.then
+  1991→handleStaticFetch @ sw.js:177
+  1992→(anonymous) @ sw.js:75
+  1993→sw.js:184 Uncaught (in promise) TypeError: Failed to execute 'clone' on 'Response': Response body is already used
+  1994→    at sw.js:184:54
+  1995→(anonymous) @ sw.js:184
+  1996→Promise.then
+  1997→(anonymous) @ sw.js:183
+  1998→Promise.then
+  1999→(anonymous) @ sw.js:181
+  2000→Promise.then
+
+[showing lines 1-2000 of 7306; use offset=2001 with limit to continue reading]
