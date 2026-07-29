@@ -1,0 +1,1271 @@
+     1→'use client';
+     2→
+     3→// ============================================================
+     4→// MODUL 50-51 Phase 3: File Preview Component — 3-tier rendering
+     5→// Tier 1 (native browser): image, video, audio, PDF, text
+     6→//   - Image/Video/Audio: <img>/<video>/<audio> src={contentUrl}
+     7→//   - PDF: pdfjs-dist canvas rendering (dynamic import)
+     8→//   - Text: fetch from previewUrl (UTF-8 text endpoint)
+     9→// Tier 2 (client-side render): docx, xlsx
+    10→//   - DOCX: docx-preview renderAsync() → fallback mammoth convertToHtml()
+    11→//   - XLSX: SheetJS client-side parse → SpreadsheetPreview
+    12→// Tier 3 (server-side): pptx
+    13→//   - PPTX: server-side JSON → PresentationPreview
+    14→// ============================================================
+    15→
+    16→import { useState, useEffect, useRef, useCallback } from 'react';
+    17→import {
+    18→  File,
+    19→  ImageIcon,
+    20→  Film,
+    21→  FileText,
+    22→  Music,
+    23→  Archive,
+    24→  Code,
+    25→  Presentation,
+    26→  FileSpreadsheet,
+    27→  FileQuestion,
+    28→  Download,
+    29→  Loader2,
+    30→  X,
+    31→  ExternalLink,
+    32→  Copy,
+    33→  ChevronLeft,
+    34→  ChevronRight,
+    35→  ZoomIn,
+    36→  ZoomOut,
+    37→} from 'lucide-react';
+    38→import {
+    39→  getMimePreviewType,
+    40→  getMimeIcon,
+    41→  getMimeLabel,
+    42→  formatFileSize,
+    43→  getPreviewTier,
+    44→  type PreviewType,
+    45→  type PreviewTier,
+    46→  type IconName,
+    47→} from '@/lib/mime-icons';
+    48→import { usePreviewCache } from '@/hooks/use-preview-cache';
+    49→import { WifiOff } from 'lucide-react';
+    50→import { Button } from '@/components/ui/button';
+    51→import { Card, CardContent } from '@/components/ui/card';
+    52→import { ScrollArea } from '@/components/ui/scroll-area';
+    53→import { toast } from 'sonner';
+    54→import { OpenWithDropdown } from '@/components/preview/open-with-dropdown';
+    55→import { OfflineBadge } from '@/components/ui/offline-badge';
+    56→
+    57→interface FilePreviewProps {
+    58→  id: string;
+    59→  name: string;
+    60→  mimeType: string;
+    61→  sizeBytes?: number;
+    62→  checksumSha256?: string | null;
+    63→  onClose?: () => void;
+    64→}
+    65→
+    66→// Icon component lookup map
+    67→const ICON_COMPONENTS: Record<IconName, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+    68→  File,
+    69→  Image: ImageIcon,
+    70→  Film,
+    71→  FileText,
+    72→  Music,
+    73→  Archive,
+    74→  Code,
+    75→  Presentation,
+    76→  Spreadsheet: FileSpreadsheet,
+    77→  FileQuestion,
+    78→};
+    79→
+    80→// ============================================================
+    81→// Spreadsheet Preview Sub-component
+    82→// Renders xlsx data as a scrollable table with sheet tabs
+    83→// ============================================================
+    84→function SpreadsheetPreview({ data, name }: {
+    85→  data: {
+    86→    sheetNames: string[];
+    87→    sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }>;
+    88→  };
+    89→  name: string;
+    90→}) {
+    91→  const [activeSheet, setActiveSheet] = useState(data.sheetNames[0] || '');
+    92→  const sheetData = data.sheets[activeSheet];
+    93→  const maxRows = 100;
+    94→
+    95→  if (!sheetData) {
+    96→    return <p className="text-sm text-muted-foreground">No data found in spreadsheet</p>;
+    97→  }
+    98→
+    99→  return (
+   100→    <div className="flex flex-col w-full">
+   101→      {/* Sheet tabs */}
+   102→      {data.sheetNames.length > 1 && (
+   103→        <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1">
+   104→          {data.sheetNames.map((sheetName) => (
+   105→            <Button
+   106→              key={sheetName}
+   107→              variant={sheetName === activeSheet ? 'secondary' : 'ghost'}
+   108→              size="sm"
+   109→              className="text-xs whitespace-nowrap"
+   110→              onClick={() => setActiveSheet(sheetName)}
+   111→            >
+   112→              {sheetName}
+   113→            </Button>
+   114→          ))}
+   115→        </div>
+   116→      )}
+   117→
+   118→      {/* Table */}
+   119→      <div className="overflow-auto max-h-[60vh] border rounded-lg">
+   120→        <table className="w-full text-sm">
+   121→          <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+   122→            <tr>
+   123→              {sheetData.headers.map((header, i) => (
+   124→                <th key={i} className="px-3 py-2 text-left font-medium border-b whitespace-nowrap">
+   125→                  {header || `Column ${i + 1}`}
+   126→                </th>
+   127→              ))}
+   128→            </tr>
+   129→          </thead>
+   130→          <tbody>
+   131→            {sheetData.rows.slice(0, maxRows).map((row, i) => (
+   132→              <tr key={i} className="hover:bg-accent/30 transition-colors">
+   133→                {sheetData.headers.map((header, j) => (
+   134→                  <td key={j} className="px-3 py-1.5 border-b whitespace-nowrap max-w-[200px] truncate">
+   135→                    {row[header] !== null && row[header] !== undefined ? String(row[header]) : ''}
+   136→                  </td>
+   137→                ))}
+   138→              </tr>
+   139→            ))}
+   140→          </tbody>
+   141→        </table>
+   142→        {sheetData.rows.length > maxRows && (
+   143→          <div className="p-2 text-center text-xs text-muted-foreground bg-muted/30">
+   144→            Showing {maxRows} of {sheetData.rows.length} rows
+   145→          </div>
+   146→        )}
+   147→        {sheetData.rows.length === 0 && (
+   148→          <div className="p-6 text-center text-sm text-muted-foreground">
+   149→            This sheet is empty
+   150→          </div>
+   151→        )}
+   152→      </div>
+   153→    </div>
+   154→  );
+   155→}
+   156→
+   157→// ============================================================
+   158→// Presentation Preview Sub-component
+   159→// Shows extracted text content from PowerPoint slides
+   160→// ============================================================
+   161→function PresentationPreview({ data, name }: {
+   162→  data: {
+   163→    slideTexts: string[];
+   164→    totalSlides: number;
+   165→  };
+   166→  name: string;
+   167→}) {
+   168→  const [currentSlide, setCurrentSlide] = useState(0);
+   169→  const hasSlides = data.slideTexts.length > 0;
+   170→
+   171→  return (
+   172→    <div className="flex flex-col w-full items-center">
+   173→      {/* Slide display area */}
+   174→      <div className="w-full aspect-[16/9] bg-white rounded-lg border shadow-sm flex items-center justify-center p-8 mb-4">
+   175→        {hasSlides && data.slideTexts[currentSlide] ? (
+   176→          <div className="text-center w-full">
+   177→            <p className="text-lg font-medium leading-relaxed whitespace-pre-wrap">
+   178→              {data.slideTexts[currentSlide]}
+   179→            </p>
+   180→          </div>
+   181→        ) : (
+   182→          <div className="text-center text-muted-foreground">
+   183→            <Presentation className="h-12 w-12 mx-auto mb-3 opacity-50" />
+   184→            <p className="text-sm">No text content extracted from this slide</p>
+   185→          </div>
+   186→        )}
+   187→      </div>
+   188→
+   189→      {/* Slide navigation */}
+   190→      {hasSlides && data.slideTexts.length > 1 && (
+   191→        <div className="flex items-center gap-3">
+   192→          <Button
+   193→            variant="outline"
+   194→            size="icon"
+   195→            className="h-8 w-8"
+   196→            onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
+   197→            disabled={currentSlide === 0}
+   198→            aria-label="Previous slide"
+   199→          >
+   200→            <ChevronLeft className="h-4 w-4" />
+   201→          </Button>
+   202→          <span className="text-sm text-muted-foreground">
+   203→            Slide {currentSlide + 1} of {data.slideTexts.length}
+   204→          </span>
+   205→          <Button
+   206→            variant="outline"
+   207→            size="icon"
+   208→            className="h-8 w-8"
+   209→            onClick={() => setCurrentSlide(Math.min(data.slideTexts.length - 1, currentSlide + 1))}
+   210→            disabled={currentSlide === data.slideTexts.length - 1}
+   211→            aria-label="Next slide"
+   212→          >
+   213→            <ChevronRight className="h-4 w-4" />
+   214→          </Button>
+   215→        </div>
+   216→      )}
+   217→    </div>
+   218→  );
+   219→}
+   220→
+   221→// ============================================================
+   222→// PDF Preview (Tier 1 — pdfjs-dist canvas rendering)
+   223→// ============================================================
+   224→function PdfPreview({ contentUrl, name, sizeBytes, mimeLabel, closeButton }: {
+   225→  contentUrl: string;
+   226→  name: string;
+   227→  sizeBytes?: number;
+   228→  mimeLabel: string;
+   229→  closeButton: React.ReactNode;
+   230→}) {
+   231→  const [loading, setLoading] = useState(true);
+   232→  const [error, setError] = useState(false);
+   233→  const [numPages, setNumPages] = useState(0);
+   234→  const [currentPage, setCurrentPage] = useState(1);
+   235→  const [scale, setScale] = useState(1.2);
+   236→  const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+   237→  const containerRef = useRef<HTMLDivElement>(null);
+   238→
+   239→  const renderPage = useCallback(async (pageNum: number, pdfDoc: unknown, scale: number) => {
+   240→    const pdfDocument = pdfDoc as { getPage: (n: number) => Promise<{ render: (params: unknown) => Promise<void>; viewport: { width: number; height: number; scale: number } }> };
+   241→    const page = await pdfDocument.getPage(pageNum);
+   242→    const viewport = page.getViewport({ scale });
+   243→
+   244→    let canvas = canvasRefs.current.get(pageNum);
+   245→    if (!canvas) {
+   246→      canvas = document.createElement('canvas');
+   247→      canvasRefs.current.set(pageNum, canvas);
+   248→      if (containerRef.current) {
+   249→        containerRef.current.appendChild(canvas);
+   250→      }
+   251→    }
+   252→
+   253→    canvas.width = viewport.width;
+   254→    canvas.height = viewport.height;
+   255→    canvas.style.width = `${viewport.width}px`;
+   256→    canvas.style.height = `${viewport.height}px`;
+   257→    canvas.style.marginBottom = '8px';
+   258→    canvas.style.display = 'block';
+   259→
+   260→    const context = canvas.getContext('2d');
+   261→    if (!context) return;
+   262→
+   263→    await page.render({
+   264→      canvasContext: context,
+   265→      viewport,
+   266→    });
+   267→  }, []);
+   268→
+   269→  useEffect(() => {
+   270→    let cancelled = false;
+   271→
+   272→    const loadPdf = async () => {
+   273→      try {
+   274→        // Dynamic import of pdfjs-dist
+   275→        const pdfjsLib = await import('pdfjs-dist');
+   276→        // Use local worker from public dir (avoids CSP CDN blocking issues)
+   277→        pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+   278→
+   279→        // Fetch PDF as ArrayBuffer from contentUrl
+   280→        const res = await fetch(contentUrl);
+   281→        if (!res.ok) throw new Error('Failed to fetch PDF');
+   282→        const arrayBuffer = await res.arrayBuffer();
+   283→
+   284→        const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+   285→        if (!cancelled) {
+   286→          setNumPages(pdfDoc.numPages);
+   287→          setLoading(false);
+   288→        }
+   289→
+   290→        // Render all pages
+   291→        for (let i = 1; i <= pdfDoc.numPages; i++) {
+   292→          if (cancelled) break;
+   293→          await renderPage(i, pdfDoc, scale);
+   294→        }
+   295→      } catch (err) {
+   296→        if (!cancelled) {
+   297→          console.error('PDF preview error:', err);
+   298→          setError(true);
+   299→          setLoading(false);
+   300→        }
+   301→      }
+   302→    };
+   303→
+   304→    loadPdf();
+   305→    return () => { cancelled = true; };
+   306→  }, [contentUrl, renderPage]);
+   307→
+   308→  // Re-render pages when scale changes
+   309→  useEffect(() => {
+   310→    if (numPages === 0 || loading) return;
+   311→    let cancelled = false;
+   312→
+   313→    const rerender = async () => {
+   314→      try {
+   315→        const pdfjsLib = await import('pdfjs-dist');
+   316→        // Use local worker from public dir (avoids CSP CDN blocking issues)
+   317→        pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+   318→
+   319→        const res = await fetch(contentUrl);
+   320→        if (!res.ok) return;
+   321→        const arrayBuffer = await res.arrayBuffer();
+   322→        const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+   323→
+   324→        // Clear existing canvases
+   325→        if (containerRef.current) {
+   326→          containerRef.current.innerHTML = '';
+   327→        }
+   328→        canvasRefs.current.clear();
+   329→
+   330→        for (let i = 1; i <= pdfDoc.numPages; i++) {
+   331→          if (cancelled) break;
+   332→          await renderPage(i, pdfDoc, scale);
+   333→        }
+   334→      } catch {
+   335→        // Silently fail on re-render
+   336→      }
+   337→    };
+   338→
+   339→    rerender();
+   340→    return () => { cancelled = true; };
+   341→  }, [scale, numPages, contentUrl, renderPage]);
+   342→
+   343→  if (error) {
+   344→    return (
+   345→      <div className="relative flex flex-col w-full">
+   346→        {closeButton}
+   347→        <Card className="w-full">
+   348→          <CardContent className="p-6 flex flex-col items-center gap-4">
+   349→            <FileText className="h-12 w-12 text-muted-foreground" />
+   350→            <p className="text-sm text-muted-foreground">Failed to load PDF preview</p>
+   351→            <Button variant="outline" size="sm" asChild>
+   352→              <a href={contentUrl} target="_blank" rel="noopener noreferrer">
+   353→                <ExternalLink className="h-4 w-4 mr-2" />
+   354→                Open PDF directly
+   355→              </a>
+   356→            </Button>
+   357→          </CardContent>
+   358→        </Card>
+   359→      </div>
+   360→    );
+   361→  }
+   362→
+   363→  return (
+   364→    <div className="relative flex flex-col w-full">
+   365→      {closeButton}
+   366→      <div className="flex items-center gap-2 mb-3">
+   367→        <FileText className="h-5 w-5 text-red-500" />
+   368→        <span className="font-medium truncate max-w-xs">{name}</span>
+   369→        {sizeBytes && (
+   370→          <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>
+   371→        )}
+   372→        <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+   373→        <OfflineBadge />
+   374→        <div className="flex items-center gap-1 ml-auto">
+   375→          {numPages > 1 && (
+   376→            <>
+   377→              <Button
+   378→                variant="outline"
+   379→                size="icon"
+   380→                className="h-7 w-7"
+   381→                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+   382→                disabled={currentPage === 1}
+   383→                aria-label="Previous page"
+   384→              >
+   385→                <ChevronLeft className="h-3 w-3" />
+   386→              </Button>
+   387→              <span className="text-xs text-muted-foreground">
+   388→                Page {currentPage}/{numPages}
+   389→              </span>
+   390→              <Button
+   391→                variant="outline"
+   392→                size="icon"
+   393→                className="h-7 w-7"
+   394→                onClick={() => setCurrentPage(Math.min(numPages, currentPage + 1))}
+   395→                disabled={currentPage === numPages}
+   396→                aria-label="Next page"
+   397→              >
+   398→                <ChevronRight className="h-3 w-3" />
+   399→              </Button>
+   400→            </>
+   401→          )}
+   402→          <Button
+   403→            variant="outline"
+   404→            size="icon"
+   405→            className="h-7 w-7"
+   406→            onClick={() => setScale(Math.max(0.5, scale - 0.2))}
+   407→            disabled={scale <= 0.5}
+   408→            aria-label="Zoom out"
+   409→          >
+   410→            <ZoomOut className="h-3 w-3" />
+   411→          </Button>
+   412→          <span className="text-xs text-muted-foreground">{Math.round(scale * 100)}%</span>
+   413→          <Button
+   414→            variant="outline"
+   415→            size="icon"
+   416→            className="h-7 w-7"
+   417→            onClick={() => setScale(Math.min(3, scale + 0.2))}
+   418→            disabled={scale >= 3}
+   419→            aria-label="Zoom in"
+   420→          >
+   421→            <ZoomIn className="h-3 w-3" />
+   422→          </Button>
+   423→        </div>
+   424→      </div>
+   425→
+   426→      {loading ? (
+   427→        <div className="flex items-center justify-center py-12">
+   428→          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   429→          <span className="ml-2 text-sm text-muted-foreground">Loading PDF…</span>
+   430→        </div>
+   431→      ) : (
+   432→        <ScrollArea className="w-full rounded-lg border bg-gray-50 dark:bg-gray-900" style={{ maxHeight: '70vh' }}>
+   433→          <div
+   434→            ref={containerRef}
+   435→            className="flex flex-col items-center p-4"
+   436→          />
+   437→        </ScrollArea>
+   438→      )}
+   439→    </div>
+   440→  );
+   441→}
+   442→
+   443→// ============================================================
+   444→// DOCX Preview (Tier 2 — docx-preview with mammoth fallback)
+   445→// MODUL 51: Added offline message support + cache integration
+   446→// ============================================================
+   447→function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+   448→  contentUrl: string;
+   449→  name: string;
+   450→  sizeBytes?: number;
+   451→  mimeLabel: string;
+   452→  downloadUrl: string;
+   453→  closeButton: React.ReactNode;
+   454→  cachedContent: string | null;
+   455→  isFromCache: boolean;
+   456→  offlineMessage: string | null;
+   457→  triggerBackgroundCache: (content: string) => Promise<void>;
+   458→  isLoadingCache: boolean;
+   459→}) {
+   460→  const [loading, setLoading] = useState(true);
+   461→  const [error, setError] = useState<string | null>(null);
+   462→  const [mammothHtml, setMammothHtml] = useState<string | null>(null);
+   463→  const docxContainerRef = useRef<HTMLDivElement>(null);
+   464→
+   465→  // MODUL 51: If we have cached content and are offline or have a cache match, render it directly
+   466→  const shouldUseCache = isFromCache && cachedContent;
+   467→
+   468→  useEffect(() => {
+   469→    // MODUL 51: If we have cached HTML content, use it directly
+   470→    if (shouldUseCache && cachedContent) {
+   471→      setMammothHtml(cachedContent);
+   472→      setLoading(false);
+   473→      return;
+   474→    }
+   475→
+   476→    let cancelled = false;
+   477→
+   478→    const loadDocx = async () => {
+   479→      try {
+   480→        // Fetch raw bytes from contentUrl
+   481→        const res = await fetch(contentUrl);
+   482→        if (!res.ok) throw new Error('Failed to fetch document');
+   483→        const arrayBuffer = await res.arrayBuffer();
+   484→
+   485→        // Try docx-preview first
+   486→        try {
+   487→          const docxPreview = await import('docx-preview');
+   488→          if (docxContainerRef.current && !cancelled) {
+   489→            await docxPreview.renderAsync(
+   490→              arrayBuffer,
+   491→              docxContainerRef.current,
+   492→              undefined,
+   493→              { className: 'docx-preview-wrapper' }
+   494→            );
+   495→            if (!cancelled) {
+   496→              setLoading(false);
+   497→              // MODUL 51: Cache the rendered HTML — extract innerHTML from container for future offline use
+   498→              const renderedHtml = docxContainerRef.current.innerHTML;
+   499→              if (renderedHtml) {
+   500→                triggerBackgroundCache(renderedHtml).catch((err) => {
+   501→                  console.warn('[DocxPreview] Background cache write failed:', err);
+   502→                });
+   503→              }
+   504→            }
+   505→            return;
+   506→          }
+   507→        } catch (docxPreviewErr) {
+   508→          console.warn('docx-preview failed, falling back to mammoth:', docxPreviewErr);
+   509→        }
+   510→
+   511→        // Fallback to mammoth
+   512→        if (!cancelled) {
+   513→          const mammoth = await import('mammoth');
+   514→          // In browser, mammoth expects {arrayBuffer: ArrayBuffer} not {buffer: Buffer}
+   515→          const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+   516→          if (!cancelled) {
+   517→            setMammothHtml(result.value);
+   518→            setLoading(false);
+   519→            // MODUL 51: Cache the mammoth HTML result
+   520→            if (result.value) {
+   521→              triggerBackgroundCache(result.value).catch((err) => {
+   522→                console.warn('[DocxPreview] Background cache write failed:', err);
+   523→              });
+   524→            }
+   525→          }
+   526→        }
+   527→      } catch (err) {
+   528→        if (!cancelled) {
+   529→          console.error('DOCX preview error:', err);
+   530→          setError('Failed to load document preview');
+   531→          setLoading(false);
+   532→        }
+   533→      }
+   534→    };
+   535→
+   536→    loadDocx();
+   537→    return () => { cancelled = true; };
+   538→  }, [contentUrl, shouldUseCache, cachedContent, triggerBackgroundCache]);
+   539→
+   540→  if (error) {
+   541→    return (
+   542→      <div className="relative flex flex-col w-full">
+   543→        {closeButton}
+   544→        <Card className="w-full">
+   545→          <CardContent className="p-6 flex flex-col items-center gap-4">
+   546→            <FileText className="h-12 w-12 text-muted-foreground" />
+   547→            <p className="text-sm text-muted-foreground">{error}</p>
+   548→            <Button variant="outline" size="sm" asChild>
+   549→              <a href={downloadUrl} download={name}>
+   550→                <Download className="h-4 w-4 mr-2" />
+   551→                Download to open
+   552→              </a>
+   553→            </Button>
+   554→          </CardContent>
+   555→        </Card>
+   556→      </div>
+   557→    );
+   558→  }
+   559→
+   560→  // MODUL 51: Offline with no cache — show explicit offline message
+   561→  if (offlineMessage) {
+   562→    return (
+   563→      <div className="relative flex flex-col w-full">
+   564→        {closeButton}
+   565→        <Card className="w-full">
+   566→          <CardContent className="p-6 flex flex-col items-center gap-4">
+   567→            <WifiOff className="h-12 w-12 text-orange-500" />
+   568→            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">{offlineMessage}</p>
+   569→            <p className="text-xs text-muted-foreground text-center">
+   570→              Open this file while online to make it available offline later
+   571→            </p>
+   572→          </CardContent>
+   573→        </Card>
+   574→      </div>
+   575→    );
+   576→  }
+   577→
+   578→  return (
+   579→    <div className="relative flex flex-col w-full">
+   580→      {closeButton}
+   581→      <div className="flex items-center gap-2 mb-3">
+   582→        <FileText className="h-5 w-5 text-blue-500" />
+   583→        <span className="font-medium truncate max-w-xs">{name}</span>
+   584→        {sizeBytes && (
+   585→          <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>
+   586→        )}
+   587→        <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+   588→        {isFromCache && <span className="text-xs text-emerald-600 dark:text-emerald-400">(cached)</span>}
+   589→        <OfflineBadge />
+   590→        <OpenWithDropdown nodeId={name} mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" fileName={name} />
+   591→      </div>
+   592→
+   593→      {loading ? (
+   594→        <div className="flex items-center justify-center py-12">
+   595→          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   596→          <span className="ml-2 text-sm text-muted-foreground">Loading document…</span>
+   597→        </div>
+   598→      ) : mammothHtml ? (
+   599→        // Mammoth fallback: render HTML in styled div
+   600→        <div
+   601→          className="w-full rounded-lg border bg-white p-6 overflow-auto max-h-[70vh] prose prose-sm dark:prose-invert"
+   602→          dangerouslySetInnerHTML={{ __html: mammothHtml }}
+   603→        />
+   604→      ) : (
+   605→        // docx-preview rendered into container ref
+   606→        <div
+   607→          ref={docxContainerRef}
+   608→          className="w-full rounded-lg border bg-white overflow-auto max-h-[70vh]"
+   609→        />
+   610→      )}
+   611→    </div>
+   612→  );
+   613→}
+   614→
+   615→// ============================================================
+   616→// XLSX Preview (Tier 2 — client-side SheetJS parse)
+   617→// MODUL 51: Added offline message support + cache integration
+   618→// ============================================================
+   619→function XlsxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+   620→  contentUrl: string;
+   621→  name: string;
+   622→  sizeBytes?: number;
+   623→  mimeLabel: string;
+   624→  downloadUrl: string;
+   625→  closeButton: React.ReactNode;
+   626→  cachedContent: string | null;
+   627→  isFromCache: boolean;
+   628→  offlineMessage: string | null;
+   629→  triggerBackgroundCache: (content: string) => Promise<void>;
+   630→  isLoadingCache: boolean;
+   631→}) {
+   632→  const [loading, setLoading] = useState(true);
+   633→  const [error, setError] = useState<string | null>(null);
+   634→  const [spreadsheetData, setSpreadsheetData] = useState<{
+   635→    sheetNames: string[];
+   636→    sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }>;
+   637→  } | null>(null);
+   638→
+   639→  // MODUL 51: If we have cached content and are offline or have a cache match, parse it directly
+   640→  const shouldUseCache = isFromCache && cachedContent;
+   641→
+   642→  useEffect(() => {
+   643→    // MODUL 51: If we have cached JSON content, parse it directly
+   644→    if (shouldUseCache && cachedContent) {
+   645→      try {
+   646→        const parsed = JSON.parse(cachedContent);
+   647→        setSpreadsheetData(parsed);
+   648→        setLoading(false);
+   649→      } catch (err) {
+   650→        console.warn('[XlsxPreview] Failed to parse cached content:', err);
+   651→        // Fall through to network fetch
+   652→      }
+   653→      return;
+   654→    }
+   655→
+   656→    let cancelled = false;
+   657→
+   658→    const loadXlsx = async () => {
+   659→      try {
+   660→        // Fetch raw bytes from contentUrl
+   661→        const res = await fetch(contentUrl);
+   662→        if (!res.ok) throw new Error('Failed to fetch spreadsheet');
+   663→        const arrayBuffer = await res.arrayBuffer();
+   664→
+   665→        // Dynamic import of SheetJS
+   666→        const XLSX = await import('xlsx');
+   667→        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+   668→
+   669→        const sheetNames = workbook.SheetNames;
+   670→        const sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }> = {};
+   671→
+   672→        for (const sheetName of sheetNames) {
+   673→          const worksheet = workbook.Sheets[sheetName];
+   674→          if (!worksheet) continue;
+   675→
+   676→          const jsonData = XLSX.utils.sheet_to_json<Record<string, string | number | boolean | null>>(worksheet, { defval: null });
+   677→          const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+   678→
+   679→          sheets[sheetName] = {
+   680→            rows: jsonData.slice(0, 100),
+   681→            headers,
+   682→          };
+   683→        }
+   684→
+   685→        if (!cancelled) {
+   686→          setSpreadsheetData({ sheetNames, sheets });
+   687→          setLoading(false);
+   688→          // MODUL 51: Cache the parsed spreadsheet data as JSON
+   689→          triggerBackgroundCache(JSON.stringify({ sheetNames, sheets })).catch((err) => {
+   690→            console.warn('[XlsxPreview] Background cache write failed:', err);
+   691→          });
+   692→        }
+   693→      } catch (err) {
+   694→        if (!cancelled) {
+   695→          console.error('XLSX preview error:', err);
+   696→          setError('Failed to load spreadsheet preview');
+   697→          setLoading(false);
+   698→        }
+   699→      }
+   700→    };
+   701→
+   702→    loadXlsx();
+   703→    return () => { cancelled = true; };
+   704→  }, [contentUrl, shouldUseCache, cachedContent, triggerBackgroundCache]);
+   705→
+   706→  if (error) {
+   707→    return (
+   708→      <div className="relative flex flex-col w-full">
+   709→        {closeButton}
+   710→        <Card className="w-full">
+   711→          <CardContent className="p-6 flex flex-col items-center gap-4">
+   712→            <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
+   713→            <p className="text-sm text-muted-foreground">{error}</p>
+   714→            <Button variant="outline" size="sm" asChild>
+   715→              <a href={downloadUrl} download={name}>
+   716→                <Download className="h-4 w-4 mr-2" />
+   717→                Download to open
+   718→              </a>
+   719→            </Button>
+   720→          </CardContent>
+   721→        </Card>
+   722→      </div>
+   723→    );
+   724→  }
+   725→
+   726→  // MODUL 51: Offline with no cache — show explicit offline message
+   727→  if (offlineMessage) {
+   728→    return (
+   729→      <div className="relative flex flex-col w-full">
+   730→        {closeButton}
+   731→        <Card className="w-full">
+   732→          <CardContent className="p-6 flex flex-col items-center gap-4">
+   733→            <WifiOff className="h-12 w-12 text-orange-500" />
+   734→            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">{offlineMessage}</p>
+   735→            <p className="text-xs text-muted-foreground text-center">
+   736→              Open this file while online to make it available offline later
+   737→            </p>
+   738→          </CardContent>
+   739→        </Card>
+   740→      </div>
+   741→    );
+   742→  }
+   743→
+   744→  return (
+   745→    <div className="relative flex flex-col w-full">
+   746→      {closeButton}
+   747→      <div className="flex items-center gap-2 mb-3">
+   748→        <FileSpreadsheet className="h-5 w-5 text-emerald-500" />
+   749→        <span className="font-medium truncate max-w-xs">{name}</span>
+   750→        {sizeBytes && (
+   751→          <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>
+   752→        )}
+   753→        <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+   754→        {isFromCache && <span className="text-xs text-emerald-600 dark:text-emerald-400">(cached)</span>}
+   755→        <OfflineBadge />
+   756→        <OpenWithDropdown nodeId={name} mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" fileName={name} />
+   757→      </div>
+   758→
+   759→      {loading ? (
+   760→        <div className="flex items-center justify-center py-12">
+   761→          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   762→          <span className="ml-2 text-sm text-muted-foreground">Loading spreadsheet…</span>
+   763→        </div>
+   764→      ) : spreadsheetData ? (
+   765→        <SpreadsheetPreview data={spreadsheetData} name={name} />
+   766→      ) : null}
+   767→    </div>
+   768→  );
+   769→}
+   770→
+   771→// ============================================================
+   772→// PPTX Preview (Tier 3 — server-side JSON)
+   773→// MODUL 51: Added offline message support + cache integration
+   774→// ============================================================
+   775→function PptxPreview({ previewUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+   776→  previewUrl: string;
+   777→  name: string;
+   778→  sizeBytes?: number;
+   779→  mimeLabel: string;
+   780→  downloadUrl: string;
+   781→  closeButton: React.ReactNode;
+   782→  cachedContent: string | null;
+   783→  isFromCache: boolean;
+   784→  offlineMessage: string | null;
+   785→  triggerBackgroundCache: (content: string) => Promise<void>;
+   786→  isLoadingCache: boolean;
+   787→}) {
+   788→  const [loading, setLoading] = useState(true);
+   789→  const [error, setError] = useState<string | null>(null);
+   790→  const [presentationData, setPresentationData] = useState<{
+   791→    slideTexts: string[];
+   792→    totalSlides: number;
+   793→  } | null>(null);
+   794→
+   795→  // MODUL 51: If we have cached content, parse it directly
+   796→  const shouldUseCache = isFromCache && cachedContent;
+   797→
+   798→  useEffect(() => {
+   799→    // MODUL 51: If we have cached JSON content, parse it directly
+   800→    if (shouldUseCache && cachedContent) {
+   801→      try {
+   802→        const parsed = JSON.parse(cachedContent);
+   803→        setPresentationData(parsed);
+   804→        setLoading(false);
+   805→      } catch (err) {
+   806→        console.warn('[PptxPreview] Failed to parse cached content:', err);
+   807→        // Fall through to network fetch
+   808→      }
+   809→      return;
+   810→    }
+   811→
+   812→    let cancelled = false;
+   813→
+   814→    const loadPptx = async () => {
+   815→      try {
+   816→        const res = await fetch(previewUrl);
+   817→        if (!res.ok) throw new Error('Failed to load presentation preview');
+   818→        const data = await res.json();
+   819→
+   820→        if (!cancelled) {
+   821→          if (data.success && data.data) {
+   822→            const pptxData = {
+   823→              slideTexts: data.data.slideTexts || [],
+   824→              totalSlides: data.data.totalSlides || 0,
+   825→            };
+   826→            setPresentationData(pptxData);
+   827→            // MODUL 51: Cache the presentation data as JSON
+   828→            triggerBackgroundCache(JSON.stringify(pptxData)).catch((err) => {
+   829→              console.warn('[PptxPreview] Background cache write failed:', err);
+   830→            });
+   831→          } else {
+   832→            setError('No preview data available');
+   833→          }
+   834→          setLoading(false);
+   835→        }
+   836→      } catch (err) {
+   837→        if (!cancelled) {
+   838→          console.error('PPTX preview error:', err);
+   839→          setError('Failed to load presentation preview');
+   840→          setLoading(false);
+   841→        }
+   842→      }
+   843→    };
+   844→
+   845→    loadPptx();
+   846→    return () => { cancelled = true; };
+   847→  }, [previewUrl, shouldUseCache, cachedContent, triggerBackgroundCache]);
+   848→
+   849→  if (error) {
+   850→    return (
+   851→      <div className="relative flex flex-col w-full">
+   852→        {closeButton}
+   853→        <Card className="w-full">
+   854→          <CardContent className="p-6 flex flex-col items-center gap-4">
+   855→            <Presentation className="h-12 w-12 text-muted-foreground" />
+   856→            <p className="text-sm text-muted-foreground">{error}</p>
+   857→            <Button variant="outline" size="sm" asChild>
+   858→              <a href={downloadUrl} download={name}>
+   859→                <Download className="h-4 w-4 mr-2" />
+   860→                Download to open
+   861→              </a>
+   862→            </Button>
+   863→          </CardContent>
+   864→        </Card>
+   865→      </div>
+   866→    );
+   867→  }
+   868→
+   869→  // MODUL 51: Offline with no cache — show explicit offline message
+   870→  if (offlineMessage) {
+   871→    return (
+   872→      <div className="relative flex flex-col w-full">
+   873→        {closeButton}
+   874→        <Card className="w-full">
+   875→          <CardContent className="p-6 flex flex-col items-center gap-4">
+   876→            <WifiOff className="h-12 w-12 text-orange-500" />
+   877→            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">{offlineMessage}</p>
+   878→            <p className="text-xs text-muted-foreground text-center">
+   879→              Open this file while online to make it available offline later
+   880→            </p>
+   881→          </CardContent>
+   882→        </Card>
+   883→      </div>
+   884→    );
+   885→  }
+   886→
+   887→  return (
+   888→    <div className="relative flex flex-col w-full">
+   889→      {closeButton}
+   890→      <div className="flex items-center gap-2 mb-3">
+   891→        <Presentation className="h-5 w-5 text-orange-500" />
+   892→        <span className="font-medium truncate max-w-xs">{name}</span>
+   893→        {sizeBytes && (
+   894→          <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>
+   895→        )}
+   896→        <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+   897→        {isFromCache && <span className="text-xs text-emerald-600 dark:text-emerald-400">(cached)</span>}
+   898→        <OfflineBadge />
+   899→        <OpenWithDropdown nodeId={name} mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" fileName={name} />
+   900→      </div>
+   901→
+   902→      {loading ? (
+   903→        <div className="flex items-center justify-center py-12">
+   904→          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   905→          <span className="ml-2 text-sm text-muted-foreground">Loading presentation…</span>
+   906→        </div>
+   907→      ) : presentationData ? (
+   908→        <PresentationPreview data={presentationData} name={name} />
+   909→      ) : null}
+   910→    </div>
+   911→  );
+   912→}
+   913→
+   914→// ============================================================
+   915→// Main FilePreview Component
+   916→// ============================================================
+   917→export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onClose }: FilePreviewProps) {
+   918→  const [imageLoading, setImageLoading] = useState(true);
+   919→  const [imageError, setImageError] = useState(false);
+   920→  const [textContent, setTextContent] = useState<string>('');
+   921→  const [textLoading, setTextLoading] = useState(false);
+   922→  const [textError, setTextError] = useState(false);
+   923→
+   924→  const previewType = getMimePreviewType(mimeType);
+   925→  const iconName = getMimeIcon(mimeType);
+   926→  const mimeLabel = getMimeLabel(mimeType);
+   927→  const IconComponent = ICON_COMPONENTS[iconName] || FileQuestion;
+   928→  const previewTier: PreviewTier = getPreviewTier(mimeType);
+   929→
+   930→  const previewUrl = `/api/preview/${id}`;
+   931→  const downloadUrl = `/api/upload/download/${id}`;
+   932→  const contentUrl = `/api/files/${id}/content`;
+   933→
+   934→  // MODUL 51: Preview cache hook for Tier 2/3 offline support
+   935→  const {
+   936→    cachedContent,
+   937→    isFromCache,
+   938→    isLoadingCache,
+   939→    offlineMessage,
+   940→    triggerBackgroundCache,
+   941→  } = usePreviewCache({
+   942→    nodeId: id,
+   943→    mimeType,
+   944→    checksumSha256: checksumSha256 || null,
+   945→    previewTier,
+   946→  });
+   947→
+   948→  // Fetch text content for text/code preview (Tier 1 — still uses previewUrl for UTF-8 text)
+   949→  useEffect(() => {
+   950→    if (previewType === 'text') {
+   951→      let cancelled = false;
+   952→      const loadText = async () => {
+   953→        try {
+   954→          const res = await fetch(previewUrl);
+   955→          if (!res.ok) throw new Error('Failed to load text content');
+   956→          const content = await res.text();
+   957→          if (!cancelled) {
+   958→            setTextContent(content);
+   959→          }
+   960→        } catch {
+   961→          if (!cancelled) {
+   962→            setTextError(true);
+   963→          }
+   964→        }
+   965→      };
+   966→      setTextLoading(true);
+   967→      setTextError(false);
+   968→      loadText().finally(() => {
+   969→        if (!cancelled) setTextLoading(false);
+   970→      });
+   971→      return () => { cancelled = true; };
+   972→    }
+   973→  }, [previewType, previewUrl]);
+   974→
+   975→  // Render close button
+   976→  const closeButton = onClose ? (
+   977→    <Button
+   978→      variant="ghost"
+   979→      size="icon"
+   980→      className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-background/80 hover:bg-background"
+   981→      onClick={onClose}
+   982→      aria-label="Close preview"
+   983→    >
+   984→      <X className="h-4 w-4" />
+   985→    </Button>
+   986→  ) : null;
+   987→
+   988→  // --- Image Preview (Tier 1) ---
+   989→  if (previewType === 'image') {
+   990→    return (
+   991→      <div className="relative flex flex-col items-center justify-center min-h-[200px] max-h-[70vh]">
+   992→        {closeButton}
+   993→        {imageLoading && (
+   994→          <div className="absolute inset-0 flex items-center justify-center">
+   995→            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+   996→          </div>
+   997→        )}
+   998→        {imageError ? (
+   999→          <Card className="w-full max-w-md">
+  1000→            <CardContent className="p-6 flex flex-col items-center gap-4">
+  1001→              <ImageIcon className="h-12 w-12 text-muted-foreground" />
+  1002→              <p className="text-sm text-muted-foreground">Failed to load image</p>
+  1003→              <Button variant="outline" size="sm" asChild>
+  1004→                <a href={downloadUrl} download={name}>
+  1005→                  <Download className="h-4 w-4 mr-2" />
+  1006→                  Download
+  1007→                </a>
+  1008→              </Button>
+  1009→            </CardContent>
+  1010→          </Card>
+  1011→        ) : (
+  1012→          <img
+  1013→            src={contentUrl}
+  1014→            alt={name}
+  1015→            className="max-w-full max-h-[70vh] object-contain rounded-lg"
+  1016→            loading="lazy"
+  1017→            onLoad={() => setImageLoading(false)}
+  1018→            onError={() => {
+  1019→              setImageLoading(false);
+  1020→              setImageError(true);
+  1021→            }}
+  1022→          />
+  1023→        )}
+  1024→        <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+  1025→          <span className="font-medium truncate max-w-xs">{name}</span>
+  1026→          {sizeBytes && <span>{formatFileSize(sizeBytes)}</span>}
+  1027→          <span className="text-xs">{mimeLabel}</span>
+  1028→          <OfflineBadge />
+  1029→        </div>
+  1030→      </div>
+  1031→    );
+  1032→  }
+  1033→
+  1034→  // --- PDF Preview (Tier 1 — pdfjs-dist canvas) ---
+  1035→  if (previewType === 'pdf') {
+  1036→    return (
+  1037→      <PdfPreview
+  1038→        contentUrl={contentUrl}
+  1039→        name={name}
+  1040→        sizeBytes={sizeBytes}
+  1041→        mimeLabel={mimeLabel}
+  1042→        closeButton={closeButton}
+  1043→      />
+  1044→    );
+  1045→  }
+  1046→
+  1047→  // --- Video Preview (Tier 1) ---
+  1048→  if (previewType === 'video') {
+  1049→    return (
+  1050→      <div className="relative flex flex-col items-center w-full">
+  1051→        {closeButton}
+  1052→        <video
+  1053→          src={contentUrl}
+  1054→          controls
+  1055→          preload="metadata"
+  1056→          className="max-w-full max-h-[70vh] rounded-lg"
+  1057→          aria-label={`Video preview of ${name}`}
+  1058→        >
+  1059→          Your browser does not support video playback.
+  1060→        </video>
+  1061→        <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+  1062→          <Film className="h-4 w-4" />
+  1063→          <span className="font-medium truncate max-w-xs">{name}</span>
+  1064→          {sizeBytes && <span>{formatFileSize(sizeBytes)}</span>}
+  1065→          <span className="text-xs">{mimeLabel}</span>
+  1066→          <OfflineBadge />
+  1067→        </div>
+  1068→      </div>
+  1069→    );
+  1070→  }
+  1071→
+  1072→  // --- Audio Preview (Tier 1) ---
+  1073→  if (previewType === 'audio') {
+  1074→    return (
+  1075→      <div className="relative flex flex-col items-center w-full p-6">
+  1076→        {closeButton}
+  1077→        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+  1078→          <Music className="h-8 w-8 text-muted-foreground" />
+  1079→        </div>
+  1080→        <span className="font-medium truncate max-w-xs mb-2">{name}</span>
+  1081→        <audio
+  1082→          src={contentUrl}
+  1083→          controls
+  1084→          preload="metadata"
+  1085→          className="w-full max-w-md"
+  1086→          aria-label={`Audio preview of ${name}`}
+  1087→        >
+  1088→          Your browser does not support audio playback.
+  1089→        </audio>
+  1090→        <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+  1091→          {sizeBytes && <span>{formatFileSize(sizeBytes)}</span>}
+  1092→          <span className="text-xs">{mimeLabel}</span>
+  1093→          <OfflineBadge />
+  1094→        </div>
+  1095→      </div>
+  1096→    );
+  1097→  }
+  1098→
+  1099→  // --- Text/Code Preview (Tier 1) ---
+  1100→  if (previewType === 'text') {
+  1101→    return (
+  1102→      <div className="relative flex flex-col w-full">
+  1103→        {closeButton}
+  1104→        <div className="flex items-center gap-2 mb-3">
+  1105→          <Code className="h-5 w-5 text-emerald-500" />
+  1106→          <span className="font-medium truncate max-w-xs">{name}</span>
+  1107→          {sizeBytes && (
+  1108→            <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>
+  1109→          )}
+  1110→          <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+  1111→          <OfflineBadge />
+  1112→          <div className="flex gap-2 ml-auto">
+  1113→            <Button
+  1114→              variant="outline"
+  1115→              size="sm"
+  1116→              onClick={() => {
+  1117→                navigator.clipboard.writeText(textContent);
+  1118→                toast.success('Copied to clipboard');
+  1119→              }}
+  1120→              disabled={textLoading || textError}
+  1121→            >
+  1122→              <Copy className="h-4 w-4 mr-1" />
+  1123→              Copy
+  1124→            </Button>
+  1125→          </div>
+  1126→        </div>
+  1127→        {textLoading ? (
+  1128→          <div className="flex items-center justify-center py-12">
+  1129→            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  1130→          </div>
+  1131→        ) : textError ? (
+  1132→          <Card className="w-full">
+  1133→            <CardContent className="p-6 flex flex-col items-center gap-4">
+  1134→              <Code className="h-12 w-12 text-muted-foreground" />
+  1135→              <p className="text-sm text-muted-foreground">Failed to load text content</p>
+  1136→            </CardContent>
+  1137→          </Card>
+  1138→        ) : (
+  1139→          <div className="relative rounded-lg border bg-muted/30 overflow-hidden">
+  1140→            <pre className="p-4 text-sm font-mono overflow-auto max-h-[60vh] whitespace-pre-wrap break-words leading-relaxed">
+  1141→              {textContent}
+  1142→            </pre>
+  1143→          </div>
+  1144→        )}
+  1145→      </div>
+  1146→    );
+  1147→  }
+  1148→
+  1149→  // --- DOCX Preview (Tier 2 — client-side) ---
+  1150→  if (previewType === 'docx') {
+  1151→    return (
+  1152→      <DocxPreview
+  1153→        contentUrl={contentUrl}
+  1154→        name={name}
+  1155→        sizeBytes={sizeBytes}
+  1156→        mimeLabel={mimeLabel}
+  1157→        downloadUrl={downloadUrl}
+  1158→        closeButton={closeButton}
+  1159→        cachedContent={cachedContent}
+  1160→        isFromCache={isFromCache}
+  1161→        offlineMessage={offlineMessage}
+  1162→        triggerBackgroundCache={triggerBackgroundCache}
+  1163→        isLoadingCache={isLoadingCache}
+  1164→      />
+  1165→    );
+  1166→  }
+  1167→
+  1168→  // --- XLSX Preview (Tier 2 — client-side) ---
+  1169→  if (previewType === 'xlsx') {
+  1170→    return (
+  1171→      <XlsxPreview
+  1172→        contentUrl={contentUrl}
+  1173→        name={name}
+  1174→        sizeBytes={sizeBytes}
+  1175→        mimeLabel={mimeLabel}
+  1176→        downloadUrl={downloadUrl}
+  1177→        closeButton={closeButton}
+  1178→        cachedContent={cachedContent}
+  1179→        isFromCache={isFromCache}
+  1180→        offlineMessage={offlineMessage}
+  1181→        triggerBackgroundCache={triggerBackgroundCache}
+  1182→        isLoadingCache={isLoadingCache}
+  1183→      />
+  1184→    );
+  1185→  }
+  1186→
+  1187→  // --- PPTX Preview (Tier 3 — server-side) ---
+  1188→  if (previewType === 'pptx') {
+  1189→    return (
+  1190→      <PptxPreview
+  1191→        previewUrl={previewUrl}
+  1192→        name={name}
+  1193→        sizeBytes={sizeBytes}
+  1194→        mimeLabel={mimeLabel}
+  1195→        downloadUrl={downloadUrl}
+  1196→        closeButton={closeButton}
+  1197→        cachedContent={cachedContent}
+  1198→        isFromCache={isFromCache}
+  1199→        offlineMessage={offlineMessage}
+  1200→        triggerBackgroundCache={triggerBackgroundCache}
+  1201→        isLoadingCache={isLoadingCache}
+  1202→      />
+  1203→    );
+  1204→  }
+  1205→
+  1206→  // --- Download-only Preview (archives, etc.) ---
+  1207→  if (previewType === 'download' || previewType === 'none') {
+  1208→    return (
+  1209→      <div className="relative flex flex-col items-center w-full p-6">
+  1210→        {closeButton}
+  1211→        <Card className="w-full max-w-md">
+  1212→          <CardContent className="p-6 flex flex-col items-center gap-4">
+  1213→            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+  1214→              <IconComponent className="h-8 w-8 text-muted-foreground" />
+  1215→            </div>
+  1216→            <div className="text-center">
+  1217→              <p className="font-medium truncate max-w-full">{name}</p>
+  1218→              <p className="text-sm text-muted-foreground mt-1">{mimeLabel}</p>
+  1219→              {sizeBytes && (
+  1220→                <p className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</p>
+  1221→              )}
+  1222→            </div>
+  1223→            <p className="text-xs text-muted-foreground text-center">
+  1224→              No preview available for this file type
+  1225→            </p>
+  1226→            <OfflineBadge />
+  1227→            <div className="flex gap-2">
+  1228→              <Button variant="outline" size="sm" asChild>
+  1229→                <a href={downloadUrl} download={name}>
+  1230→                  <Download className="h-4 w-4 mr-2" />
+  1231→                  Download
+  1232→                </a>
+  1233→              </Button>
+  1234→            </div>
+  1235→          </CardContent>
+  1236→        </Card>
+  1237→      </div>
+  1238→    );
+  1239→  }
+  1240→
+  1241→  // --- Fallback ---
+  1242→  return (
+  1243→    <div className="relative flex flex-col items-center w-full p-6">
+  1244→      {closeButton}
+  1245→      <Card className="w-full max-w-md">
+  1246→        <CardContent className="p-6 flex flex-col items-center gap-4">
+  1247→          <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+  1248→            <IconComponent className="h-8 w-8 text-muted-foreground" />
+  1249→          </div>
+  1250→          <div className="text-center">
+  1251→            <p className="font-medium truncate max-w-full">{name}</p>
+  1252→            <p className="text-sm text-muted-foreground mt-1">{mimeLabel}</p>
+  1253→            {sizeBytes && (
+  1254→              <p className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</p>
+  1255→            )}
+  1256→          </div>
+  1257→          <OfflineBadge />
+  1258→          <div className="flex gap-2">
+  1259→            <Button variant="outline" size="sm" asChild>
+  1260→              <a href={downloadUrl} download={name}>
+  1261→                <Download className="h-4 w-4 mr-2" />
+  1262→                Download
+  1263→              </a>
+  1264→            </Button>
+  1265→          </div>
+  1266→        </CardContent>
+  1267→      </Card>
+  1268→    </div>
+  1269→  );
+  1270→}
+  1271→

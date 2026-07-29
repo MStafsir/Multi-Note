@@ -188,29 +188,16 @@ export function ContentArea() {
     setMultiSelectedIds(new Set());
   };
 
-  // Double click: open item (folder → navigate, note → editor, file → preview)
-  // MODUL 54: Tier-based routing — Tier 1 opens inline overlay modal, Tier 2/3 opens new tab
+  // Double click: open item (folder → navigate, note → editor, file → new tab like Google Drive)
+  // ALL file types open in a new browser tab — just like Google Drive
   const handleItemDoubleClick = (node: TreeNode) => {
     if (node.type === 'folder') {
       navigateToFolder(node.id, node.name);
     } else if (node.type === 'note') {
       openNote(node.id);
     } else {
-      const mimeType = node.metadata?.mimeType || 'application/octet-stream';
-      const tier = getPreviewTier(mimeType);
-
-      if (tier === 'tier1_native') {
-        // Tier 1 (image/video/audio/PDF/text) → Mode A: inline overlay/modal
-        setPreviewFileId(node.id);
-        setPreviewFileName(node.name);
-        setPreviewFileMime(mimeType);
-        setPreviewFileSize(typeof node.metadata?.sizeBytes === 'number' ? node.metadata.sizeBytes : 0);
-        setPreviewFileChecksum(node.metadata?.checksumSha256 || null);
-        setPreviewModalOpen(true);
-      } else {
-        // Tier 2/3 (DOCX/XLSX/PPTX) → Mode B: open dedicated viewer in new tab
-        window.open('/view/' + node.id, '_blank');
-      }
+      // All files → open dedicated viewer in new tab (like Google Drive)
+      window.open('/view/' + node.id, '_blank');
     }
   };
 

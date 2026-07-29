@@ -1,12 +1,7 @@
 // ============================================================
-// MODUL 54.4-54.5: Dedicated New-Tab Viewer — Server Component
-// Validates session + ownership at server level BEFORE rendering shell
-// Same-origin, same-app — NextAuth session automatically carries over
-// Zero token-handoff mechanism needed for authenticated endpoints.
-//
-// MODUL 54.7: Also generates a one-time public access token for
-// Google Docs Viewer integration. The token allows the public-content
-// endpoint to serve file bytes without session auth.
+// Dedicated New-Tab Viewer — ALL file types supported
+// Opens in a new browser tab like Google Drive — no download prompt
+// Server component validates session + ownership before rendering
 // ============================================================
 
 import { getServerSession } from 'next-auth/next';
@@ -73,36 +68,17 @@ export default async function ViewerPage({ params }: ViewerPageProps) {
     );
   }
 
-  // 6. Determine preview type and tier
+  // 6. Determine preview type and tier — ALL tiers open in dedicated viewer now
   const mimeType = node.metadata.mimeType;
   const previewType: PreviewType = getMimePreviewType(mimeType);
   const previewTier: PreviewTier = getPreviewTier(mimeType);
   const mimeLabel = getMimeLabel(mimeType);
-
-  // Only Tier 2/3 should use the dedicated viewer
-  // If somehow a Tier 1 file lands here, show a message redirecting back
-  if (previewTier === 'tier1_native') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-        <h1 className="text-2xl font-bold mb-2">This file is best viewed inline</h1>
-        <p className="text-muted-foreground mb-4">
-          Images, videos, audio, PDFs, and text files are previewed inline in the workspace.
-          Please go back and double-click the file to preview it.
-        </p>
-        <a href="/" className="text-sm text-primary hover:underline">← Back to workspace</a>
-      </div>
-    );
-  }
 
   // 7. Prepare data for client component
   const sizeBytes = bigintToNumber(node.metadata.sizeBytes) ?? 0;
   const checksumSha256 = node.metadata.checksumSha256 ?? null;
 
   // 8. Generate a temporary public access token for Google Docs Viewer
-  // This token allows the /api/files/[nodeId]/public-content endpoint
-  // to serve file content without session authentication.
-  // The token is valid for 5 minutes (not one-time-use, since Google Docs
-  // Viewer may make multiple HTTP requests).
   const publicAccessToken = generatePublicAccessToken(nodeId);
 
   // Pass data to client component wrapper for rendering

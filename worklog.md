@@ -664,3 +664,31 @@ Stage Summary:
 - Production-only SW registration guard is already in `providers.tsx`
 - Dev server stability verified: 30s idle → 0 new hot-update files, CPU stable at 13%
 - Pass/fail criteria: 5 min idle → 0 console errors ✅, 0 spontaneous Fast Refresh ✅
+
+---
+Task ID: 1-4
+Agent: Main Agent
+Task: Fix upload API + file preview in new tab like Google Drive
+
+Work Log:
+- Discovered /api/upload/route.ts was completely missing (deleted in previous session)
+- Created new upload route with JWT token validation, FormData parsing, file size validation (50MB max), filesystem storage, Node + FileMetadata DB creation, SHA-256 checksum, storage quota update
+- Modified content-area.tsx: ALL file types now open in new tab on double-click (window.open('/view/' + node.id, '_blank')) — removed Tier 1 inline modal logic
+- Updated /view/[nodeId]/page.tsx: removed Tier 1 restriction that blocked image/video/audio/PDF/text from dedicated viewer
+- Rewrote dedicated-viewer.tsx: added support for ALL file types with A4-paper-style rendering:
+  - Image: centered <img> with max-width 210mm
+  - Video: centered <video> with controls
+  - Audio: centered <audio> with controls
+  - PDF: pdfjs-dist canvas rendering with zoom and page navigation
+  - Text/Code: fetched content displayed in A4-style white paper container
+  - DOCX/XLSX/PPTX: preserved existing rendering
+- Verified upload API works: test-file.txt uploaded successfully (46 bytes, text/plain, SHA-256 checksum)
+- Verified dedicated viewer works: text file content displayed correctly in A4-style layout
+- No rebuild loop: hot-update files stable at 9, no spontaneous Fast Refresh
+
+Stage Summary:
+- Upload API created at /api/upload/route.ts — handles all file types
+- Double-click → new tab behavior for ALL files (like Google Drive)
+- Dedicated viewer supports ALL file types with A4-paper-style rendering
+- No download prompt — files open directly
+- Dev server stable: 58% CPU (compiling), 60.8% memory, no rebuild loop
