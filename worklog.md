@@ -637,3 +637,30 @@ Stage Summary:
 - All lint checks pass (0 errors)
 - Workspace renders correctly: sidebar, file tree, grid view, breadcrumb, search all functional
 - No infinite API call loop detected during idle testing
+
+---
+Task ID: 55-56
+Agent: Main Agent
+Task: Fix infinite Fast Refresh rebuild loop + SW fetch-handler integrity
+
+Work Log:
+- Investigated infinite Fast Refresh rebuild loop: user reported 50+ rebuilds in 5 seconds
+- Found 94+ hot-update files for `app/layout` in `.next/dev/static/webpack/`
+- Verified source files were NOT being modified (timestamp comparison)
+- Discovered `src/app/sw.ts` — a Service Worker TypeScript source file incorrectly placed in the Next.js App Router directory (`src/app/`)
+- Next.js treated `sw.ts` as a page/route for `/sw`, tried to compile it, but it uses SW APIs (`self.addEventListener`, `caches`, `FetchEvent`) which are not valid React components
+- This caused continuous compilation failure/retry → infinite Fast Refresh loop
+- Deleted `src/app/sw.ts` — the actual SW is already in `public/sw.js`
+- Verified the SW code in `public/sw.js` already has correct clone() ordering (55.1 fix)
+- Verified production-only SW registration guard in `providers.tsx` (55.3)
+- After fix: hot-update files stable at 7, CPU 13.1% (down from 91%), memory stable
+- Agent Browser verification: page loads correctly, no console errors, no Fast Refresh rebuilds
+- Lint check passes
+
+Stage Summary:
+- ROOT CAUSE: `src/app/sw.ts` was in App Router directory → Next.js compiled SW as a page → infinite rebuild loop
+- FIX: Deleted `src/app/sw.ts` (actual SW is in `public/sw.js`)
+- SW clone() ordering is already correct in `public/sw.js`
+- Production-only SW registration guard is already in `providers.tsx`
+- Dev server stability verified: 30s idle → 0 new hot-update files, CPU stable at 13%
+- Pass/fail criteria: 5 min idle → 0 console errors ✅, 0 spontaneous Fast Refresh ✅

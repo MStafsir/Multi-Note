@@ -66,6 +66,22 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // FIX: Prevent infinite Fast Refresh loop caused by webpack's file watcher
+  // detecting changes in the .next build output directory, dev.log, and other
+  // non-source paths. The default ignored regex in Next.js's webpack-config.js
+  // excludes .next/node_modules/.git, but using a RegExp function here gives
+  // explicit control over what the watcher tracks — only source paths.
+  webpack: (config, { dev }) => {
+    if (dev) {
+      // Use a RegExp that covers .next, .git, node_modules, plus project-root
+      // non-source paths that are written to continuously (dev.log, mini-services, etc.)
+      config.watchOptions = {
+        aggregateTimeout: 300,
+        ignored: /\.(next|git)|(node_modules)|(dev\.log)|(server\.log)|(mini-services)|(\/db\/)|(\/download\/)|(\/skills\/)|(\/scripts\/)|(\/e2e\/)|(\/examples\/)|(browser-test\.png)|(screenshot-.*\.png)|(\/agent-ctx\/)|(worklog\.md)|(keep-alive\.sh)|(run-server\.sh)/,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
