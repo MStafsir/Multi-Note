@@ -20,3 +20,24 @@ Stage Summary:
 - Cache system operational — first conversion 3.5s, cached instant
 - Known fidelity gaps honestly documented: floating shapes/text frames need High-Fidelity path
 - PPTX rendering via LibreOffice is now available (was text-only extraction before)
+
+---
+Task ID: PDF-upload-fix
+Agent: Main Agent
+Task: Fix PDF upload 400 Bad Request error
+
+Work Log:
+- Diagnosed 400 error on `/api/upload` for PDF files
+- Investigated root cause: Next.js middleware body cloning limit was 10MB (DEFAULT_BODY_CLONE_SIZE_LIMIT) — large PDFs would get truncated when middleware processes the request via getToken()
+- Added `experimental.proxyClientMaxBodySize: "50mb"` to next.config.ts to match our upload limit
+- Improved error handling in upload mutation (use-file-tree.ts): now checks `res.ok` before parsing JSON, provides detailed error message including status code and response body error
+- Added `credentials: 'same-origin'` to fetch call to ensure session cookie is sent
+- Added diagnostic logging to upload route: logs content-type, file name, size, type on each upload request
+- Tested with Agent Browser: 2MB and 3MB PDF files upload successfully (200 response)
+- Lint check passes cleanly
+
+Stage Summary:
+- Root cause: Next.js middleware body clone size limit (10MB default) could truncate large file uploads
+- Fix: Set `proxyClientMaxBodySize: "50mb"` in next.config.ts experimental config
+- Improved error display: Upload mutation now shows actual error message from 400 responses instead of generic failure
+- All test uploads (PDF files up to 3MB) succeed with 200 status

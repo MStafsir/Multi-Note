@@ -53,6 +53,12 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // Allow large file uploads through middleware — default body clone limit is 10MB.
+  // This must be set to match our upload limit (50MB) so the middleware doesn't
+  // truncate the request body when cloning it for getToken() processing.
+  experimental: {
+    proxyClientMaxBodySize: "50mb",
+  },
   // Production builds use --webpack flag explicitly (Next.js 16 defaults to Turbopack)
   // Dev server also uses --webpack (Turbopack causes 2.8GB RSS → OOM on 4GB sandbox)
   // Setting turbopack: undefined means no Turbopack config, --webpack flag overrides

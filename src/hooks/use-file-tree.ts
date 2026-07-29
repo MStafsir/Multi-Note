@@ -237,7 +237,23 @@ export function useUploadFile() {
         const res = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
+          credentials: 'same-origin',
         });
+
+        // Handle non-200 responses — try to parse error from response body
+        if (!res.ok) {
+          let errorMessage = `Upload failed (${res.status})`;
+          try {
+            const errorData = await res.json();
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+          } catch {
+            // Response body is not JSON — use default error message
+          }
+          updateUpload(fileId, { status: 'error', error: errorMessage });
+          throw new Error(errorMessage);
+        }
 
         const data = await res.json();
 

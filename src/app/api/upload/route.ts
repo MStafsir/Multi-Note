@@ -117,9 +117,12 @@ function sanitizeForStorage(filename: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Upload] Request received, content-type:', request.headers.get('content-type'));
+
     // 1. Read JWT token directly (middleware skips header modification for upload POST)
     const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
     if (!token?.id) {
+      console.warn('[Upload] No valid token found');
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
     const userId = token.id as string;
@@ -138,8 +141,11 @@ export async function POST(request: NextRequest) {
 
     const file = formData.get('file') as File | null;
     if (!file) {
+      console.warn('[Upload] No file in FormData. Keys:', [...formData.keys()]);
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
     }
+
+    console.log('[Upload] File received:', file.name, 'size:', file.size, 'type:', file.type);
 
     // 3. File size validation
     if (file.size > MAX_FILE_SIZE) {
