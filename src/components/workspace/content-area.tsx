@@ -361,13 +361,14 @@ export function ContentArea() {
                   )}
                   <BreadcrumbItem>
                     {index === currentFolderPath.length - 1 ? (
-                      <BreadcrumbPage className="text-sm truncate">
+                      <BreadcrumbPage className="text-sm truncate" title={segment.name}>
                         {segment.name}
                       </BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink
                         onClick={() => navigateBreadcrumb(index)}
                         className="text-sm cursor-pointer truncate"
+                        title={segment.name}
                       >
                         {segment.name}
                       </BreadcrumbLink>
@@ -517,14 +518,14 @@ export function ContentArea() {
                 transition={{ duration: 0.15 }}
               >
                 {viewMode === 'grid' ? (
-                  <ul role="list" aria-label="Folder contents grid" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <ul role="list" aria-label="Folder contents grid" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {/* + Add New card — always visible at start of every folder */}
                     <li role="listitem" aria-label="Add new item">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Card className="cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group">
-                            <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                            <CardContent className="p-3 flex flex-col items-center text-center gap-1.5 min-h-0">
+                              <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                                 <Plus className="h-6 w-6 text-primary" />
                               </div>
                               <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Add New</span>
@@ -562,11 +563,11 @@ export function ContentArea() {
                           onClick={(e) => handleItemClick(node, e)}
                           onDoubleClick={() => handleItemDoubleClick(node)}
                         >
-                          <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                          <CardContent className="p-3 flex flex-col items-center text-center gap-1.5 min-h-0">
+                            <div className="w-11 h-11 rounded-lg bg-muted flex items-center justify-center shrink-0">
                               {getIcon(node.type)}
                             </div>
-                            <span className="text-sm font-medium truncate max-w-full">
+                            <span className="text-sm font-medium leading-tight line-clamp-2 w-full break-words" title={node.name}>
                               {node.name}
                             </span>
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -698,7 +699,7 @@ export function ContentArea() {
                           <div className="w-8 h-8 rounded flex items-center justify-center shrink-0">
                             {getIcon(node.type)}
                           </div>
-                          <span className="text-sm font-medium truncate flex-1 min-w-0">
+                          <span className="text-sm font-medium truncate flex-1 min-w-0" title={node.name}>
                             {node.name}
                           </span>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">

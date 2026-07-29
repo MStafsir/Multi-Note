@@ -156,7 +156,7 @@ export function FileTreeItem({ node, depth }: FileTreeItemProps) {
         <span className="shrink-0">{getIcon()}</span>
 
         {/* Name */}
-        <span className="truncate min-w-0 flex-1">{node.name}</span>
+        <span className="truncate min-w-0 flex-1" title={node.name}>{node.name}</span>
 
         {/* Actions dropdown */}
         <DropdownMenu>

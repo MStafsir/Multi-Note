@@ -401,7 +401,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                         ) : (
                           <File className="h-3 w-3 text-muted-foreground shrink-0" />
                         )}
-                        <span className="truncate flex-1 text-left">{fav.name}</span>
+                        <span className="truncate flex-1 text-left" title={fav.name}>{fav.name}</span>
                         <span className="text-muted-foreground capitalize shrink-0">{fav.type}</span>
                       </button>
                     ))}
