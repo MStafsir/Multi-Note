@@ -140,3 +140,26 @@ Stage Summary:
 - Action buttons (Folder, Note, Upload) now fully visible with flex layout
 - Sidebar width fixed at 280px (clean, no state thrashing)
 - Lint passes, VLM verification confirms all issues resolved
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix PDF 404 error when opening PDF files
+
+Work Log:
+- Investigated the 404 error: node `cms4vabp2001loojf5j6kunop` (BUKU AJAR MKU RISTEK DIKTI.pdf) had a storagePath `user-files/cmryqs1fd000ir6t5pnfrzki8/file-1785255930035-665e76c9-BUKU AJAR MKU RISTEK DIKTI.pdf` that didn't exist on disk
+- Found 15+ files with broken storage paths from the old upload system (user-files/ prefix)
+- The old upload system used `user-files/{userId}/file-{ts}-{hash}-{name}` format, but many files were never saved at those paths
+- The new upload system uses `upload/{userId}/{uuid}-{sanitized_name}` format
+- Fixed `resolveStoragePath` in `/src/lib/storage-path.ts` - added `getUploadDir()` export and confirmed `user-files/` prefix is handled correctly by the default case (join directly with UPLOAD_DIR)
+- Added self-healing mechanism in `/src/app/api/files/[nodeId]/content/route.ts` - when file not found, searches `upload/{userId}/` and `upload/user-files/{userId}/` directories for a matching file by name, then updates the DB record
+- Added self-healing mechanism in `/src/app/api/files/[nodeId]/convert-pdf/route.ts` - same logic
+- Added self-healing mechanism in `/src/app/api/preview/[id]/route.ts` - same logic via `resolveWithSelfHeal` helper
+- Verified the PDF node now has correct storagePath (self-healing already updated it)
+- Verified path resolution works for all storage path formats
+
+Stage Summary:
+- PDF 404 error is fixed - the self-healing mechanism automatically finds and repairs broken storage paths
+- The `resolveStoragePath` function correctly handles `user-files/` prefix (joins with UPLOAD_DIR without stripping)
+- Self-healing searches both `upload/{userId}/` and `upload/user-files/{userId}/` directories
+- When a matching file is found, the DB record is updated automatically so future requests are fast
+- Also confirmed: sidebar resize feature was already removed, formatFileName + whitespace-nowrap already applied

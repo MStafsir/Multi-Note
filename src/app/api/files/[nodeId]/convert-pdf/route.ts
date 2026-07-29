@@ -27,10 +27,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkNodeAccess } from '@/lib/permissions';
-import { resolveStoragePath } from '@/lib/storage-path';
+import { resolveStoragePath, getUploadDir } from '@/lib/storage-path';
 import { buildRangeResponse } from '@/lib/range-response';
 import { convertToPdf, isConvertibleMimeType, isPdfMimeType } from '@/lib/lo-convert';
-import { stat } from 'fs/promises';
+import { stat, readdir } from 'fs/promises';
+import { join } from 'path';
 
 export async function GET(
   request: NextRequest,
@@ -97,13 +98,66 @@ export async function GET(
     }
 
     // 8. Resolve storage path
-    const fullPath = resolveStoragePath(storagePath);
+    let fullPath = resolveStoragePath(storagePath);
 
-    // 9. Verify source file exists on disk
+    // 9. Verify source file exists on disk — self-heal if not found
     try {
       await stat(fullPath);
     } catch {
-      return NextResponse.json({ success: false, error: 'File not found on disk' }, { status: 404 });
+      // Self-healing: try to find the file by name in the user's upload directories
+      const UPLOAD_DIR = getUploadDir();
+      const parts = storagePath.split('/');
+      const dirUserId = parts.length >= 2 ? parts[1] : null;
+      let repaired = false;
+
+      if (dirUserId) {
+        const sanitizedNodeName = node.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const nodeBaseName = sanitizedNodeName.replace(/\.[^.]+$/, '').toLowerCase();
+
+        // Search in both current and legacy upload directories
+        const searchDirs = [
+          join(UPLOAD_DIR, dirUserId),
+          join(UPLOAD_DIR, 'user-files', dirUserId),
+        ];
+
+        for (const searchDir of searchDirs) {
+          if (repaired) break;
+          try {
+            const files = await readdir(searchDir);
+            for (const file of files) {
+              const fileLower = file.toLowerCase();
+              if (fileLower.includes(nodeBaseName) || fileLower.includes(sanitizedNodeName.toLowerCase())) {
+                const newFullPath = join(searchDir, file);
+                try {
+                  const fStat = await stat(newFullPath);
+                  if (!fStat.isFile()) continue;
+                  fullPath = newFullPath;
+                  // Update DB record
+                  const relativePath = newFullPath.replace(UPLOAD_DIR + '/', '').replace(UPLOAD_DIR + '\\', '');
+                  const newStoragePath = relativePath.startsWith('user-files/')
+                    ? `upload/${relativePath}`
+                    : relativePath.startsWith('upload/')
+                      ? relativePath
+                      : `upload/${relativePath}`;
+                  try {
+                    await db.fileMetadata.update({
+                      where: { nodeId },
+                      data: { storagePath: newStoragePath },
+                    });
+                    console.log(`[Self-heal convert-pdf] Updated storagePath for node ${nodeId}: ${storagePath} → ${newStoragePath}`);
+                  } catch { /* non-critical */ }
+                  repaired = true;
+                  break;
+                } catch { continue; }
+              }
+            }
+          } catch { /* directory not found */ }
+        }
+      }
+
+      if (!repaired) {
+        return NextResponse.json({ success: false, error: 'File not found on disk' }, { status: 404 });
+      }
     }
 
     // 10. Convert to PDF (uses cache if available)

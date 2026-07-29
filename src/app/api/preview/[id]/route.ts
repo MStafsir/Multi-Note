@@ -16,10 +16,75 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkNodeAccess } from '@/lib/permissions';
-import { readFile } from 'fs/promises';
+import { readFile, stat, readdir } from 'fs/promises';
+import { join } from 'path';
 import { getMimePreviewType } from '@/lib/mime-icons';
-import { resolveStoragePath } from '@/lib/storage-path';
+import { resolveStoragePath, getUploadDir } from '@/lib/storage-path';
 import { bigintToNumber } from '@/lib/bigint';
+
+/**
+ * Self-heal: resolve a file path, and if not found, search for a matching
+ * file in the user's upload directories. Updates the DB record if found.
+ */
+async function resolveWithSelfHeal(
+  nodeId: string,
+  storagePath: string,
+  nodeName: string
+): Promise<string | null> {
+  const fullPath = resolveStoragePath(storagePath);
+  try {
+    await stat(fullPath);
+    return fullPath;
+  } catch {
+    // File not found at expected path — try self-healing
+    const UPLOAD_DIR = getUploadDir();
+    const parts = storagePath.split('/');
+    const dirUserId = parts.length >= 2 ? parts[1] : null;
+    if (!dirUserId) return null;
+
+    const sanitizedNodeName = nodeName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const nodeBaseName = sanitizedNodeName.replace(/\.[^.]+$/, '').toLowerCase();
+
+    // Search in both current and legacy upload directories
+    const searchDirs = [
+      join(UPLOAD_DIR, dirUserId),
+      join(UPLOAD_DIR, 'user-files', dirUserId),
+    ];
+
+    for (const searchDir of searchDirs) {
+      try {
+        const files = await readdir(searchDir);
+        for (const file of files) {
+          const fileLower = file.toLowerCase();
+          if (fileLower.includes(nodeBaseName) || fileLower.includes(sanitizedNodeName.toLowerCase())) {
+            const newFullPath = join(searchDir, file);
+            try {
+              const fStat = await stat(newFullPath);
+              if (!fStat.isFile()) continue;
+
+              const relativePath = newFullPath.replace(UPLOAD_DIR + '/', '').replace(UPLOAD_DIR + '\\', '');
+              const newStoragePath = relativePath.startsWith('user-files/')
+                ? `upload/${relativePath}`
+                : relativePath.startsWith('upload/')
+                  ? relativePath
+                  : `upload/${relativePath}`;
+
+              try {
+                await db.fileMetadata.update({
+                  where: { nodeId },
+                  data: { storagePath: newStoragePath },
+                });
+                console.log(`[Self-heal preview] Updated storagePath for node ${nodeId}: ${storagePath} → ${newStoragePath}`);
+              } catch { /* non-critical */ }
+              return newFullPath;
+            } catch { continue; }
+          }
+        }
+      } catch { /* directory not found */ }
+    }
+    return null;
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -54,7 +119,10 @@ export async function GET(
     const mimeType = node.metadata.mimeType;
     const previewType = getMimePreviewType(mimeType);
     const storagePath = node.metadata.storagePath;
-    const fullPath = resolveStoragePath(storagePath);
+    const fullPath = await resolveWithSelfHeal(id, storagePath, node.name);
+    if (!fullPath) {
+      return NextResponse.json({ success: false, error: 'File not found on disk' }, { status: 404 });
+    }
 
     // --- Text/code files (Tier 1 — UTF-8 text endpoint) ---
     if (previewType === 'text') {
