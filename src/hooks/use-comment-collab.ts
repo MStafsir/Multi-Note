@@ -10,10 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
-
-// IMPORTANT: Frontend must ALWAYS use io("/?XTransformPort=3004")
-// NEVER use io("http://localhost:3004") or direct port connection
-// Path MUST be "/" so Caddy can forward correctly
+import { getSocketPath, getSocketOptions } from '@/lib/socket-config';
 
 interface UseCommentCollabOptions {
   nodeId: string;
@@ -33,19 +30,14 @@ export function useCommentCollab({ nodeId, userId, userName }: UseCommentCollabO
   const isJoinedRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Connect to comment sync service via gateway
+  // Connect to comment sync service
   useEffect(() => {
     if (!nodeId || !userId) return;
 
-    const socket = io('/?XTransformPort=3004', {
-      transports: ['websocket', 'polling'],
-      forceNew: false,
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 10000,
-    });
+    const socketPath = getSocketPath('commentSync');
+    const socketOptions = getSocketOptions('commentSync');
+
+    const socket = io(socketPath, socketOptions);
 
     socketRef.current = socket;
 

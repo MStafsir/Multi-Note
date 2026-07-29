@@ -2,10 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-
-// IMPORTANT: Frontend must ALWAYS use io("/?XTransformPort=3003")
-// NEVER use io("http://localhost:3003") or direct port connection
-// Path MUST be "/" so Caddy can forward correctly
+import { getSocketPath, getSocketOptions } from '@/lib/socket-config';
 
 interface CollabUser {
   userId: string;
@@ -30,19 +27,14 @@ export function useNoteCollab(
   const socketRef = useRef<Socket | null>(null);
   const isJoinedRef = useRef(false);
 
-  // Connect to collab service via gateway
+  // Connect to collab service
   useEffect(() => {
     if (!nodeId || !userId) return;
 
-    const socket = io('/?XTransformPort=3003', {
-      transports: ['websocket', 'polling'],
-      forceNew: false,
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 10000,
-    });
+    const socketPath = getSocketPath('collab');
+    const socketOptions = getSocketOptions('collab');
+
+    const socket = io(socketPath, socketOptions);
 
     socketRef.current = socket;
 
