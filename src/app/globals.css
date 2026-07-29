@@ -116,6 +116,28 @@
   --success: oklch(0.765 0.177 163.17);
 }
 
+/* ============================================================
+   MODUL 54: docx-preview override — force readable text
+   The docx-preview library renders its own CSS, but dark mode
+   overrides text color to near-white. This forces black text on
+   white background inside the docx-preview container.
+   ============================================================ */
+.docx-preview-wrapper,
+.docx-preview-wrapper * {
+  color: #1a1a1a !important;
+  background-color: transparent !important;
+  border-color: #d1d5db !important;
+}
+
+.docx-preview-wrapper .docx-wrapper {
+  background-color: white !important;
+}
+
+.docx-preview-wrapper .docx-wrapper > section.docx {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+  margin-bottom: 16px !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

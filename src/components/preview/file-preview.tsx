@@ -596,16 +596,18 @@ function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
           <span className="ml-2 text-sm text-muted-foreground">Loading document…</span>
         </div>
       ) : mammothHtml ? (
-        // Mammoth fallback: render HTML in styled div
+        // Mammoth fallback: render HTML in styled div with forced black text
         <div
-          className="w-full rounded-lg border bg-white p-6 overflow-auto max-h-[70vh] prose prose-sm dark:prose-invert"
+          className="w-full rounded-lg border bg-white p-6 overflow-auto max-h-[70vh]"
+          style={{ color: '#1a1a1a' }}
           dangerouslySetInnerHTML={{ __html: mammothHtml }}
         />
       ) : (
-        // docx-preview rendered into container ref
+        // docx-preview rendered into container ref with forced black text
         <div
           ref={docxContainerRef}
-          className="w-full rounded-lg border bg-white overflow-auto max-h-[70vh]"
+          className="docx-preview-wrapper w-full rounded-lg border bg-white overflow-auto max-h-[70vh]"
+          style={{ color: '#1a1a1a' }}
         />
       )}
     </div>
@@ -1013,6 +1015,7 @@ export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onC
             src={contentUrl}
             alt={name}
             className="max-w-full max-h-[70vh] object-contain rounded-lg"
+            style={{ backgroundColor: 'white' }}
             loading="lazy"
             onLoad={() => setImageLoading(false)}
             onError={() => {
@@ -1136,7 +1139,7 @@ export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onC
             </CardContent>
           </Card>
         ) : (
-          <div className="relative rounded-lg border bg-muted/30 overflow-hidden">
+          <div className="relative rounded-lg border bg-white overflow-hidden" style={{ color: '#1a1a1a' }}>
             <pre className="p-4 text-sm font-mono overflow-auto max-h-[60vh] whitespace-pre-wrap break-words leading-relaxed">
               {textContent}
             </pre>

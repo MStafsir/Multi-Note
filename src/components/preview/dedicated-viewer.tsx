@@ -12,7 +12,7 @@
 //   Tier 3 (server-side): pptx
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FileText,
@@ -26,7 +26,6 @@ import {
   ExternalLink,
   ZoomIn,
   ZoomOut,
-  RotateCw,
 } from 'lucide-react';
 import { formatFileSize } from '@/lib/mime-icons';
 import type { PreviewType, PreviewTier } from '@/lib/mime-icons';
@@ -165,11 +164,10 @@ function PresentationPreview({ data }: {
 // ============================================================
 function PdfPreview({ contentUrl }: { contentUrl: string }) {
   const [numPages, setNumPages] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
   const [pdfDoc, setPdfDoc] = useState<unknown>(null);
   const [scale, setScale] = useState(1.2);
-  const [rendering, setRendering] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [renderedPages, setRenderedPages] = useState<number[]>([]);
+  const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +185,6 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
         if (!cancelled) {
           setPdfDoc(pdf);
           setNumPages(pdf.numPages);
-          setCurrentPage(1);
         }
       } catch (err) {
         console.error('PDF load error:', err);
@@ -198,65 +195,81 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
     return () => { cancelled = true; };
   }, [contentUrl]);
 
-  const renderPage = useCallback(async (pageNum: number) => {
-    if (!pdfDoc || !canvasRef.current) return;
-    setRendering(true);
-
-    try {
-      const pdfjsLib = await import('pdfjs-dist');
-      const page = await (pdfDoc as { getPage: (n: number) => Promise<unknown> }).getPage(pageNum);
-      const viewport = (page as { getViewport: (opts: { scale: number }) => { width: number; height: number } }).getViewport({ scale });
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      const renderContext = { canvasContext: context, viewport };
-      await (page as { render: (ctx: unknown) => Promise<unknown> }).render(renderContext).promise;
-    } catch (err) {
-      console.error('PDF render error:', err);
-    } finally {
-      setRendering(false);
-    }
-  }, [pdfDoc, scale]);
-
+  // Render all pages when pdfDoc or scale changes
   useEffect(() => {
-    if (pdfDoc && currentPage) {
-      renderPage(currentPage);
-    }
-  }, [pdfDoc, currentPage, renderPage]);
+    if (!pdfDoc || numPages === 0) return;
+    let cancelled = false;
+
+    const renderAllPages = async () => {
+      const pdfjsLib = await import('pdfjs-dist');
+      const pages: number[] = [];
+
+      for (let i = 1; i <= numPages; i++) {
+        if (cancelled) break;
+        try {
+          const page = await (pdfDoc as { getPage: (n: number) => Promise<unknown> }).getPage(i);
+          const viewport = (page as { getViewport: (opts: { scale: number }) => { width: number; height: number } }).getViewport({ scale });
+          const canvas = canvasRefs.current.get(i);
+          if (!canvas) continue;
+
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          const context = canvas.getContext('2d');
+          if (!context) continue;
+
+          const renderContext = { canvasContext: context, viewport };
+          await (page as { render: (ctx: unknown) => Promise<unknown> }).render(renderContext).promise;
+          pages.push(i);
+        } catch (err) {
+          console.error(`PDF render error page ${i}:`, err);
+        }
+      }
+
+      if (!cancelled) {
+        setRenderedPages(pages);
+      }
+    };
+
+    renderAllPages();
+    return () => { cancelled = true; };
+  }, [pdfDoc, numPages, scale]);
 
   return (
     <div className="flex flex-col items-center w-full">
-      {/* PDF Navigation */}
-      <div className="flex items-center gap-2 mb-3">
-        <Button variant="outline" size="icon" className="h-8 w-8"
-          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1 || rendering}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm text-muted-foreground">
-          Page {currentPage} of {numPages}
+      {/* PDF Zoom Controls */}
+      <div className="flex items-center gap-2 mb-3 sticky top-0 z-10 bg-white/95 backdrop-blur py-2 px-4 rounded-lg shadow-sm">
+        <span className="text-sm text-gray-600">
+          {numPages} page{numPages !== 1 ? 's' : ''}
         </span>
-        <Button variant="outline" size="icon" className="h-8 w-8"
-          onClick={() => setCurrentPage(Math.min(numPages, currentPage + 1))} disabled={currentPage >= numPages || rendering}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <span className="mx-2 text-muted-foreground">|</span>
+        <span className="mx-2 text-gray-300">|</span>
         <Button variant="outline" size="icon" className="h-8 w-8"
           onClick={() => setScale(Math.max(0.5, scale - 0.2))} disabled={scale <= 0.5}>
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <span className="text-sm text-muted-foreground">{Math.round(scale * 100)}%</span>
+        <span className="text-sm text-gray-600">{Math.round(scale * 100)}%</span>
         <Button variant="outline" size="icon" className="h-8 w-8"
           onClick={() => setScale(Math.min(3, scale + 0.2))} disabled={scale >= 3}>
           <ZoomIn className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* PDF Canvas — centered with A4-like styling */}
-      <div className="shadow-lg border bg-white overflow-auto max-h-[80vh] w-auto">
-        <canvas ref={canvasRef} className="block" />
+      {/* PDF Canvases — all pages rendered vertically */}
+      <div className="flex flex-col items-center gap-4">
+        {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
+          <div key={pageNum} className="shadow-lg border bg-white">
+            <canvas
+              ref={(el) => {
+                if (el) {
+                  canvasRefs.current.set(pageNum, el);
+                } else {
+                  canvasRefs.current.delete(pageNum);
+                }
+              }}
+              className="block"
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -466,11 +479,11 @@ export function DedicatedViewer({
   // ---- Error rendering ----
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
-            <span className="font-medium truncate max-w-[50vw]">{name}</span>
+            <span className="font-medium truncate max-w-[50vw]" style={{ color: '#1a1a1a' }}>{name}</span>
           </div>
           <div className="flex items-center gap-2">
             {showGoogleDocsButton && (
@@ -507,9 +520,9 @@ export function DedicatedViewer({
 
   // ---- Main rendering ----
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
       {/* Toolbar */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur">
+      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
           {getIcon()}
@@ -538,11 +551,12 @@ export function DedicatedViewer({
           </div>
         ) : previewType === 'image' ? (
           /* Image — centered, max-width A4 style */
-          <div className="flex items-center justify-center p-6 min-h-[80vh]">
+          <div className="flex items-center justify-center p-6 min-h-[80vh]" style={{ backgroundColor: '#f0f0f0' }}>
             <img
               src={contentUrl}
               alt={name}
-              className="max-w-[210mm] max-h-[80vh] object-contain rounded-lg shadow-md bg-white"
+              className="max-w-[210mm] max-h-[80vh] object-contain rounded-lg shadow-md"
+              style={{ backgroundColor: 'white' }}
             />
           </div>
         ) : previewType === 'video' ? (
@@ -575,7 +589,7 @@ export function DedicatedViewer({
         ) : previewType === 'text' || previewType === 'code' ? (
           /* Text/Code — A4-style document view */
           <div className="flex justify-center p-6">
-            <div className="w-full max-w-[210mm] bg-white rounded-lg shadow-md p-[20mm] font-mono text-sm leading-relaxed overflow-auto whitespace-pre-wrap break-words border">
+            <div className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] font-mono text-sm leading-relaxed overflow-auto whitespace-pre-wrap break-words border" style={{ color: '#1a1a1a' }}>
               {textContent}
             </div>
           </div>
@@ -583,13 +597,16 @@ export function DedicatedViewer({
           mammothHtml ? (
             <div className="flex justify-center p-6">
               <div
-                className="w-full max-w-[210mm] bg-white rounded-lg shadow-md p-[20mm] overflow-auto prose prose-sm dark:prose-invert border"
+                className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] overflow-auto border"
+                style={{ color: '#1a1a1a' }}
                 dangerouslySetInnerHTML={{ __html: mammothHtml }}
               />
             </div>
           ) : (
             <div className="flex justify-center p-6">
-              <div ref={docxContainerRef} className="w-full max-w-[210mm] bg-white rounded-lg shadow-md overflow-auto border" />
+              <div className="docx-preview-wrapper w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md overflow-auto border" style={{ color: '#1a1a1a' }}>
+                <div ref={docxContainerRef} className="w-full" />
+              </div>
             </div>
           )
         ) : previewType === 'xlsx' ? (
