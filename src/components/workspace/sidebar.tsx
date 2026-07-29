@@ -33,6 +33,11 @@ interface SidebarProps {
   collapsed?: boolean;
 }
 
+// Character-based truncation: 30 chars max, append '...' if longer
+const MAX_NAME_LENGTH = 30;
+const formatFileName = (name: string): string =>
+  name.length > MAX_NAME_LENGTH ? name.substring(0, MAX_NAME_LENGTH) + '...' : name;
+
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createType, setCreateType] = useState<'folder' | 'note'>('folder');
@@ -283,20 +288,20 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="flex gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="min-h-[44px] flex items-center justify-center gap-1 px-1"
+                className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5"
                 onClick={() => {
                   setCreateType('folder');
                   setCreateDialogOpen(true);
                 }}
               >
                 <FolderPlus className="h-4 w-4 shrink-0" />
-                <span className="truncate text-xs">Folder</span>
+                <span className="whitespace-nowrap text-xs">Folder</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -308,14 +313,14 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="min-h-[44px] flex items-center justify-center gap-1 px-1"
+                className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5"
                 onClick={() => {
                   setCreateType('note');
                   setCreateDialogOpen(true);
                 }}
               >
                 <FileText className="h-4 w-4 shrink-0" />
-                <span className="truncate text-xs">Note</span>
+                <span className="whitespace-nowrap text-xs">Note</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -327,14 +332,13 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="min-h-[44px] flex items-center justify-center gap-1 px-1"
+                className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5"
                 onClick={() => {
-                  // Trigger file upload via a global event
                   window.dispatchEvent(new CustomEvent('workspace-upload-trigger'));
                 }}
               >
                 <Upload className="h-4 w-4 shrink-0" />
-                <span className="truncate text-xs">Upload</span>
+                <span className="whitespace-nowrap text-xs">Upload</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -401,7 +405,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                         ) : (
                           <File className="h-3 w-3 text-muted-foreground shrink-0" />
                         )}
-                        <span className="truncate flex-1 text-left" title={fav.name}>{fav.name}</span>
+                        <span className="whitespace-nowrap flex-1 text-left" title={fav.name}>{formatFileName(fav.name)}</span>
                         <span className="text-muted-foreground capitalize shrink-0">{fav.type}</span>
                       </button>
                     ))}

@@ -114,3 +114,29 @@ Stage Summary:
 - Sidebar resize handle improved with VS Code-style hover indicator
 - Grid auto-adjusts column count when sidebar is resized — verified at all widths
 - Lint passes cleanly
+
+---
+Task ID: sidebar-lightweight-truncation
+Agent: Main Agent
+Task: Remove drag/resize sidebar (causes lag), implement character-based string truncation (30 chars) with whitespace-nowrap
+
+Work Log:
+- **Removed drag/resize feature**: Deleted all resize-related code from workspace-layout.tsx — removed `sidebarWidth` state, `sidebarResizeRef`, `isResizingRef`, `handleSidebarResizeStart` callback, resize handle DOM element, and all resize constants (SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH, SIDEBAR_DEFAULT_WIDTH). Sidebar now uses fixed width 280px (SIDEBAR_EXPANDED_WIDTH).
+- **Implemented character-based truncation**: Added `formatFileName` function in both `file-tree-item.tsx` and `sidebar.tsx`:
+  ```js
+  const MAX_NAME_LENGTH = 30;
+  const formatFileName = (name: string): string =>
+    name.length > MAX_NAME_LENGTH ? name.substring(0, MAX_NAME_LENGTH) + '...' : name;
+  ```
+- **Applied to file tree items**: Changed `<span className="truncate min-w-0 flex-1">` to `<span className="whitespace-nowrap min-w-0 flex-1">` and replaced `{node.name}` with `{formatFileName(node.name)}`
+- **Applied to favorites**: Changed `<span className="truncate flex-1 text-left">` to `<span className="whitespace-nowrap flex-1 text-left">` and replaced `{fav.name}` with `{formatFileName(fav.name)}`
+- **Fixed action buttons**: Changed from `grid grid-cols-3` to `flex gap-2` with `flex-1` and `whitespace-nowrap text-xs` for labels, ensuring "Folder", "Note", "Upload" text is fully visible
+- **Verified with VLM**: All long names truncated with '...' at 30 chars, short names shown in full, action buttons fully visible, no text overflow, clean layout
+
+Stage Summary:
+- Drag/resize sidebar removed entirely — no more lag
+- Character-based truncation (30 chars + '...') implemented in JS for file names
+- `whitespace-nowrap` ensures text stays on one line
+- Action buttons (Folder, Note, Upload) now fully visible with flex layout
+- Sidebar width fixed at 280px (clean, no state thrashing)
+- Lint passes, VLM verification confirms all issues resolved

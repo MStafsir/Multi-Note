@@ -22,6 +22,11 @@ interface FileTreeItemProps {
   depth: number;
 }
 
+// Character-based truncation: 30 chars max, append '...' if longer
+const MAX_NAME_LENGTH = 30;
+const formatFileName = (name: string): string =>
+  name.length > MAX_NAME_LENGTH ? name.substring(0, MAX_NAME_LENGTH) + '...' : name;
+
 export function FileTreeItem({ node, depth }: FileTreeItemProps) {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const {
@@ -156,7 +161,7 @@ export function FileTreeItem({ node, depth }: FileTreeItemProps) {
         <span className="shrink-0">{getIcon()}</span>
 
         {/* Name */}
-        <span className="truncate min-w-0 flex-1" title={node.name}>{node.name}</span>
+        <span className="whitespace-nowrap min-w-0 flex-1" title={node.name}>{formatFileName(node.name)}</span>
 
         {/* Actions dropdown */}
         <DropdownMenu>
