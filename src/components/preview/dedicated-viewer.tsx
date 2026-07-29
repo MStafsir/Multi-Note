@@ -1,16 +1,16 @@
 'use client';
 
 // ============================================================
-// MODUL 57: Dedicated New-Tab Viewer — ALL file types supported
+// MODUL 61-63: Dedicated New-Tab Viewer — ALL file types supported
 // Opens in a new browser tab like Google Drive.
 // No download prompt — file opens directly.
 // A4-paper-style rendering for documents.
 //
-// NO Google Docs Viewer (gview) — ALL rendering is client-side:
-//   Tier 1 (native browser): image, video, audio, PDF, text/code
-//   Tier 2 (client-side): docx (docx-preview → mammoth fallback), xlsx (SheetJS)
-//   Tier 3 (server-side): pptx (server JSON → PresentationPreview)
+// TWO rendering paths for office documents:
+//   Default (fast): docx-preview / SheetJS / text-extraction
+//   High-Fidelity:  LibreOffice → PDF → pdf.js (via /convert-pdf API)
 //
+// "Tampilan Asli (PDF)" toggle allows switching between the two.
 // All file bytes fetched via /api/files/[nodeId]/content
 // (session-authenticated, same-origin, zero external calls).
 // ============================================================
@@ -29,8 +29,10 @@ import {
   ZoomIn,
   ZoomOut,
   AlertTriangle,
+  Eye,
+  Zap,
 } from 'lucide-react';
-import { formatFileSize } from '@/lib/mime-icons';
+import { formatFileSize, isOfficePreviewType } from '@/lib/mime-icons';
 import type { PreviewType, PreviewTier } from '@/lib/mime-icons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,6 +47,9 @@ interface DedicatedViewerProps {
   sizeBytes: number;
   checksumSha256: string | null;
 }
+
+// Whether this preview type supports high-fidelity (LibreOffice) rendering
+const HI_FI_TYPES: PreviewType[] = ['docx', 'xlsx', 'pptx'];
 
 // ============================================================
 // Spreadsheet Preview Sub-component
@@ -173,6 +178,7 @@ function PresentationPreview({ data }: {
 
 // ============================================================
 // PDF Preview Sub-component (uses pdfjs-dist)
+// Shared by both Tier 1 (native PDF) and High-Fidelity (LibreOffice→PDF)
 // ============================================================
 function PdfPreview({ contentUrl }: { contentUrl: string }) {
   const [numPages, setNumPages] = useState(0);
@@ -295,8 +301,7 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
 
 // ============================================================
 // Main DedicatedViewer Component
-// MODUL 57: No Google Docs Viewer, no publicAccessToken, no external calls
-// All rendering is client-side using same-origin authenticated content
+// MODUL 63: Two rendering paths — Default (fast) and High-Fidelity (PDF)
 // ============================================================
 export function DedicatedViewer({
   nodeId,
@@ -311,6 +316,14 @@ export function DedicatedViewer({
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // High-fidelity rendering mode (LibreOffice → PDF)
+  const [hiFiMode, setHiFiMode] = useState(false);
+  const [hiFiLoading, setHiFiLoading] = useState(false);
+  const [hiFiError, setHiFiError] = useState<string | null>(null);
+
+  // Whether this file type supports high-fidelity rendering
+  const supportsHiFi = HI_FI_TYPES.includes(previewType);
 
   // DOCX state
   const [mammothHtml, setMammothHtml] = useState<string | null>(null);
@@ -336,6 +349,21 @@ export function DedicatedViewer({
   const contentUrl = `/api/files/${nodeId}/content`;
   const previewUrl = `/api/preview/${nodeId}`;
   const downloadUrl = `/api/files/${nodeId}/content?download=true`;
+  const convertPdfUrl = `/api/files/${nodeId}/convert-pdf`;
+
+  // ---- High-Fidelity toggle handler ----
+  const handleHiFiToggle = () => {
+    if (hiFiMode) {
+      // Switch back to default
+      setHiFiMode(false);
+      setHiFiError(null);
+    } else {
+      // Switch to high-fidelity
+      setHiFiMode(true);
+      setHiFiLoading(true);
+      setHiFiError(null);
+    }
+  };
 
   // ---- Tier 1: Text/Code loading ----
   useEffect(() => {
@@ -377,6 +405,7 @@ export function DedicatedViewer({
   }, [previewType]);
 
   // ---- DOCX loading (Tier 2 — docx-preview PRIMARY, mammoth fallback) ----
+  // MODUL 62: Full docx-preview config flags
   useEffect(() => {
     if (previewType !== 'docx') return;
     let cancelled = false;
@@ -388,6 +417,7 @@ export function DedicatedViewer({
         const arrayBuffer = await res.arrayBuffer();
 
         // PRIMARY: docx-preview — preserves images, headings, tables, lists, formatting
+        // MODUL 62: Full config flags for maximum fidelity
         try {
           const docxPreview = await import('docx-preview');
           if (docxContainerRef.current && !cancelled) {
@@ -398,12 +428,23 @@ export function DedicatedViewer({
               {
                 className: 'docx-preview-wrapper',
                 inWrapper: true,
+                hideWrapperOnPrint: false,
                 ignoreWidth: false,
                 ignoreHeight: false,
                 ignoreFonts: false,
                 breakPages: true,
                 ignoreLastRenderedPageBreak: true,
-                experimental: true,
+                experimental: true, // enables tab stops calculation (Modul 62.1)
+                trimXmlDeclaration: true,
+                useBase64URL: true, // ensures images are embedded (Modul 62.1)
+                renderHeaders: true, // Modul 62.2
+                renderFooters: true, // Modul 62.2
+                renderFootnotes: true,
+                renderEndnotes: true,
+                renderAltChunks: true,
+                renderChanges: false,
+                renderComments: false,
+                debug: false,
               }
             );
             if (!cancelled) {
@@ -464,7 +505,7 @@ export function DedicatedViewer({
         for (const sheetName of sheetNames) {
           const worksheet = workbook.Sheets[sheetName];
           if (!worksheet) continue;
-          // sheet_to_json with defval ensures all cells have values (computed, not formula strings)
+          // raw: false → computed values (not formula strings)
           const jsonData = XLSX.utils.sheet_to_json<Record<string, string | number | boolean | null>>(worksheet, { defval: null, raw: false });
           const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
           sheets[sheetName] = { rows: jsonData.slice(0, 200), headers };
@@ -516,6 +557,15 @@ export function DedicatedViewer({
     return () => { cancelled = true; };
   }, [previewUrl, previewType]);
 
+  // ---- High-Fidelity mode loading (LibreOffice → PDF) ----
+  useEffect(() => {
+    if (!hiFiMode || !supportsHiFi) return;
+    // The PdfPreview component handles the actual rendering
+    // We just need to signal that loading is complete once the PDF is fetched
+    // The PdfPreview component handles its own loading state
+    setHiFiLoading(false);
+  }, [hiFiMode, supportsHiFi]);
+
   // ---- Close/back handler ----
   const handleClose = () => {
     if (window.opener) { window.close(); } else { router.back(); }
@@ -547,6 +597,11 @@ export function DedicatedViewer({
             <span className="font-medium truncate max-w-[50vw]" style={{ color: '#1a1a1a' }}>{name}</span>
           </div>
           <div className="flex items-center gap-2">
+            {supportsHiFi && (
+              <Button variant="outline" size="sm" onClick={handleHiFiToggle}>
+                <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+              </Button>
+            )}
             <Button variant="outline" size="sm" asChild>
               <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
             </Button>
@@ -557,9 +612,16 @@ export function DedicatedViewer({
             <CardContent className="p-6 flex flex-col items-center gap-4">
               <AlertTriangle className="h-8 w-8 text-destructive" />
               <p className="text-sm text-muted-foreground text-center">{error}</p>
-              <Button variant="outline" size="sm" asChild>
-                <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download to View</a>
-              </Button>
+              <div className="flex items-center gap-2">
+                {supportsHiFi && (
+                  <Button variant="outline" size="sm" onClick={handleHiFiToggle}>
+                    <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" asChild>
+                  <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -578,17 +640,51 @@ export function DedicatedViewer({
           <span className="font-medium truncate max-w-[50vw]">{name}</span>
           {sizeBytes > 0 && <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>}
           <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+          {/* Hi-Fi mode indicator */}
+          {hiFiMode && supportsHiFi && (
+            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+              Tampilan Asli
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {/* MODUL 63.3: Toggle between Default (fast) and High-Fidelity (PDF) */}
+          {supportsHiFi && (
+            <Button
+              variant={hiFiMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={handleHiFiToggle}
+              title={hiFiMode ? 'Beralih ke tampilan cepat' : 'Beralih ke tampilan asli (PDF) — presisi tinggi via LibreOffice'}
+            >
+              {hiFiMode ? (
+                <><Zap className="h-4 w-4 mr-2" />Tampilan Cepat</>
+              ) : (
+                <><Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)</>
+              )}
+            </Button>
+          )}
           <Button variant="outline" size="sm" asChild>
             <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
           </Button>
         </div>
       </div>
 
-      {/* Content area — A4-paper style for documents */}
+      {/* Content area */}
       <div className="flex-1 overflow-auto">
-        {loading ? (
+        {/* ---- High-Fidelity Mode: LibreOffice → PDF → pdf.js ---- */}
+        {hiFiMode && supportsHiFi ? (
+          hiFiLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <span className="ml-3 text-sm text-muted-foreground">Mengkonversi ke PDF via LibreOffice…</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center p-6">
+              <PdfPreview contentUrl={convertPdfUrl} />
+            </div>
+          )
+        ) : loading ? (
+          /* ---- Loading state ---- */
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             <span className="ml-3 text-sm text-muted-foreground">Loading…</span>

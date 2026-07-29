@@ -34,6 +34,7 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
+  Eye,
 } from 'lucide-react';
 import {
   getMimePreviewType,
@@ -444,7 +445,8 @@ function PdfPreview({ contentUrl, name, sizeBytes, mimeLabel, closeButton }: {
 // DOCX Preview (Tier 2 — docx-preview with mammoth fallback)
 // MODUL 51: Added offline message support + cache integration
 // ============================================================
-function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+function DocxPreview({ id, contentUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+  id: string;
   contentUrl: string;
   name: string;
   sizeBytes?: number;
@@ -490,7 +492,27 @@ function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
               arrayBuffer,
               docxContainerRef.current,
               undefined,
-              { className: 'docx-preview-wrapper' }
+              {
+                className: 'docx-preview-wrapper',
+                inWrapper: true,
+                hideWrapperOnPrint: false,
+                ignoreWidth: false,
+                ignoreHeight: false,
+                ignoreFonts: false,
+                breakPages: true,
+                ignoreLastRenderedPageBreak: true,
+                experimental: true, // enables tab stops calculation (Modul 62.1)
+                trimXmlDeclaration: true,
+                useBase64URL: true, // ensures images are embedded (Modul 62.1)
+                renderHeaders: true, // Modul 62.2
+                renderFooters: true, // Modul 62.2
+                renderFootnotes: true,
+                renderEndnotes: true,
+                renderAltChunks: true,
+                renderChanges: false,
+                renderComments: false,
+                debug: false,
+              }
             );
             if (!cancelled) {
               setLoading(false);
@@ -588,6 +610,12 @@ function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
         {isFromCache && <span className="text-xs text-emerald-600 dark:text-emerald-400">(cached)</span>}
         <OfflineBadge />
         <OpenWithDropdown nodeId={name} mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" fileName={name} />
+        {/* MODUL 63.3: Link to high-fidelity dedicated viewer */}
+        <Button variant="outline" size="sm" asChild>
+          <a href={`/view/${id}`} target="_blank" rel="noopener noreferrer">
+            <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+          </a>
+        </Button>
       </div>
 
       {loading ? (
@@ -618,7 +646,8 @@ function DocxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
 // XLSX Preview (Tier 2 — client-side SheetJS parse)
 // MODUL 51: Added offline message support + cache integration
 // ============================================================
-function XlsxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+function XlsxPreview({ id, contentUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+  id: string;
   contentUrl: string;
   name: string;
   sizeBytes?: number;
@@ -756,6 +785,12 @@ function XlsxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
         {isFromCache && <span className="text-xs text-emerald-600 dark:text-emerald-400">(cached)</span>}
         <OfflineBadge />
         <OpenWithDropdown nodeId={name} mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" fileName={name} />
+        {/* MODUL 63.3: Link to high-fidelity dedicated viewer */}
+        <Button variant="outline" size="sm" asChild>
+          <a href={`/view/${id}`} target="_blank" rel="noopener noreferrer">
+            <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+          </a>
+        </Button>
       </div>
 
       {loading ? (
@@ -774,7 +809,8 @@ function XlsxPreview({ contentUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
 // PPTX Preview (Tier 3 — server-side JSON)
 // MODUL 51: Added offline message support + cache integration
 // ============================================================
-function PptxPreview({ previewUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+function PptxPreview({ id, previewUrl, name, sizeBytes, mimeLabel, downloadUrl, closeButton, cachedContent, isFromCache, offlineMessage, triggerBackgroundCache, isLoadingCache }: {
+  id: string;
   previewUrl: string;
   name: string;
   sizeBytes?: number;
@@ -899,6 +935,12 @@ function PptxPreview({ previewUrl, name, sizeBytes, mimeLabel, downloadUrl, clos
         {isFromCache && <span className="text-xs text-emerald-600 dark:text-emerald-400">(cached)</span>}
         <OfflineBadge />
         <OpenWithDropdown nodeId={name} mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" fileName={name} />
+        {/* MODUL 63.3: Link to high-fidelity dedicated viewer */}
+        <Button variant="outline" size="sm" asChild>
+          <a href={`/view/${id}`} target="_blank" rel="noopener noreferrer">
+            <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+          </a>
+        </Button>
       </div>
 
       {loading ? (
@@ -1153,6 +1195,7 @@ export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onC
   if (previewType === 'docx') {
     return (
       <DocxPreview
+        id={id}
         contentUrl={contentUrl}
         name={name}
         sizeBytes={sizeBytes}
@@ -1172,6 +1215,7 @@ export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onC
   if (previewType === 'xlsx') {
     return (
       <XlsxPreview
+        id={id}
         contentUrl={contentUrl}
         name={name}
         sizeBytes={sizeBytes}
@@ -1191,6 +1235,7 @@ export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onC
   if (previewType === 'pptx') {
     return (
       <PptxPreview
+        id={id}
         previewUrl={previewUrl}
         name={name}
         sizeBytes={sizeBytes}

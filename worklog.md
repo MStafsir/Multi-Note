@@ -1,24 +1,22 @@
 ---
-Task ID: 57-60
+Task ID: 61-63
 Agent: Main Agent
-Task: Modul 57-60 — Remove Google gview, fix XLSX, fix upload validation, fix PWA icons
+Task: Modul 61-63 — Diagnostic, client-render tuning, and High-Fidelity LibreOffice path
 
 Work Log:
-- **Modul 57**: Deleted `src/app/api/files/[nodeId]/public-content/route.ts` and `src/lib/public-file-access.ts` — completely removed Google Docs Viewer (gview) integration and public-content endpoint
-- **Modul 57**: Rewrote `src/components/preview/dedicated-viewer.tsx` — removed publicAccessToken prop, removed Google Docs button, all rendering is client-side (docx-preview primary, mammoth fallback, SheetJS for XLSX, pdf.js for PDF)
-- **Modul 57**: Updated `src/app/view/[nodeId]/page.tsx` — removed generatePublicAccessToken call and import
-- **Modul 57**: Updated `src/app/view/[nodeId]/dedicated-viewer-client.tsx` — removed publicAccessToken prop
-- **Modul 57**: Updated `src/middleware.ts` — removed public-content route exception (lines 146-150)
-- **Modul 57**: Added `credentials: 'same-origin'` to all fetch calls in both dedicated-viewer.tsx and file-preview.tsx
-- **Modul 58**: Verified SheetJS wiring in both preview components — both have multi-sheet tab switcher, now uses `raw: false` for computed values (not formula strings), increased row limit to 200
-- **Modul 59**: Rewrote upload route with resolveMimeType() — loose MIME with fallback to extension when browser sends generic MIME (application/octet-stream), preserves original filename in DB
-- **Modul 60**: Fixed PWA icons — replaced JPEG-mislabeled-as-PNG files with proper PNG icons generated via sharp
-- **Verified**: All references to gview/public-content/publicAccessToken removed from codebase (grep confirmed zero hits)
-- **Browser tested**: DOCX opens in new tab with full content (headings, bold, italic, links), PDF renders with zoom controls, image displays correctly, no JS errors
+- **Modul 61 Diagnostic**: Inspected OOXML of Surat Pernyataan — found 2 wps:txbx (text boxes = Materai/checkbox), 4 wp:inline (inline images), 13 w:tbl (tables), 2 mc:AlternateContent. Confirmed Materai/checkbox are floating DrawingML shapes beyond docx-preview scope.
+- **Modul 61 Config Audit**: file-preview.tsx was using minimal `{ className }` config. dedicated-viewer.tsx had better flags but missing renderHeaders/Footers/etc.
+- **Modul 62 Tuning**: Updated docx-preview config in both components with full flags: experimental:true (tab stops), useBase64URL:true (embedded images), renderHeaders/Footers/Footnotes/Endnotes/AltChunks:true.
+- **Modul 62 Honesty Gap**: Declared known limitations: floating text frames (wps:txbx), DrawingML shapes, and font-substitution alignment drift are NOT solvable by docx-preview config tuning alone — that's why Modul 63 exists.
+- **Modul 63 High-Fidelity Path**: Created `/api/files/[nodeId]/convert-pdf` endpoint — LibreOffice headless DOCX/XLSX/PPTX→PDF conversion with caching (key: checksumSha256).
+- **Modul 63 Cache**: Cache manager at `/src/lib/cache-manager.ts` — directory-based cache with 7-day cleanup. First DOCX conversion: 3.5s, subsequent cached requests: instant.
+- **Modul 63 Conversion Queue**: Serialized LibreOffice conversions (Promise queue) to avoid lock file conflicts. 60s timeout with SIGKILL safety net.
+- **Modul 63 UI Toggle**: Added "Tampilan Asli (PDF)" / "Tampilan Cepat" toggle to dedicated viewer. Added "Tampilan Asli (PDF)" buttons to in-modal DocxPreview, XlsxPreview, PptxPreview that open dedicated viewer in new tab.
+- **Browser tested**: DOCX default rendering (docx-preview) shows headings/bold/italic/links. High-fidelity mode (LibreOffice→PDF) shows 12 pages at 120% zoom with perfect fidelity. Toggle works correctly. Zero JS errors.
 
 Stage Summary:
-- Google Docs Viewer (gview) completely removed — no external calls, no public token system
-- All file rendering is client-side: docx-preview (primary), mammoth (fallback), SheetJS (XLSX), pdf.js (PDF)
-- Upload MIME resolution now falls back to extension when browser sends generic MIME
-- PWA icons are now proper PNG files
-- No security regression — all file access goes through session-authenticated /api/files/[nodeId]/content
+- Two rendering paths implemented: Default (fast, docx-preview/SheetJS) and High-Fidelity (LibreOffice→PDF via pdf.js)
+- LibreOffice conversion works for DOCX, XLSX, PPTX — tested and verified
+- Cache system operational — first conversion 3.5s, cached instant
+- Known fidelity gaps honestly documented: floating shapes/text frames need High-Fidelity path
+- PPTX rendering via LibreOffice is now available (was text-only extraction before)

@@ -1,0 +1,692 @@
+     1→'use client';
+     2→
+     3→// ============================================================
+     4→// MODUL 57: Dedicated New-Tab Viewer — ALL file types supported
+     5→// Opens in a new browser tab like Google Drive.
+     6→// No download prompt — file opens directly.
+     7→// A4-paper-style rendering for documents.
+     8→//
+     9→// NO Google Docs Viewer (gview) — ALL rendering is client-side:
+    10→//   Tier 1 (native browser): image, video, audio, PDF, text/code
+    11→//   Tier 2 (client-side): docx (docx-preview → mammoth fallback), xlsx (SheetJS)
+    12→//   Tier 3 (server-side): pptx (server JSON → PresentationPreview)
+    13→//
+    14→// All file bytes fetched via /api/files/[nodeId]/content
+    15→// (session-authenticated, same-origin, zero external calls).
+    16→// ============================================================
+    17→
+    18→import { useState, useEffect, useRef } from 'react';
+    19→import { useRouter } from 'next/navigation';
+    20→import {
+    21→  FileText,
+    22→  FileSpreadsheet,
+    23→  Presentation,
+    24→  Download,
+    25→  ArrowLeft,
+    26→  Loader2,
+    27→  ChevronLeft,
+    28→  ChevronRight,
+    29→  ZoomIn,
+    30→  ZoomOut,
+    31→  AlertTriangle,
+    32→} from 'lucide-react';
+    33→import { formatFileSize } from '@/lib/mime-icons';
+    34→import type { PreviewType, PreviewTier } from '@/lib/mime-icons';
+    35→import { Button } from '@/components/ui/button';
+    36→import { Card, CardContent } from '@/components/ui/card';
+    37→
+    38→interface DedicatedViewerProps {
+    39→  nodeId: string;
+    40→  name: string;
+    41→  mimeType: string;
+    42→  previewType: PreviewType;
+    43→  previewTier: PreviewTier;
+    44→  mimeLabel: string;
+    45→  sizeBytes: number;
+    46→  checksumSha256: string | null;
+    47→}
+    48→
+    49→// ============================================================
+    50→// Spreadsheet Preview Sub-component
+    51→// MODUL 58: Multi-sheet tab switcher, computed values, error state
+    52→// ============================================================
+    53→function SpreadsheetPreview({ data, name }: {
+    54→  data: {
+    55→    sheetNames: string[];
+    56→    sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }>;
+    57→  };
+    58→  name: string;
+    59→}) {
+    60→  const [activeSheet, setActiveSheet] = useState(data.sheetNames[0] || '');
+    61→  const sheetData = data.sheets[activeSheet];
+    62→  const maxRows = 200;
+    63→
+    64→  if (!sheetData) {
+    65→    return (
+    66→      <div className="flex flex-col items-center gap-3 p-8">
+    67→        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+    68→        <p className="text-sm text-muted-foreground">No data found in spreadsheet</p>
+    69→      </div>
+    70→    );
+    71→  }
+    72→
+    73→  return (
+    74→    <div className="flex flex-col w-full">
+    75→      {/* Sheet tabs — only show if more than 1 sheet */}
+    76→      {data.sheetNames.length > 1 && (
+    77→        <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1 border-b">
+    78→          {data.sheetNames.map((sheetName) => (
+    79→            <Button
+    80→              key={sheetName}
+    81→              variant={sheetName === activeSheet ? 'secondary' : 'ghost'}
+    82→              size="sm"
+    83→              className="text-xs whitespace-nowrap"
+    84→              onClick={() => setActiveSheet(sheetName)}
+    85→            >
+    86→              {sheetName}
+    87→            </Button>
+    88→          ))}
+    89→        </div>
+    90→      )}
+    91→
+    92→      {/* Spreadsheet table */}
+    93→      <div className="overflow-auto max-h-[70vh] border rounded-lg">
+    94→        <table className="w-full text-sm border-collapse">
+    95→          <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
+    96→            <tr>
+    97→              <th className="px-3 py-2 text-left font-medium border-b bg-muted/60 text-xs text-muted-foreground w-12">#</th>
+    98→              {sheetData.headers.map((header, i) => (
+    99→                <th key={i} className="px-3 py-2 text-left font-medium border-b whitespace-nowrap text-xs">
+   100→                  {header || `Column ${i + 1}`}
+   101→                </th>
+   102→              ))}
+   103→            </tr>
+   104→          </thead>
+   105→          <tbody>
+   106→            {sheetData.rows.slice(0, maxRows).map((row, i) => (
+   107→              <tr key={i} className="hover:bg-accent/30 transition-colors">
+   108→                <td className="px-3 py-1.5 border-b text-xs text-muted-foreground">{i + 1}</td>
+   109→                {sheetData.headers.map((header, j) => (
+   110→                  <td key={j} className="px-3 py-1.5 border-b whitespace-nowrap max-w-[300px] truncate text-sm">
+   111→                    {row[header] !== null && row[header] !== undefined ? String(row[header]) : ''}
+   112→                  </td>
+   113→                ))}
+   114→              </tr>
+   115→            ))}
+   116→          </tbody>
+   117→        </table>
+   118→        {sheetData.rows.length > maxRows && (
+   119→          <div className="p-2 text-center text-xs text-muted-foreground bg-muted/30">
+   120→            Showing {maxRows} of {sheetData.rows.length} rows
+   121→          </div>
+   122→        )}
+   123→      </div>
+   124→    </div>
+   125→  );
+   126→}
+   127→
+   128→// ============================================================
+   129→// Presentation Preview Sub-component
+   130→// ============================================================
+   131→function PresentationPreview({ data }: {
+   132→  data: { slideTexts: string[]; totalSlides: number; };
+   133→}) {
+   134→  const [currentSlide, setCurrentSlide] = useState(0);
+   135→  const hasSlides = data.slideTexts.length > 0;
+   136→
+   137→  return (
+   138→    <div className="flex flex-col w-full items-center">
+   139→      <div className="w-full aspect-[16/9] bg-white rounded-lg border shadow-sm flex items-center justify-center p-8 mb-4">
+   140→        {hasSlides && data.slideTexts[currentSlide] ? (
+   141→          <div className="text-center w-full">
+   142→            <p className="text-lg font-medium leading-relaxed whitespace-pre-wrap">
+   143→              {data.slideTexts[currentSlide]}
+   144→            </p>
+   145→          </div>
+   146→        ) : (
+   147→          <div className="text-center text-muted-foreground">
+   148→            <Presentation className="h-12 w-12 mx-auto mb-3 opacity-50" />
+   149→            <p className="text-sm">No text content extracted from this slide</p>
+   150→          </div>
+   151→        )}
+   152→      </div>
+   153→
+   154→      {hasSlides && data.slideTexts.length > 1 && (
+   155→        <div className="flex items-center gap-3">
+   156→          <Button variant="outline" size="icon" className="h-8 w-8"
+   157→            onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))} disabled={currentSlide === 0}>
+   158→            <ChevronLeft className="h-4 w-4" />
+   159→          </Button>
+   160→          <span className="text-sm text-muted-foreground">
+   161→            Slide {currentSlide + 1} of {data.slideTexts.length}
+   162→          </span>
+   163→          <Button variant="outline" size="icon" className="h-8 w-8"
+   164→            onClick={() => setCurrentSlide(Math.min(data.slideTexts.length - 1, currentSlide + 1))}
+   165→            disabled={currentSlide === data.slideTexts.length - 1}>
+   166→            <ChevronRight className="h-4 w-4" />
+   167→          </Button>
+   168→        </div>
+   169→      )}
+   170→    </div>
+   171→  );
+   172→}
+   173→
+   174→// ============================================================
+   175→// PDF Preview Sub-component (uses pdfjs-dist)
+   176→// ============================================================
+   177→function PdfPreview({ contentUrl }: { contentUrl: string }) {
+   178→  const [numPages, setNumPages] = useState(0);
+   179→  const [pdfDoc, setPdfDoc] = useState<unknown>(null);
+   180→  const [scale, setScale] = useState(1.2);
+   181→  const [pdfError, setPdfError] = useState<string | null>(null);
+   182→  const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+   183→
+   184→  useEffect(() => {
+   185→    let cancelled = false;
+   186→
+   187→    const loadPdf = async () => {
+   188→      try {
+   189→        const pdfjsLib = await import('pdfjs-dist');
+   190→        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+   191→
+   192→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   193→        if (!res.ok) throw new Error(`Failed to fetch PDF (${res.status})`);
+   194→        const arrayBuffer = await res.arrayBuffer();
+   195→        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+   196→
+   197→        if (!cancelled) {
+   198→          setPdfDoc(pdf);
+   199→          setNumPages(pdf.numPages);
+   200→        }
+   201→      } catch (err) {
+   202→        if (!cancelled) {
+   203→          console.error('PDF load error:', err);
+   204→          setPdfError('Failed to load PDF document');
+   205→        }
+   206→      }
+   207→    };
+   208→
+   209→    loadPdf();
+   210→    return () => { cancelled = true; };
+   211→  }, [contentUrl]);
+   212→
+   213→  // Render all pages when pdfDoc or scale changes
+   214→  useEffect(() => {
+   215→    if (!pdfDoc || numPages === 0) return;
+   216→    let cancelled = false;
+   217→
+   218→    const renderAllPages = async () => {
+   219→      const pdfjsLib = await import('pdfjs-dist');
+   220→
+   221→      for (let i = 1; i <= numPages; i++) {
+   222→        if (cancelled) break;
+   223→        try {
+   224→          const page = await (pdfDoc as { getPage: (n: number) => Promise<unknown> }).getPage(i);
+   225→          const viewport = (page as { getViewport: (opts: { scale: number }) => { width: number; height: number } }).getViewport({ scale });
+   226→          const canvas = canvasRefs.current.get(i);
+   227→          if (!canvas) continue;
+   228→
+   229→          canvas.height = viewport.height;
+   230→          canvas.width = viewport.width;
+   231→
+   232→          const context = canvas.getContext('2d');
+   233→          if (!context) continue;
+   234→
+   235→          const renderContext = { canvasContext: context, viewport };
+   236→          await (page as { render: (ctx: unknown) => Promise<unknown> }).render(renderContext).promise;
+   237→        } catch (err) {
+   238→          console.error(`PDF render error page ${i}:`, err);
+   239→        }
+   240→      }
+   241→    };
+   242→
+   243→    renderAllPages();
+   244→    return () => { cancelled = true; };
+   245→  }, [pdfDoc, numPages, scale]);
+   246→
+   247→  if (pdfError) {
+   248→    return (
+   249→      <div className="flex flex-col items-center gap-3 p-8">
+   250→        <AlertTriangle className="h-8 w-8 text-destructive" />
+   251→        <p className="text-sm text-muted-foreground">{pdfError}</p>
+   252→      </div>
+   253→    );
+   254→  }
+   255→
+   256→  return (
+   257→    <div className="flex flex-col items-center w-full">
+   258→      {/* PDF Zoom Controls */}
+   259→      <div className="flex items-center gap-2 mb-3 sticky top-0 z-10 bg-white/95 backdrop-blur py-2 px-4 rounded-lg shadow-sm">
+   260→        <span className="text-sm text-gray-600">
+   261→          {numPages} page{numPages !== 1 ? 's' : ''}
+   262→        </span>
+   263→        <span className="mx-2 text-gray-300">|</span>
+   264→        <Button variant="outline" size="icon" className="h-8 w-8"
+   265→          onClick={() => setScale(Math.max(0.5, scale - 0.2))} disabled={scale <= 0.5}>
+   266→          <ZoomOut className="h-4 w-4" />
+   267→        </Button>
+   268→        <span className="text-sm text-gray-600">{Math.round(scale * 100)}%</span>
+   269→        <Button variant="outline" size="icon" className="h-8 w-8"
+   270→          onClick={() => setScale(Math.min(3, scale + 0.2))} disabled={scale >= 3}>
+   271→          <ZoomIn className="h-4 w-4" />
+   272→        </Button>
+   273→      </div>
+   274→
+   275→      {/* PDF Canvases — all pages rendered vertically */}
+   276→      <div className="flex flex-col items-center gap-4">
+   277→        {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
+   278→          <div key={pageNum} className="shadow-lg border bg-white">
+   279→            <canvas
+   280→              ref={(el) => {
+   281→                if (el) {
+   282→                  canvasRefs.current.set(pageNum, el);
+   283→                } else {
+   284→                  canvasRefs.current.delete(pageNum);
+   285→                }
+   286→              }}
+   287→              className="block"
+   288→            />
+   289→          </div>
+   290→        ))}
+   291→      </div>
+   292→    </div>
+   293→  );
+   294→}
+   295→
+   296→// ============================================================
+   297→// Main DedicatedViewer Component
+   298→// MODUL 57: No Google Docs Viewer, no publicAccessToken, no external calls
+   299→// All rendering is client-side using same-origin authenticated content
+   300→// ============================================================
+   301→export function DedicatedViewer({
+   302→  nodeId,
+   303→  name,
+   304→  mimeType,
+   305→  previewType,
+   306→  previewTier,
+   307→  mimeLabel,
+   308→  sizeBytes,
+   309→  checksumSha256,
+   310→}: DedicatedViewerProps) {
+   311→  const router = useRouter();
+   312→  const [loading, setLoading] = useState(true);
+   313→  const [error, setError] = useState<string | null>(null);
+   314→
+   315→  // DOCX state
+   316→  const [mammothHtml, setMammothHtml] = useState<string | null>(null);
+   317→  const [docxRenderMethod, setDocxRenderMethod] = useState<'docx-preview' | 'mammoth' | null>(null);
+   318→  const docxContainerRef = useRef<HTMLDivElement>(null);
+   319→
+   320→  // XLSX state
+   321→  const [spreadsheetData, setSpreadsheetData] = useState<{
+   322→    sheetNames: string[];
+   323→    sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }>;
+   324→  } | null>(null);
+   325→
+   326→  // PPTX state
+   327→  const [presentationData, setPresentationData] = useState<{
+   328→    slideTexts: string[];
+   329→    totalSlides: number;
+   330→  } | null>(null);
+   331→
+   332→  // Text/Code state
+   333→  const [textContent, setTextContent] = useState<string | null>(null);
+   334→
+   335→  // URLs — all same-origin, session-authenticated
+   336→  const contentUrl = `/api/files/${nodeId}/content`;
+   337→  const previewUrl = `/api/preview/${nodeId}`;
+   338→  const downloadUrl = `/api/files/${nodeId}/content?download=true`;
+   339→
+   340→  // ---- Tier 1: Text/Code loading ----
+   341→  useEffect(() => {
+   342→    if (previewType !== 'text' && previewType !== 'code') return;
+   343→
+   344→    let cancelled = false;
+   345→    const loadText = async () => {
+   346→      try {
+   347→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   348→        if (!res.ok) throw new Error(`Failed to fetch file content (${res.status})`);
+   349→        const text = await res.text();
+   350→        if (!cancelled) {
+   351→          setTextContent(text);
+   352→          setLoading(false);
+   353→        }
+   354→      } catch (err) {
+   355→        if (!cancelled) {
+   356→          setError('Failed to load text content');
+   357→          setLoading(false);
+   358→        }
+   359→      }
+   360→    };
+   361→    loadText();
+   362→    return () => { cancelled = true; };
+   363→  }, [contentUrl, previewType]);
+   364→
+   365→  // ---- Tier 1: Image/Video/Audio — loading is instant ----
+   366→  useEffect(() => {
+   367→    if (previewType === 'image' || previewType === 'video' || previewType === 'audio') {
+   368→      setLoading(false);
+   369→    }
+   370→  }, [previewType]);
+   371→
+   372→  // ---- Tier 1: PDF — handled by PdfPreview sub-component ----
+   373→  useEffect(() => {
+   374→    if (previewType === 'pdf') {
+   375→      setLoading(false); // PdfPreview handles its own loading
+   376→    }
+   377→  }, [previewType]);
+   378→
+   379→  // ---- DOCX loading (Tier 2 — docx-preview PRIMARY, mammoth fallback) ----
+   380→  useEffect(() => {
+   381→    if (previewType !== 'docx') return;
+   382→    let cancelled = false;
+   383→
+   384→    const loadDocx = async () => {
+   385→      try {
+   386→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   387→        if (!res.ok) throw new Error(`Failed to fetch document (${res.status})`);
+   388→        const arrayBuffer = await res.arrayBuffer();
+   389→
+   390→        // PRIMARY: docx-preview — preserves images, headings, tables, lists, formatting
+   391→        try {
+   392→          const docxPreview = await import('docx-preview');
+   393→          if (docxContainerRef.current && !cancelled) {
+   394→            await docxPreview.renderAsync(
+   395→              arrayBuffer,
+   396→              docxContainerRef.current,
+   397→              undefined,
+   398→              {
+   399→                className: 'docx-preview-wrapper',
+   400→                inWrapper: true,
+   401→                ignoreWidth: false,
+   402→                ignoreHeight: false,
+   403→                ignoreFonts: false,
+   404→                breakPages: true,
+   405→                ignoreLastRenderedPageBreak: true,
+   406→                experimental: true,
+   407→              }
+   408→            );
+   409→            if (!cancelled) {
+   410→              setDocxRenderMethod('docx-preview');
+   411→              setLoading(false);
+   412→            }
+   413→            return;
+   414→          }
+   415→        } catch (docxPreviewErr) {
+   416→          console.warn('[DedicatedViewer] docx-preview failed, falling back to mammoth:', docxPreviewErr);
+   417→        }
+   418→
+   419→        // FALLBACK: mammoth — semantic HTML conversion (may lose images/formatting)
+   420→        if (!cancelled) {
+   421→          try {
+   422→            const mammoth = await import('mammoth');
+   423→            const result = await mammoth.convertToHtml({ arrayBuffer });
+   424→            if (!cancelled) {
+   425→              setMammothHtml(result.value);
+   426→              setDocxRenderMethod('mammoth');
+   427→              setLoading(false);
+   428→            }
+   429→          } catch (mammothErr) {
+   430→            console.error('[DedicatedViewer] mammoth fallback also failed:', mammothErr);
+   431→            if (!cancelled) {
+   432→              setError('Failed to render document preview. Both docx-preview and mammoth failed.');
+   433→              setLoading(false);
+   434→            }
+   435→          }
+   436→        }
+   437→      } catch (err) {
+   438→        if (!cancelled) {
+   439→          setError('Failed to load document file');
+   440→          setLoading(false);
+   441→        }
+   442→      }
+   443→    };
+   444→    loadDocx();
+   445→    return () => { cancelled = true; };
+   446→  }, [contentUrl, previewType]);
+   447→
+   448→  // ---- XLSX loading (Tier 2 — SheetJS client-side) ----
+   449→  useEffect(() => {
+   450→    if (previewType !== 'xlsx') return;
+   451→    let cancelled = false;
+   452→
+   453→    const loadXlsx = async () => {
+   454→      try {
+   455→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   456→        if (!res.ok) throw new Error(`Failed to fetch spreadsheet (${res.status})`);
+   457→        const arrayBuffer = await res.arrayBuffer();
+   458→
+   459→        const XLSX = await import('xlsx');
+   460→        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+   461→        const sheetNames = workbook.SheetNames;
+   462→        const sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }> = {};
+   463→
+   464→        for (const sheetName of sheetNames) {
+   465→          const worksheet = workbook.Sheets[sheetName];
+   466→          if (!worksheet) continue;
+   467→          // sheet_to_json with defval ensures all cells have values (computed, not formula strings)
+   468→          const jsonData = XLSX.utils.sheet_to_json<Record<string, string | number | boolean | null>>(worksheet, { defval: null, raw: false });
+   469→          const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+   470→          sheets[sheetName] = { rows: jsonData.slice(0, 200), headers };
+   471→        }
+   472→
+   473→        if (!cancelled) {
+   474→          setSpreadsheetData({ sheetNames, sheets });
+   475→          setLoading(false);
+   476→        }
+   477→      } catch (err) {
+   478→        console.error('[DedicatedViewer] XLSX load error:', err);
+   479→        if (!cancelled) {
+   480→          setError('Failed to load spreadsheet preview. The file may be corrupted or password-protected.');
+   481→          setLoading(false);
+   482→        }
+   483→      }
+   484→    };
+   485→    loadXlsx();
+   486→    return () => { cancelled = true; };
+   487→  }, [contentUrl, previewType]);
+   488→
+   489→  // ---- PPTX loading (Tier 3 — server-side JSON) ----
+   490→  useEffect(() => {
+   491→    if (previewType !== 'pptx') return;
+   492→    let cancelled = false;
+   493→
+   494→    const loadPptx = async () => {
+   495→      try {
+   496→        const res = await fetch(previewUrl, { credentials: 'same-origin' });
+   497→        if (!res.ok) throw new Error(`Failed to load presentation preview (${res.status})`);
+   498→        const data = await res.json();
+   499→        if (!cancelled) {
+   500→          if (data.success && data.data) {
+   501→            setPresentationData({ slideTexts: data.data.slideTexts || [], totalSlides: data.data.totalSlides || 0 });
+   502→          } else {
+   503→            setError('No preview data available for this presentation');
+   504→          }
+   505→          setLoading(false);
+   506→        }
+   507→      } catch (err) {
+   508→        console.error('[DedicatedViewer] PPTX load error:', err);
+   509→        if (!cancelled) {
+   510→          setError('Failed to load presentation preview');
+   511→          setLoading(false);
+   512→        }
+   513→      }
+   514→    };
+   515→    loadPptx();
+   516→    return () => { cancelled = true; };
+   517→  }, [previewUrl, previewType]);
+   518→
+   519→  // ---- Close/back handler ----
+   520→  const handleClose = () => {
+   521→    if (window.opener) { window.close(); } else { router.back(); }
+   522→  };
+   523→
+   524→  // ---- Icon selection ----
+   525→  const getIcon = () => {
+   526→    switch (previewType) {
+   527→      case 'image': return <span className="text-lg">🖼️</span>;
+   528→      case 'video': return <span className="text-lg">🎬</span>;
+   529→      case 'audio': return <span className="text-lg">🎵</span>;
+   530→      case 'pdf': return <FileText className="h-5 w-5 text-red-500" />;
+   531→      case 'text': return <FileText className="h-5 w-5 text-gray-500" />;
+   532→      case 'code': return <FileText className="h-5 w-5 text-emerald-500" />;
+   533→      case 'docx': return <FileText className="h-5 w-5 text-blue-500" />;
+   534→      case 'xlsx': return <FileSpreadsheet className="h-5 w-5 text-emerald-500" />;
+   535→      case 'pptx': return <Presentation className="h-5 w-5 text-orange-500" />;
+   536→      default: return <FileText className="h-5 w-5 text-muted-foreground" />;
+   537→    }
+   538→  };
+   539→
+   540→  // ---- Error rendering ----
+   541→  if (error) {
+   542→    return (
+   543→      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
+   544→        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
+   545→          <div className="flex items-center gap-2">
+   546→            <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
+   547→            <span className="font-medium truncate max-w-[50vw]" style={{ color: '#1a1a1a' }}>{name}</span>
+   548→          </div>
+   549→          <div className="flex items-center gap-2">
+   550→            <Button variant="outline" size="sm" asChild>
+   551→              <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
+   552→            </Button>
+   553→          </div>
+   554→        </div>
+   555→        <div className="flex-1 flex items-center justify-center p-6">
+   556→          <Card className="w-full max-w-md">
+   557→            <CardContent className="p-6 flex flex-col items-center gap-4">
+   558→              <AlertTriangle className="h-8 w-8 text-destructive" />
+   559→              <p className="text-sm text-muted-foreground text-center">{error}</p>
+   560→              <Button variant="outline" size="sm" asChild>
+   561→                <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download to View</a>
+   562→              </Button>
+   563→            </CardContent>
+   564→          </Card>
+   565→        </div>
+   566→      </div>
+   567→    );
+   568→  }
+   569→
+   570→  // ---- Main rendering ----
+   571→  return (
+   572→    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
+   573→      {/* Toolbar */}
+   574→      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
+   575→        <div className="flex items-center gap-2">
+   576→          <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
+   577→          {getIcon()}
+   578→          <span className="font-medium truncate max-w-[50vw]">{name}</span>
+   579→          {sizeBytes > 0 && <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>}
+   580→          <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+   581→        </div>
+   582→        <div className="flex items-center gap-2">
+   583→          <Button variant="outline" size="sm" asChild>
+   584→            <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
+   585→          </Button>
+   586→        </div>
+   587→      </div>
+   588→
+   589→      {/* Content area — A4-paper style for documents */}
+   590→      <div className="flex-1 overflow-auto">
+   591→        {loading ? (
+   592→          <div className="flex items-center justify-center py-20">
+   593→            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+   594→            <span className="ml-3 text-sm text-muted-foreground">Loading…</span>
+   595→          </div>
+   596→        ) : previewType === 'image' ? (
+   597→          /* Image — centered, max-width A4 style */
+   598→          <div className="flex items-center justify-center p-6 min-h-[80vh]" style={{ backgroundColor: '#f0f0f0' }}>
+   599→            <img
+   600→              src={contentUrl}
+   601→              alt={name}
+   602→              className="max-w-[210mm] max-h-[80vh] object-contain rounded-lg shadow-md"
+   603→              style={{ backgroundColor: 'white' }}
+   604→            />
+   605→          </div>
+   606→        ) : previewType === 'video' ? (
+   607→          /* Video — centered player */
+   608→          <div className="flex items-center justify-center p-6 min-h-[80vh]">
+   609→            <video
+   610→              src={contentUrl}
+   611→              controls
+   612→              autoPlay
+   613→              className="max-w-[210mm] rounded-lg shadow-md"
+   614→              style={{ maxHeight: '80vh' }}
+   615→            >
+   616→              Your browser does not support video playback.
+   617→            </video>
+   618→          </div>
+   619→        ) : previewType === 'audio' ? (
+   620→          /* Audio — centered player with visual wrapper */
+   621→          <div className="flex flex-col items-center justify-center p-6 min-h-[80vh]">
+   622→            <div className="w-full max-w-[210mm] bg-white rounded-lg shadow-md p-8 flex flex-col items-center gap-6">
+   623→              <span className="text-4xl">🎵</span>
+   624→              <h2 className="text-lg font-medium">{name}</h2>
+   625→              <audio src={contentUrl} controls autoPlay className="w-full" />
+   626→            </div>
+   627→          </div>
+   628→        ) : previewType === 'pdf' ? (
+   629→          /* PDF — canvas rendering with zoom controls */
+   630→          <div className="flex items-center justify-center p-6">
+   631→            <PdfPreview contentUrl={contentUrl} />
+   632→          </div>
+   633→        ) : previewType === 'text' || previewType === 'code' ? (
+   634→          /* Text/Code — A4-style document view */
+   635→          <div className="flex justify-center p-6">
+   636→            <div className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] font-mono text-sm leading-relaxed overflow-auto whitespace-pre-wrap break-words border" style={{ color: '#1a1a1a' }}>
+   637→              {textContent}
+   638→            </div>
+   639→          </div>
+   640→        ) : previewType === 'docx' ? (
+   641→          /* DOCX — docx-preview (primary) or mammoth (fallback) */
+   642→          docxRenderMethod === 'mammoth' && mammothHtml ? (
+   643→            <div className="flex justify-center p-6">
+   644→              <div
+   645→                className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] overflow-auto border"
+   646→                style={{ color: '#1a1a1a' }}
+   647→                dangerouslySetInnerHTML={{ __html: mammothHtml }}
+   648→              />
+   649→            </div>
+   650→          ) : (
+   651→            <div className="flex justify-center p-6">
+   652→              <div className="docx-preview-wrapper w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md overflow-auto border" style={{ color: '#1a1a1a' }}>
+   653→                <div ref={docxContainerRef} className="w-full" />
+   654→              </div>
+   655→            </div>
+   656→          )
+   657→        ) : previewType === 'xlsx' ? (
+   658→          /* XLSX — SheetJS with multi-sheet tab switcher */
+   659→          spreadsheetData ? (
+   660→            <div className="p-6 max-w-full mx-auto">
+   661→              <SpreadsheetPreview data={spreadsheetData} name={name} />
+   662→            </div>
+   663→          ) : null
+   664→        ) : previewType === 'pptx' ? (
+   665→          /* PPTX — server-side extracted text */
+   666→          presentationData ? (
+   667→            <div className="p-6 max-w-[210mm] mx-auto">
+   668→              <PresentationPreview data={presentationData} />
+   669→            </div>
+   670→          ) : null
+   671→        ) : (
+   672→          /* Unknown/unsupported type — offer download */
+   673→          <div className="flex flex-col items-center justify-center p-6 min-h-[80vh]">
+   674→            <Card className="w-full max-w-md">
+   675→              <CardContent className="p-6 flex flex-col items-center gap-4">
+   676→                {getIcon()}
+   677→                <h3 className="font-medium">{name}</h3>
+   678→                <p className="text-sm text-muted-foreground">
+   679→                  This file type ({mimeLabel}) cannot be previewed directly.
+   680→                </p>
+   681→                <Button variant="default" size="sm" asChild>
+   682→                  <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download to View</a>
+   683→                </Button>
+   684→              </CardContent>
+   685→            </Card>
+   686→          </div>
+   687→        )}
+   688→      </div>
+   689→    </div>
+   690→  );
+   691→}
+   692→
