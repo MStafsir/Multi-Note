@@ -518,7 +518,7 @@ export function ContentArea() {
                 transition={{ duration: 0.15 }}
               >
                 {viewMode === 'grid' ? (
-                  <ul role="list" aria-label="Folder contents grid" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  <ul role="list" aria-label="Folder contents grid" className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
                     {/* + Add New card — always visible at start of every folder */}
                     <li role="listitem" aria-label="Add new item">
                       <DropdownMenu>

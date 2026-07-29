@@ -87,3 +87,30 @@ Stage Summary:
 - Resize handle added on right edge of sidebar — drag to resize, with visual indicator
 - All changes verified via Agent Browser and VLM analysis
 - Lint passes cleanly
+
+---
+Task ID: sidebar-grid-responsive
+Agent: Main Agent
+Task: Implement resizable sidebar with text ellipsis and fully responsive CSS Grid for file cards
+
+Work Log:
+- **Sidebar Resizable**: Already implemented in previous session with drag handle. Improved visibility: added wider hover zone (7px), invisible-by-default grip indicator that appears on hover (3px wide, 8px tall, rounded), positioned right-[-3px] to overlap the border edge (VS Code style).
+- **Sidebar Text Ellipsis**: Already implemented in previous session. File tree items use `truncate min-w-0 flex-1` with `title` attribute for tooltip. All text containers in sidebar have proper `min-w-0` + `truncate` classes.
+- **Responsive CSS Grid**: Changed content-area grid from fixed breakpoints (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6`) to fully responsive `grid-cols-[repeat(auto-fill,minmax(180px,1fr))]` with `gap-4`. This ensures:
+  - Cards automatically fill available space
+  - When sidebar is resized wider, cards reflow to fewer columns
+  - When sidebar is resized narrower, cards expand to more columns
+  - Mobile gets 1-2 columns, desktop gets 3-6+ columns depending on available space
+- **Verified with VLM**: 
+  - 260px sidebar (narrow) → 5 columns
+  - 320px sidebar (default) → 4 columns
+  - 502px sidebar (wide) → 3 columns
+  - 1920px desktop → 6 columns
+  - 375px mobile → 1 column
+  - All transitions are smooth and responsive
+
+Stage Summary:
+- Content grid uses `auto-fill` with `minmax(180px, 1fr)` — fully responsive, no fixed breakpoints
+- Sidebar resize handle improved with VS Code-style hover indicator
+- Grid auto-adjusts column count when sidebar is resized — verified at all widths
+- Lint passes cleanly

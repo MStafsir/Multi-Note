@@ -604,11 +604,14 @@ export function WorkspaceLayout() {
                       <div
                         ref={sidebarResizeRef}
                         onMouseDown={handleSidebarResizeStart}
-                        className="absolute top-0 right-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10 group"
+                        className="absolute top-0 right-[-3px] bottom-0 w-[7px] cursor-col-resize z-10 group"
                         aria-label="Resize sidebar"
                         role="separator"
                       >
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-10 bg-muted-foreground/30 rounded-full group-hover:bg-primary/50 transition-colors" />
+                        {/* Hover zone — invisible until hovered */}
+                        <div className="absolute inset-0 bg-transparent group-hover:bg-primary/10 transition-colors" />
+                        {/* Visual grip indicator */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[3px] h-8 rounded-full bg-transparent group-hover:bg-muted-foreground/40 transition-all duration-150" />
                       </div>
                     )}
                   </motion.aside>
