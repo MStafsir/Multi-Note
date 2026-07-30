@@ -1,0 +1,788 @@
+     1→'use client';
+     2→
+     3→// ============================================================
+     4→// MODUL 61-63: Dedicated New-Tab Viewer — ALL file types supported
+     5→// Opens in a new browser tab like Google Drive.
+     6→// No download prompt — file opens directly.
+     7→// A4-paper-style rendering for documents.
+     8→//
+     9→// TWO rendering paths for office documents:
+    10→//   Default (fast): docx-preview / SheetJS / text-extraction
+    11→//   High-Fidelity:  LibreOffice → PDF → pdf.js (via /convert-pdf API)
+    12→//
+    13→// "Tampilan Asli (PDF)" toggle allows switching between the two.
+    14→// All file bytes fetched via /api/files/[nodeId]/content
+    15→// (session-authenticated, same-origin, zero external calls).
+    16→// ============================================================
+    17→
+    18→import { useState, useEffect, useRef } from 'react';
+    19→import { useRouter } from 'next/navigation';
+    20→import {
+    21→  FileText,
+    22→  FileSpreadsheet,
+    23→  Presentation,
+    24→  Download,
+    25→  ArrowLeft,
+    26→  Loader2,
+    27→  ChevronLeft,
+    28→  ChevronRight,
+    29→  ZoomIn,
+    30→  ZoomOut,
+    31→  AlertTriangle,
+    32→  Eye,
+    33→  Zap,
+    34→} from 'lucide-react';
+    35→import { formatFileSize, isOfficePreviewType } from '@/lib/mime-icons';
+    36→import type { PreviewType, PreviewTier } from '@/lib/mime-icons';
+    37→import { Button } from '@/components/ui/button';
+    38→import { Card, CardContent } from '@/components/ui/card';
+    39→
+    40→interface DedicatedViewerProps {
+    41→  nodeId: string;
+    42→  name: string;
+    43→  mimeType: string;
+    44→  previewType: PreviewType;
+    45→  previewTier: PreviewTier;
+    46→  mimeLabel: string;
+    47→  sizeBytes: number;
+    48→  checksumSha256: string | null;
+    49→}
+    50→
+    51→// Whether this preview type supports high-fidelity (LibreOffice) rendering
+    52→const HI_FI_TYPES: PreviewType[] = ['docx', 'xlsx', 'pptx'];
+    53→
+    54→// ============================================================
+    55→// Spreadsheet Preview Sub-component
+    56→// MODUL 58: Multi-sheet tab switcher, computed values, error state
+    57→// ============================================================
+    58→function SpreadsheetPreview({ data, name }: {
+    59→  data: {
+    60→    sheetNames: string[];
+    61→    sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }>;
+    62→  };
+    63→  name: string;
+    64→}) {
+    65→  const [activeSheet, setActiveSheet] = useState(data.sheetNames[0] || '');
+    66→  const sheetData = data.sheets[activeSheet];
+    67→  const maxRows = 200;
+    68→
+    69→  if (!sheetData) {
+    70→    return (
+    71→      <div className="flex flex-col items-center gap-3 p-8">
+    72→        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+    73→        <p className="text-sm text-muted-foreground">No data found in spreadsheet</p>
+    74→      </div>
+    75→    );
+    76→  }
+    77→
+    78→  return (
+    79→    <div className="flex flex-col w-full">
+    80→      {/* Sheet tabs — only show if more than 1 sheet */}
+    81→      {data.sheetNames.length > 1 && (
+    82→        <div className="flex items-center gap-1 mb-3 overflow-x-auto pb-1 border-b">
+    83→          {data.sheetNames.map((sheetName) => (
+    84→            <Button
+    85→              key={sheetName}
+    86→              variant={sheetName === activeSheet ? 'secondary' : 'ghost'}
+    87→              size="sm"
+    88→              className="text-xs whitespace-nowrap"
+    89→              onClick={() => setActiveSheet(sheetName)}
+    90→            >
+    91→              {sheetName}
+    92→            </Button>
+    93→          ))}
+    94→        </div>
+    95→      )}
+    96→
+    97→      {/* Spreadsheet table */}
+    98→      <div className="overflow-auto max-h-[70vh] border rounded-lg">
+    99→        <table className="w-full text-sm border-collapse">
+   100→          <thead className="sticky top-0 bg-muted/80 backdrop-blur z-10">
+   101→            <tr>
+   102→              <th className="px-3 py-2 text-left font-medium border-b bg-muted/60 text-xs text-muted-foreground w-12">#</th>
+   103→              {sheetData.headers.map((header, i) => (
+   104→                <th key={i} className="px-3 py-2 text-left font-medium border-b whitespace-nowrap text-xs">
+   105→                  {header || `Column ${i + 1}`}
+   106→                </th>
+   107→              ))}
+   108→            </tr>
+   109→          </thead>
+   110→          <tbody>
+   111→            {sheetData.rows.slice(0, maxRows).map((row, i) => (
+   112→              <tr key={i} className="hover:bg-accent/30 transition-colors">
+   113→                <td className="px-3 py-1.5 border-b text-xs text-muted-foreground">{i + 1}</td>
+   114→                {sheetData.headers.map((header, j) => (
+   115→                  <td key={j} className="px-3 py-1.5 border-b whitespace-nowrap max-w-[300px] truncate text-sm">
+   116→                    {row[header] !== null && row[header] !== undefined ? String(row[header]) : ''}
+   117→                  </td>
+   118→                ))}
+   119→              </tr>
+   120→            ))}
+   121→          </tbody>
+   122→        </table>
+   123→        {sheetData.rows.length > maxRows && (
+   124→          <div className="p-2 text-center text-xs text-muted-foreground bg-muted/30">
+   125→            Showing {maxRows} of {sheetData.rows.length} rows
+   126→          </div>
+   127→        )}
+   128→      </div>
+   129→    </div>
+   130→  );
+   131→}
+   132→
+   133→// ============================================================
+   134→// Presentation Preview Sub-component
+   135→// ============================================================
+   136→function PresentationPreview({ data }: {
+   137→  data: { slideTexts: string[]; totalSlides: number; };
+   138→}) {
+   139→  const [currentSlide, setCurrentSlide] = useState(0);
+   140→  const hasSlides = data.slideTexts.length > 0;
+   141→
+   142→  return (
+   143→    <div className="flex flex-col w-full items-center">
+   144→      <div className="w-full aspect-[16/9] bg-white rounded-lg border shadow-sm flex items-center justify-center p-8 mb-4">
+   145→        {hasSlides && data.slideTexts[currentSlide] ? (
+   146→          <div className="text-center w-full">
+   147→            <p className="text-lg font-medium leading-relaxed whitespace-pre-wrap">
+   148→              {data.slideTexts[currentSlide]}
+   149→            </p>
+   150→          </div>
+   151→        ) : (
+   152→          <div className="text-center text-muted-foreground">
+   153→            <Presentation className="h-12 w-12 mx-auto mb-3 opacity-50" />
+   154→            <p className="text-sm">No text content extracted from this slide</p>
+   155→          </div>
+   156→        )}
+   157→      </div>
+   158→
+   159→      {hasSlides && data.slideTexts.length > 1 && (
+   160→        <div className="flex items-center gap-3">
+   161→          <Button variant="outline" size="icon" className="h-8 w-8"
+   162→            onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))} disabled={currentSlide === 0}>
+   163→            <ChevronLeft className="h-4 w-4" />
+   164→          </Button>
+   165→          <span className="text-sm text-muted-foreground">
+   166→            Slide {currentSlide + 1} of {data.slideTexts.length}
+   167→          </span>
+   168→          <Button variant="outline" size="icon" className="h-8 w-8"
+   169→            onClick={() => setCurrentSlide(Math.min(data.slideTexts.length - 1, currentSlide + 1))}
+   170→            disabled={currentSlide === data.slideTexts.length - 1}>
+   171→            <ChevronRight className="h-4 w-4" />
+   172→          </Button>
+   173→        </div>
+   174→      )}
+   175→    </div>
+   176→  );
+   177→}
+   178→
+   179→// ============================================================
+   180→// PDF Preview Sub-component (uses pdfjs-dist)
+   181→// Shared by both Tier 1 (native PDF) and High-Fidelity (LibreOffice→PDF)
+   182→// ============================================================
+   183→function PdfPreview({ contentUrl }: { contentUrl: string }) {
+   184→  const [numPages, setNumPages] = useState(0);
+   185→  const [pdfDoc, setPdfDoc] = useState<unknown>(null);
+   186→  const [scale, setScale] = useState(1.2);
+   187→  const [pdfError, setPdfError] = useState<string | null>(null);
+   188→  const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+   189→
+   190→  useEffect(() => {
+   191→    let cancelled = false;
+   192→
+   193→    const loadPdf = async () => {
+   194→      try {
+   195→        const pdfjsLib = await import('pdfjs-dist');
+   196→        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+   197→
+   198→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   199→        if (!res.ok) throw new Error(`Failed to fetch PDF (${res.status})`);
+   200→        const arrayBuffer = await res.arrayBuffer();
+   201→        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+   202→
+   203→        if (!cancelled) {
+   204→          setPdfDoc(pdf);
+   205→          setNumPages(pdf.numPages);
+   206→        }
+   207→      } catch (err) {
+   208→        if (!cancelled) {
+   209→          console.error('PDF load error:', err);
+   210→          setPdfError('Failed to load PDF document');
+   211→        }
+   212→      }
+   213→    };
+   214→
+   215→    loadPdf();
+   216→    return () => { cancelled = true; };
+   217→  }, [contentUrl]);
+   218→
+   219→  // Render all pages when pdfDoc or scale changes
+   220→  useEffect(() => {
+   221→    if (!pdfDoc || numPages === 0) return;
+   222→    let cancelled = false;
+   223→
+   224→    const renderAllPages = async () => {
+   225→      const pdfjsLib = await import('pdfjs-dist');
+   226→
+   227→      for (let i = 1; i <= numPages; i++) {
+   228→        if (cancelled) break;
+   229→        try {
+   230→          const page = await (pdfDoc as { getPage: (n: number) => Promise<unknown> }).getPage(i);
+   231→          const viewport = (page as { getViewport: (opts: { scale: number }) => { width: number; height: number } }).getViewport({ scale });
+   232→          const canvas = canvasRefs.current.get(i);
+   233→          if (!canvas) continue;
+   234→
+   235→          canvas.height = viewport.height;
+   236→          canvas.width = viewport.width;
+   237→
+   238→          const context = canvas.getContext('2d');
+   239→          if (!context) continue;
+   240→
+   241→          const renderContext = { canvasContext: context, viewport };
+   242→          await (page as { render: (ctx: unknown) => Promise<unknown> }).render(renderContext).promise;
+   243→        } catch (err) {
+   244→          console.error(`PDF render error page ${i}:`, err);
+   245→        }
+   246→      }
+   247→    };
+   248→
+   249→    renderAllPages();
+   250→    return () => { cancelled = true; };
+   251→  }, [pdfDoc, numPages, scale]);
+   252→
+   253→  if (pdfError) {
+   254→    return (
+   255→      <div className="flex flex-col items-center gap-3 p-8">
+   256→        <AlertTriangle className="h-8 w-8 text-destructive" />
+   257→        <p className="text-sm text-muted-foreground">{pdfError}</p>
+   258→      </div>
+   259→    );
+   260→  }
+   261→
+   262→  return (
+   263→    <div className="flex flex-col items-center w-full">
+   264→      {/* PDF Zoom Controls */}
+   265→      <div className="flex items-center gap-2 mb-3 sticky top-0 z-10 bg-white/95 backdrop-blur py-2 px-4 rounded-lg shadow-sm">
+   266→        <span className="text-sm text-gray-600">
+   267→          {numPages} page{numPages !== 1 ? 's' : ''}
+   268→        </span>
+   269→        <span className="mx-2 text-gray-300">|</span>
+   270→        <Button variant="outline" size="icon" className="h-8 w-8"
+   271→          onClick={() => setScale(Math.max(0.5, scale - 0.2))} disabled={scale <= 0.5}>
+   272→          <ZoomOut className="h-4 w-4" />
+   273→        </Button>
+   274→        <span className="text-sm text-gray-600">{Math.round(scale * 100)}%</span>
+   275→        <Button variant="outline" size="icon" className="h-8 w-8"
+   276→          onClick={() => setScale(Math.min(3, scale + 0.2))} disabled={scale >= 3}>
+   277→          <ZoomIn className="h-4 w-4" />
+   278→        </Button>
+   279→      </div>
+   280→
+   281→      {/* PDF Canvases — all pages rendered vertically */}
+   282→      <div className="flex flex-col items-center gap-4">
+   283→        {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
+   284→          <div key={pageNum} className="shadow-lg border bg-white">
+   285→            <canvas
+   286→              ref={(el) => {
+   287→                if (el) {
+   288→                  canvasRefs.current.set(pageNum, el);
+   289→                } else {
+   290→                  canvasRefs.current.delete(pageNum);
+   291→                }
+   292→              }}
+   293→              className="block"
+   294→            />
+   295→          </div>
+   296→        ))}
+   297→      </div>
+   298→    </div>
+   299→  );
+   300→}
+   301→
+   302→// ============================================================
+   303→// Main DedicatedViewer Component
+   304→// MODUL 63: Two rendering paths — Default (fast) and High-Fidelity (PDF)
+   305→// ============================================================
+   306→export function DedicatedViewer({
+   307→  nodeId,
+   308→  name,
+   309→  mimeType,
+   310→  previewType,
+   311→  previewTier,
+   312→  mimeLabel,
+   313→  sizeBytes,
+   314→  checksumSha256,
+   315→}: DedicatedViewerProps) {
+   316→  const router = useRouter();
+   317→  const [loading, setLoading] = useState(true);
+   318→  const [error, setError] = useState<string | null>(null);
+   319→
+   320→  // High-fidelity rendering mode (LibreOffice → PDF)
+   321→  const [hiFiMode, setHiFiMode] = useState(false);
+   322→  const [hiFiLoading, setHiFiLoading] = useState(false);
+   323→  const [hiFiError, setHiFiError] = useState<string | null>(null);
+   324→
+   325→  // Whether this file type supports high-fidelity rendering
+   326→  const supportsHiFi = HI_FI_TYPES.includes(previewType);
+   327→
+   328→  // DOCX state
+   329→  const [mammothHtml, setMammothHtml] = useState<string | null>(null);
+   330→  const [docxRenderMethod, setDocxRenderMethod] = useState<'docx-preview' | 'mammoth' | null>(null);
+   331→  const docxContainerRef = useRef<HTMLDivElement>(null);
+   332→
+   333→  // XLSX state
+   334→  const [spreadsheetData, setSpreadsheetData] = useState<{
+   335→    sheetNames: string[];
+   336→    sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }>;
+   337→  } | null>(null);
+   338→
+   339→  // PPTX state
+   340→  const [presentationData, setPresentationData] = useState<{
+   341→    slideTexts: string[];
+   342→    totalSlides: number;
+   343→  } | null>(null);
+   344→
+   345→  // Text/Code state
+   346→  const [textContent, setTextContent] = useState<string | null>(null);
+   347→
+   348→  // URLs — all same-origin, session-authenticated
+   349→  const contentUrl = `/api/files/${nodeId}/content`;
+   350→  const previewUrl = `/api/preview/${nodeId}`;
+   351→  const downloadUrl = `/api/files/${nodeId}/content?download=true`;
+   352→  const convertPdfUrl = `/api/files/${nodeId}/convert-pdf`;
+   353→
+   354→  // ---- High-Fidelity toggle handler ----
+   355→  const handleHiFiToggle = () => {
+   356→    if (hiFiMode) {
+   357→      // Switch back to default
+   358→      setHiFiMode(false);
+   359→      setHiFiError(null);
+   360→    } else {
+   361→      // Switch to high-fidelity
+   362→      setHiFiMode(true);
+   363→      setHiFiLoading(true);
+   364→      setHiFiError(null);
+   365→    }
+   366→  };
+   367→
+   368→  // ---- Tier 1: Text/Code loading ----
+   369→  useEffect(() => {
+   370→    if (previewType !== 'text' && previewType !== 'code') return;
+   371→
+   372→    let cancelled = false;
+   373→    const loadText = async () => {
+   374→      try {
+   375→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   376→        if (!res.ok) throw new Error(`Failed to fetch file content (${res.status})`);
+   377→        const text = await res.text();
+   378→        if (!cancelled) {
+   379→          setTextContent(text);
+   380→          setLoading(false);
+   381→        }
+   382→      } catch (err) {
+   383→        if (!cancelled) {
+   384→          setError('Failed to load text content');
+   385→          setLoading(false);
+   386→        }
+   387→      }
+   388→    };
+   389→    loadText();
+   390→    return () => { cancelled = true; };
+   391→  }, [contentUrl, previewType]);
+   392→
+   393→  // ---- Tier 1: Image/Video/Audio — loading is instant ----
+   394→  useEffect(() => {
+   395→    if (previewType === 'image' || previewType === 'video' || previewType === 'audio') {
+   396→      setLoading(false);
+   397→    }
+   398→  }, [previewType]);
+   399→
+   400→  // ---- Tier 1: PDF — handled by PdfPreview sub-component ----
+   401→  useEffect(() => {
+   402→    if (previewType === 'pdf') {
+   403→      setLoading(false); // PdfPreview handles its own loading
+   404→    }
+   405→  }, [previewType]);
+   406→
+   407→  // ---- DOCX loading (Tier 2 — docx-preview PRIMARY, mammoth fallback) ----
+   408→  // MODUL 62: Full docx-preview config flags
+   409→  useEffect(() => {
+   410→    if (previewType !== 'docx') return;
+   411→    let cancelled = false;
+   412→
+   413→    const loadDocx = async () => {
+   414→      try {
+   415→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   416→        if (!res.ok) throw new Error(`Failed to fetch document (${res.status})`);
+   417→        const arrayBuffer = await res.arrayBuffer();
+   418→
+   419→        // PRIMARY: docx-preview — preserves images, headings, tables, lists, formatting
+   420→        // MODUL 62: Full config flags for maximum fidelity
+   421→        try {
+   422→          const docxPreview = await import('docx-preview');
+   423→          if (docxContainerRef.current && !cancelled) {
+   424→            await docxPreview.renderAsync(
+   425→              arrayBuffer,
+   426→              docxContainerRef.current,
+   427→              undefined,
+   428→              {
+   429→                className: 'docx-preview-wrapper',
+   430→                inWrapper: true,
+   431→                hideWrapperOnPrint: false,
+   432→                ignoreWidth: false,
+   433→                ignoreHeight: false,
+   434→                ignoreFonts: false,
+   435→                breakPages: true,
+   436→                ignoreLastRenderedPageBreak: true,
+   437→                experimental: true, // enables tab stops calculation (Modul 62.1)
+   438→                trimXmlDeclaration: true,
+   439→                useBase64URL: true, // ensures images are embedded (Modul 62.1)
+   440→                renderHeaders: true, // Modul 62.2
+   441→                renderFooters: true, // Modul 62.2
+   442→                renderFootnotes: true,
+   443→                renderEndnotes: true,
+   444→                renderAltChunks: true,
+   445→                renderChanges: false,
+   446→                renderComments: false,
+   447→                debug: false,
+   448→              }
+   449→            );
+   450→            if (!cancelled) {
+   451→              setDocxRenderMethod('docx-preview');
+   452→              setLoading(false);
+   453→            }
+   454→            return;
+   455→          }
+   456→        } catch (docxPreviewErr) {
+   457→          console.warn('[DedicatedViewer] docx-preview failed, falling back to mammoth:', docxPreviewErr);
+   458→        }
+   459→
+   460→        // FALLBACK: mammoth — semantic HTML conversion (may lose images/formatting)
+   461→        if (!cancelled) {
+   462→          try {
+   463→            const mammoth = await import('mammoth');
+   464→            const result = await mammoth.convertToHtml({ arrayBuffer });
+   465→            if (!cancelled) {
+   466→              setMammothHtml(result.value);
+   467→              setDocxRenderMethod('mammoth');
+   468→              setLoading(false);
+   469→            }
+   470→          } catch (mammothErr) {
+   471→            console.error('[DedicatedViewer] mammoth fallback also failed:', mammothErr);
+   472→            if (!cancelled) {
+   473→              setError('Failed to render document preview. Both docx-preview and mammoth failed.');
+   474→              setLoading(false);
+   475→            }
+   476→          }
+   477→        }
+   478→      } catch (err) {
+   479→        if (!cancelled) {
+   480→          setError('Failed to load document file');
+   481→          setLoading(false);
+   482→        }
+   483→      }
+   484→    };
+   485→    loadDocx();
+   486→    return () => { cancelled = true; };
+   487→  }, [contentUrl, previewType]);
+   488→
+   489→  // ---- XLSX loading (Tier 2 — SheetJS client-side) ----
+   490→  useEffect(() => {
+   491→    if (previewType !== 'xlsx') return;
+   492→    let cancelled = false;
+   493→
+   494→    const loadXlsx = async () => {
+   495→      try {
+   496→        const res = await fetch(contentUrl, { credentials: 'same-origin' });
+   497→        if (!res.ok) throw new Error(`Failed to fetch spreadsheet (${res.status})`);
+   498→        const arrayBuffer = await res.arrayBuffer();
+   499→
+   500→        const XLSX = await import('xlsx');
+   501→        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+   502→        const sheetNames = workbook.SheetNames;
+   503→        const sheets: Record<string, { rows: Record<string, string | number | boolean | null>[]; headers: string[] }> = {};
+   504→
+   505→        for (const sheetName of sheetNames) {
+   506→          const worksheet = workbook.Sheets[sheetName];
+   507→          if (!worksheet) continue;
+   508→          // raw: false → computed values (not formula strings)
+   509→          const jsonData = XLSX.utils.sheet_to_json<Record<string, string | number | boolean | null>>(worksheet, { defval: null, raw: false });
+   510→          const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+   511→          sheets[sheetName] = { rows: jsonData.slice(0, 200), headers };
+   512→        }
+   513→
+   514→        if (!cancelled) {
+   515→          setSpreadsheetData({ sheetNames, sheets });
+   516→          setLoading(false);
+   517→        }
+   518→      } catch (err) {
+   519→        console.error('[DedicatedViewer] XLSX load error:', err);
+   520→        if (!cancelled) {
+   521→          setError('Failed to load spreadsheet preview. The file may be corrupted or password-protected.');
+   522→          setLoading(false);
+   523→        }
+   524→      }
+   525→    };
+   526→    loadXlsx();
+   527→    return () => { cancelled = true; };
+   528→  }, [contentUrl, previewType]);
+   529→
+   530→  // ---- PPTX loading (Tier 3 — server-side JSON) ----
+   531→  useEffect(() => {
+   532→    if (previewType !== 'pptx') return;
+   533→    let cancelled = false;
+   534→
+   535→    const loadPptx = async () => {
+   536→      try {
+   537→        const res = await fetch(previewUrl, { credentials: 'same-origin' });
+   538→        if (!res.ok) throw new Error(`Failed to load presentation preview (${res.status})`);
+   539→        const data = await res.json();
+   540→        if (!cancelled) {
+   541→          if (data.success && data.data) {
+   542→            setPresentationData({ slideTexts: data.data.slideTexts || [], totalSlides: data.data.totalSlides || 0 });
+   543→          } else {
+   544→            setError('No preview data available for this presentation');
+   545→          }
+   546→          setLoading(false);
+   547→        }
+   548→      } catch (err) {
+   549→        console.error('[DedicatedViewer] PPTX load error:', err);
+   550→        if (!cancelled) {
+   551→          setError('Failed to load presentation preview');
+   552→          setLoading(false);
+   553→        }
+   554→      }
+   555→    };
+   556→    loadPptx();
+   557→    return () => { cancelled = true; };
+   558→  }, [previewUrl, previewType]);
+   559→
+   560→  // ---- High-Fidelity mode loading (LibreOffice → PDF) ----
+   561→  useEffect(() => {
+   562→    if (!hiFiMode || !supportsHiFi) return;
+   563→    // The PdfPreview component handles the actual rendering
+   564→    // We just need to signal that loading is complete once the PDF is fetched
+   565→    // The PdfPreview component handles its own loading state
+   566→    setHiFiLoading(false);
+   567→  }, [hiFiMode, supportsHiFi]);
+   568→
+   569→  // ---- Close/back handler ----
+   570→  const handleClose = () => {
+   571→    if (window.opener) { window.close(); } else { router.back(); }
+   572→  };
+   573→
+   574→  // ---- Icon selection ----
+   575→  const getIcon = () => {
+   576→    switch (previewType) {
+   577→      case 'image': return <span className="text-lg">🖼️</span>;
+   578→      case 'video': return <span className="text-lg">🎬</span>;
+   579→      case 'audio': return <span className="text-lg">🎵</span>;
+   580→      case 'pdf': return <FileText className="h-5 w-5 text-red-500" />;
+   581→      case 'text': return <FileText className="h-5 w-5 text-gray-500" />;
+   582→      case 'code': return <FileText className="h-5 w-5 text-emerald-500" />;
+   583→      case 'docx': return <FileText className="h-5 w-5 text-blue-500" />;
+   584→      case 'xlsx': return <FileSpreadsheet className="h-5 w-5 text-emerald-500" />;
+   585→      case 'pptx': return <Presentation className="h-5 w-5 text-orange-500" />;
+   586→      default: return <FileText className="h-5 w-5 text-muted-foreground" />;
+   587→    }
+   588→  };
+   589→
+   590→  // ---- Error rendering ----
+   591→  if (error) {
+   592→    return (
+   593→      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
+   594→        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
+   595→          <div className="flex items-center gap-2">
+   596→            <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
+   597→            <span className="font-medium truncate max-w-[50vw]" style={{ color: '#1a1a1a' }}>{name}</span>
+   598→          </div>
+   599→          <div className="flex items-center gap-2">
+   600→            {supportsHiFi && (
+   601→              <Button variant="outline" size="sm" onClick={handleHiFiToggle}>
+   602→                <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+   603→              </Button>
+   604→            )}
+   605→            <Button variant="outline" size="sm" asChild>
+   606→              <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
+   607→            </Button>
+   608→          </div>
+   609→        </div>
+   610→        <div className="flex-1 flex items-center justify-center p-6">
+   611→          <Card className="w-full max-w-md">
+   612→            <CardContent className="p-6 flex flex-col items-center gap-4">
+   613→              <AlertTriangle className="h-8 w-8 text-destructive" />
+   614→              <p className="text-sm text-muted-foreground text-center">{error}</p>
+   615→              <div className="flex items-center gap-2">
+   616→                {supportsHiFi && (
+   617→                  <Button variant="outline" size="sm" onClick={handleHiFiToggle}>
+   618→                    <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+   619→                  </Button>
+   620→                )}
+   621→                <Button variant="outline" size="sm" asChild>
+   622→                  <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
+   623→                </Button>
+   624→              </div>
+   625→            </CardContent>
+   626→          </Card>
+   627→        </div>
+   628→      </div>
+   629→    );
+   630→  }
+   631→
+   632→  // ---- Main rendering ----
+   633→  return (
+   634→    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
+   635→      {/* Toolbar */}
+   636→      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
+   637→        <div className="flex items-center gap-2">
+   638→          <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
+   639→          {getIcon()}
+   640→          <span className="font-medium truncate max-w-[50vw]">{name}</span>
+   641→          {sizeBytes > 0 && <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>}
+   642→          <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+   643→          {/* Hi-Fi mode indicator */}
+   644→          {hiFiMode && supportsHiFi && (
+   645→            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+   646→              Tampilan Asli
+   647→            </span>
+   648→          )}
+   649→        </div>
+   650→        <div className="flex items-center gap-2">
+   651→          {/* MODUL 63.3: Toggle between Default (fast) and High-Fidelity (PDF) */}
+   652→          {supportsHiFi && (
+   653→            <Button
+   654→              variant={hiFiMode ? 'default' : 'outline'}
+   655→              size="sm"
+   656→              onClick={handleHiFiToggle}
+   657→              title={hiFiMode ? 'Beralih ke tampilan cepat' : 'Beralih ke tampilan asli (PDF) — presisi tinggi via LibreOffice'}
+   658→            >
+   659→              {hiFiMode ? (
+   660→                <><Zap className="h-4 w-4 mr-2" />Tampilan Cepat</>
+   661→              ) : (
+   662→                <><Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)</>
+   663→              )}
+   664→            </Button>
+   665→          )}
+   666→          <Button variant="outline" size="sm" asChild>
+   667→            <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download</a>
+   668→          </Button>
+   669→        </div>
+   670→      </div>
+   671→
+   672→      {/* Content area */}
+   673→      <div className="flex-1 overflow-auto">
+   674→        {/* ---- High-Fidelity Mode: LibreOffice → PDF → pdf.js ---- */}
+   675→        {hiFiMode && supportsHiFi ? (
+   676→          hiFiLoading ? (
+   677→            <div className="flex items-center justify-center py-20">
+   678→              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+   679→              <span className="ml-3 text-sm text-muted-foreground">Mengkonversi ke PDF via LibreOffice…</span>
+   680→            </div>
+   681→          ) : (
+   682→            <div className="flex items-center justify-center p-6">
+   683→              <PdfPreview contentUrl={convertPdfUrl} />
+   684→            </div>
+   685→          )
+   686→        ) : loading ? (
+   687→          /* ---- Loading state ---- */
+   688→          <div className="flex items-center justify-center py-20">
+   689→            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+   690→            <span className="ml-3 text-sm text-muted-foreground">Loading…</span>
+   691→          </div>
+   692→        ) : previewType === 'image' ? (
+   693→          /* Image — centered, max-width A4 style */
+   694→          <div className="flex items-center justify-center p-6 min-h-[80vh]" style={{ backgroundColor: '#f0f0f0' }}>
+   695→            <img
+   696→              src={contentUrl}
+   697→              alt={name}
+   698→              className="max-w-[210mm] max-h-[80vh] object-contain rounded-lg shadow-md"
+   699→              style={{ backgroundColor: 'white' }}
+   700→            />
+   701→          </div>
+   702→        ) : previewType === 'video' ? (
+   703→          /* Video — centered player */
+   704→          <div className="flex items-center justify-center p-6 min-h-[80vh]">
+   705→            <video
+   706→              src={contentUrl}
+   707→              controls
+   708→              autoPlay
+   709→              className="max-w-[210mm] rounded-lg shadow-md"
+   710→              style={{ maxHeight: '80vh' }}
+   711→            >
+   712→              Your browser does not support video playback.
+   713→            </video>
+   714→          </div>
+   715→        ) : previewType === 'audio' ? (
+   716→          /* Audio — centered player with visual wrapper */
+   717→          <div className="flex flex-col items-center justify-center p-6 min-h-[80vh]">
+   718→            <div className="w-full max-w-[210mm] bg-white rounded-lg shadow-md p-8 flex flex-col items-center gap-6">
+   719→              <span className="text-4xl">🎵</span>
+   720→              <h2 className="text-lg font-medium">{name}</h2>
+   721→              <audio src={contentUrl} controls autoPlay className="w-full" />
+   722→            </div>
+   723→          </div>
+   724→        ) : previewType === 'pdf' ? (
+   725→          /* PDF — canvas rendering with zoom controls */
+   726→          <div className="flex items-center justify-center p-6">
+   727→            <PdfPreview contentUrl={contentUrl} />
+   728→          </div>
+   729→        ) : previewType === 'text' || previewType === 'code' ? (
+   730→          /* Text/Code — A4-style document view */
+   731→          <div className="flex justify-center p-6">
+   732→            <div className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] font-mono text-sm leading-relaxed overflow-auto whitespace-pre-wrap break-words border" style={{ color: '#1a1a1a' }}>
+   733→              {textContent}
+   734→            </div>
+   735→          </div>
+   736→        ) : previewType === 'docx' ? (
+   737→          /* DOCX — docx-preview (primary) or mammoth (fallback) */
+   738→          docxRenderMethod === 'mammoth' && mammothHtml ? (
+   739→            <div className="flex justify-center p-6">
+   740→              <div
+   741→                className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] overflow-auto border"
+   742→                style={{ color: '#1a1a1a' }}
+   743→                dangerouslySetInnerHTML={{ __html: mammothHtml }}
+   744→              />
+   745→            </div>
+   746→          ) : (
+   747→            <div className="flex justify-center p-6">
+   748→              <div className="docx-preview-wrapper w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md overflow-auto border" style={{ color: '#1a1a1a' }}>
+   749→                <div ref={docxContainerRef} className="w-full" />
+   750→              </div>
+   751→            </div>
+   752→          )
+   753→        ) : previewType === 'xlsx' ? (
+   754→          /* XLSX — SheetJS with multi-sheet tab switcher */
+   755→          spreadsheetData ? (
+   756→            <div className="p-6 max-w-full mx-auto">
+   757→              <SpreadsheetPreview data={spreadsheetData} name={name} />
+   758→            </div>
+   759→          ) : null
+   760→        ) : previewType === 'pptx' ? (
+   761→          /* PPTX — server-side extracted text */
+   762→          presentationData ? (
+   763→            <div className="p-6 max-w-[210mm] mx-auto">
+   764→              <PresentationPreview data={presentationData} />
+   765→            </div>
+   766→          ) : null
+   767→        ) : (
+   768→          /* Unknown/unsupported type — offer download */
+   769→          <div className="flex flex-col items-center justify-center p-6 min-h-[80vh]">
+   770→            <Card className="w-full max-w-md">
+   771→              <CardContent className="p-6 flex flex-col items-center gap-4">
+   772→                {getIcon()}
+   773→                <h3 className="font-medium">{name}</h3>
+   774→                <p className="text-sm text-muted-foreground">
+   775→                  This file type ({mimeLabel}) cannot be previewed directly.
+   776→                </p>
+   777→                <Button variant="default" size="sm" asChild>
+   778→                  <a href={downloadUrl} download={name}><Download className="h-4 w-4 mr-2" />Download to View</a>
+   779→                </Button>
+   780→              </CardContent>
+   781→            </Card>
+   782→          </div>
+   783→        )}
+   784→      </div>
+   785→    </div>
+   786→  );
+   787→}
+   788→

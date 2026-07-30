@@ -1,16 +1,22 @@
 'use client';
 
 // ============================================================
-// MODUL 61-63: Dedicated New-Tab Viewer — ALL file types supported
+// MODUL 61-65: Dedicated New-Tab Viewer — ALL file types supported
 // Opens in a new browser tab like Google Drive.
 // No download prompt — file opens directly.
 // A4-paper-style rendering for documents.
 //
 // TWO rendering paths for office documents:
-//   Default (fast): docx-preview / SheetJS / text-extraction
-//   High-Fidelity:  LibreOffice → PDF → pdf.js (via /convert-pdf API)
+//   Default (MODUL 64): LibreOffice → PDF → pdf.js (high-fidelity)
+//   Secondary (fast): docx-preview / SheetJS / text-extraction
 //
-// "Tampilan Asli (PDF)" toggle allows switching between the two.
+// MODUL 64: Default view-mode is now high-fidelity (LibreOffice→PDF)
+//   for all office types (DOCX, XLSX, PPTX). The "Tampilan Cepat"
+//   toggle switches to the fast path for large files.
+//
+// MODUL 65: Header reuses dark-theme tokens from app-shell,
+//   proper spacing, z-index, and WCAG contrast.
+//
 // All file bytes fetched via /api/files/[nodeId]/content
 // (session-authenticated, same-origin, zero external calls).
 // ============================================================
@@ -185,6 +191,8 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
   const [pdfDoc, setPdfDoc] = useState<unknown>(null);
   const [scale, setScale] = useState(1.2);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  // MODUL 64.5: Explicit loading state for cache-miss scenario
+  const [pdfLoading, setPdfLoading] = useState(true);
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
 
   useEffect(() => {
@@ -192,6 +200,7 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
 
     const loadPdf = async () => {
       try {
+        setPdfLoading(true);
         const pdfjsLib = await import('pdfjs-dist');
         pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
@@ -203,11 +212,13 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
         if (!cancelled) {
           setPdfDoc(pdf);
           setNumPages(pdf.numPages);
+          setPdfLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
           console.error('PDF load error:', err);
           setPdfError('Failed to load PDF document');
+          setPdfLoading(false);
         }
       }
     };
@@ -259,19 +270,32 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
     );
   }
 
+  // MODUL 64.5: Explicit loading state for cache-miss (first-time conversion)
+  if (pdfLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+        <div className="text-center">
+          <p className="text-sm font-medium text-foreground">Mengkonversi dokumen ke PDF…</p>
+          <p className="text-xs text-muted-foreground mt-1">Proses ini memerlukan LibreOffice dan hanya terjadi sekali (cache-miss)</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center w-full">
-      {/* PDF Zoom Controls */}
-      <div className="flex items-center gap-2 mb-3 sticky top-0 z-10 bg-white/95 backdrop-blur py-2 px-4 rounded-lg shadow-sm">
-        <span className="text-sm text-gray-600">
+      {/* MODUL 65: PDF Zoom Controls — dark-theme tokens */}
+      <div className="flex items-center gap-2 mb-3 sticky top-0 z-10 bg-background/95 backdrop-blur py-2 px-4 rounded-lg shadow-sm border border-border">
+        <span className="text-sm text-muted-foreground">
           {numPages} page{numPages !== 1 ? 's' : ''}
         </span>
-        <span className="mx-2 text-gray-300">|</span>
+        <span className="mx-2 text-border">|</span>
         <Button variant="outline" size="icon" className="h-8 w-8"
           onClick={() => setScale(Math.max(0.5, scale - 0.2))} disabled={scale <= 0.5}>
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <span className="text-sm text-gray-600">{Math.round(scale * 100)}%</span>
+        <span className="text-sm text-muted-foreground">{Math.round(scale * 100)}%</span>
         <Button variant="outline" size="icon" className="h-8 w-8"
           onClick={() => setScale(Math.min(3, scale + 0.2))} disabled={scale >= 3}>
           <ZoomIn className="h-4 w-4" />
@@ -317,9 +341,9 @@ export function DedicatedViewer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // High-fidelity rendering mode (LibreOffice → PDF)
-  const [hiFiMode, setHiFiMode] = useState(false);
-  const [hiFiLoading, setHiFiLoading] = useState(false);
+  // MODUL 64.2: Default to high-fidelity (LibreOffice → PDF) for office types
+  // This is the confirmed accurate path — user no longer needs to click manually
+  const [hiFiMode, setHiFiMode] = useState<boolean>(() => HI_FI_TYPES.includes(previewType));
   const [hiFiError, setHiFiError] = useState<string | null>(null);
 
   // Whether this file type supports high-fidelity rendering
@@ -354,13 +378,12 @@ export function DedicatedViewer({
   // ---- High-Fidelity toggle handler ----
   const handleHiFiToggle = () => {
     if (hiFiMode) {
-      // Switch back to default
+      // Switch to fast mode (secondary)
       setHiFiMode(false);
       setHiFiError(null);
     } else {
-      // Switch to high-fidelity
+      // Switch to high-fidelity mode (default)
       setHiFiMode(true);
-      setHiFiLoading(true);
       setHiFiError(null);
     }
   };
@@ -557,14 +580,11 @@ export function DedicatedViewer({
     return () => { cancelled = true; };
   }, [previewUrl, previewType]);
 
-  // ---- High-Fidelity mode loading (LibreOffice → PDF) ----
-  useEffect(() => {
-    if (!hiFiMode || !supportsHiFi) return;
-    // The PdfPreview component handles the actual rendering
-    // We just need to signal that loading is complete once the PDF is fetched
-    // The PdfPreview component handles its own loading state
-    setHiFiLoading(false);
-  }, [hiFiMode, supportsHiFi]);
+  // ---- MODUL 64.5: High-Fidelity mode loading ----
+  // The PdfPreview sub-component handles its own loading state (pdfLoading)
+  // with explicit progress indicators for cache-miss scenarios.
+  // No additional loading state needed here — PdfPreview shows its own
+  // "Mengkonversi dokumen ke PDF…" indicator during first-time conversion.
 
   // ---- Close/back handler ----
   const handleClose = () => {
@@ -590,16 +610,17 @@ export function DedicatedViewer({
   // ---- Error rendering ----
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
-            <span className="font-medium truncate max-w-[50vw]" style={{ color: '#1a1a1a' }}>{name}</span>
+      <div className="min-h-screen flex flex-col bg-background">
+        {/* MODUL 65: Header reuses dark-theme tokens from app-shell */}
+        <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={handleClose} className="text-foreground"><ArrowLeft className="h-5 w-5" /></Button>
+            <span className="font-medium truncate max-w-[50vw] text-foreground">{name}</span>
           </div>
           <div className="flex items-center gap-2">
             {supportsHiFi && (
               <Button variant="outline" size="sm" onClick={handleHiFiToggle}>
-                <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+                {hiFiMode ? <><Zap className="h-4 w-4 mr-2" />Tampilan Cepat</> : <><Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)</>}
               </Button>
             )}
             <Button variant="outline" size="sm" asChild>
@@ -615,7 +636,7 @@ export function DedicatedViewer({
               <div className="flex items-center gap-2">
                 {supportsHiFi && (
                   <Button variant="outline" size="sm" onClick={handleHiFiToggle}>
-                    <Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)
+                    {hiFiMode ? <><Zap className="h-4 w-4 mr-2" />Tampilan Cepat</> : <><Eye className="h-4 w-4 mr-2" />Tampilan Asli (PDF)</>}
                   </Button>
                 )}
                 <Button variant="outline" size="sm" asChild>
@@ -631,30 +652,38 @@ export function DedicatedViewer({
 
   // ---- Main rendering ----
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
-      {/* Toolbar */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b bg-white/95 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={handleClose}><ArrowLeft className="h-5 w-5" /></Button>
-          {getIcon()}
-          <span className="font-medium truncate max-w-[50vw]">{name}</span>
-          {sizeBytes > 0 && <span className="text-sm text-muted-foreground">{formatFileSize(sizeBytes)}</span>}
-          <span className="text-xs text-muted-foreground">{mimeLabel}</span>
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* MODUL 65: Toolbar — reuses dark-theme tokens from app-shell */}
+      {/* 65.5: z-30 ensures header stays above canvas-rendered content in both modes */}
+      <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        {/* 65.4: Explicit gap-3 between element groups */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="icon" onClick={handleClose} className="text-foreground shrink-0"><ArrowLeft className="h-5 w-5" /></Button>
+          <span className="shrink-0">{getIcon()}</span>
+          {/* 65.3: File name with proper foreground contrast */}
+          <span className="font-medium truncate max-w-[40vw] text-foreground">{name}</span>
+          {/* 65.4: Size badge with explicit spacing */}
+          {sizeBytes > 0 && (
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded shrink-0">{formatFileSize(sizeBytes)}</span>
+          )}
+          {/* 65.4: Type badge with explicit spacing */}
+          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded shrink-0">{mimeLabel}</span>
           {/* Hi-Fi mode indicator */}
           {hiFiMode && supportsHiFi && (
-            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-0.5 rounded-full font-medium shrink-0">
               Tampilan Asli
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {/* MODUL 63.3: Toggle between Default (fast) and High-Fidelity (PDF) */}
+        {/* 65.4: Right side with explicit gap */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* MODUL 64.3: Toggle between High-Fidelity (default) and Fast (secondary) */}
           {supportsHiFi && (
             <Button
               variant={hiFiMode ? 'default' : 'outline'}
               size="sm"
               onClick={handleHiFiToggle}
-              title={hiFiMode ? 'Beralih ke tampilan cepat' : 'Beralih ke tampilan asli (PDF) — presisi tinggi via LibreOffice'}
+              title={hiFiMode ? 'Beralih ke tampilan cepat (ringan, tanpa konversi)' : 'Beralih ke tampilan asli (PDF) — presisi tinggi via LibreOffice'}
             >
               {hiFiMode ? (
                 <><Zap className="h-4 w-4 mr-2" />Tampilan Cepat</>
@@ -671,18 +700,11 @@ export function DedicatedViewer({
 
       {/* Content area */}
       <div className="flex-1 overflow-auto">
-        {/* ---- High-Fidelity Mode: LibreOffice → PDF → pdf.js ---- */}
+        {/* ---- MODUL 64.5: High-Fidelity Mode with explicit loading for cache-miss ---- */}
         {hiFiMode && supportsHiFi ? (
-          hiFiLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <span className="ml-3 text-sm text-muted-foreground">Mengkonversi ke PDF via LibreOffice…</span>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center p-6">
-              <PdfPreview contentUrl={convertPdfUrl} />
-            </div>
-          )
+          <div className="flex items-center justify-center p-6">
+            <PdfPreview contentUrl={convertPdfUrl} />
+          </div>
         ) : loading ? (
           /* ---- Loading state ---- */
           <div className="flex items-center justify-center py-20">
@@ -691,12 +713,11 @@ export function DedicatedViewer({
           </div>
         ) : previewType === 'image' ? (
           /* Image — centered, max-width A4 style */
-          <div className="flex items-center justify-center p-6 min-h-[80vh]" style={{ backgroundColor: '#f0f0f0' }}>
+          <div className="flex items-center justify-center p-6 min-h-[80vh] bg-muted/30">
             <img
               src={contentUrl}
               alt={name}
-              className="max-w-[210mm] max-h-[80vh] object-contain rounded-lg shadow-md"
-              style={{ backgroundColor: 'white' }}
+              className="max-w-[210mm] max-h-[80vh] object-contain rounded-lg shadow-md bg-white dark:bg-neutral-800"
             />
           </div>
         ) : previewType === 'video' ? (
@@ -715,9 +736,9 @@ export function DedicatedViewer({
         ) : previewType === 'audio' ? (
           /* Audio — centered player with visual wrapper */
           <div className="flex flex-col items-center justify-center p-6 min-h-[80vh]">
-            <div className="w-full max-w-[210mm] bg-white rounded-lg shadow-md p-8 flex flex-col items-center gap-6">
+            <div className="w-full max-w-[210mm] bg-card rounded-lg shadow-md p-8 flex flex-col items-center gap-6">
               <span className="text-4xl">🎵</span>
-              <h2 className="text-lg font-medium">{name}</h2>
+              <h2 className="text-lg font-medium text-card-foreground">{name}</h2>
               <audio src={contentUrl} controls autoPlay className="w-full" />
             </div>
           </div>
@@ -729,7 +750,7 @@ export function DedicatedViewer({
         ) : previewType === 'text' || previewType === 'code' ? (
           /* Text/Code — A4-style document view */
           <div className="flex justify-center p-6">
-            <div className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] font-mono text-sm leading-relaxed overflow-auto whitespace-pre-wrap break-words border" style={{ color: '#1a1a1a' }}>
+            <div className="w-full max-w-[210mm] min-h-[297mm] bg-card rounded-lg shadow-md p-[20mm] font-mono text-sm leading-relaxed overflow-auto whitespace-pre-wrap break-words border text-card-foreground">
               {textContent}
             </div>
           </div>
@@ -738,14 +759,13 @@ export function DedicatedViewer({
           docxRenderMethod === 'mammoth' && mammothHtml ? (
             <div className="flex justify-center p-6">
               <div
-                className="w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md p-[20mm] overflow-auto border"
-                style={{ color: '#1a1a1a' }}
+                className="w-full max-w-[210mm] min-h-[297mm] bg-card rounded-lg shadow-md p-[20mm] overflow-auto border text-card-foreground"
                 dangerouslySetInnerHTML={{ __html: mammothHtml }}
               />
             </div>
           ) : (
             <div className="flex justify-center p-6">
-              <div className="docx-preview-wrapper w-full max-w-[210mm] min-h-[297mm] bg-white rounded-lg shadow-md overflow-auto border" style={{ color: '#1a1a1a' }}>
+              <div className="docx-preview-wrapper w-full max-w-[210mm] min-h-[297mm] bg-card rounded-lg shadow-md overflow-auto border text-card-foreground">
                 <div ref={docxContainerRef} className="w-full" />
               </div>
             </div>

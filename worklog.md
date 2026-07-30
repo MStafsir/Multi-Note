@@ -163,3 +163,48 @@ Stage Summary:
 - Self-healing searches both `upload/{userId}/` and `upload/user-files/{userId}/` directories
 - When a matching file is found, the DB record is updated automatically so future requests are fast
 - Also confirmed: sidebar resize feature was already removed, formatFileName + whitespace-nowrap already applied
+---
+Task ID: 64-65
+Agent: main
+Task: Implement Modul 64 (Default View-Mode Resolution) and Modul 65 (Dedicated-Viewer Header Fix)
+
+Work Log:
+- 64.1 VERIFY: Confirmed the exact code behind both toggle buttons:
+  - `hiFiMode` state (line 321): `useState(false)` — default was the FAST path (docx-preview/SheetJS)
+  - When `hiFiMode = false`: Shows "Tampilan Asli (PDF)" button → triggers LibreOffice → PDF path
+  - When `hiFiMode = true`: Shows "Tampilan Cepat" button → switches back to fast path
+  - The confirmed accurate path is LibreOffice → PDF (hiFiMode = true)
+  - The initial state was set to the WRONG mode — user had to click "Tampilan Asli (PDF)" manually
+- 64.2: Changed `hiFiMode` default to `true` for DOCX/XLSX/PPTX types via `useState(() => HI_FI_TYPES.includes(previewType))`
+- 64.3: Kept secondary toggle (Tampilan Cepat) as fallback option — not removed
+- 64.4: Uniform default per node-type — all HI_FI_TYPES (DOCX, XLSX, PPTX) use the same default
+- 64.5: Added explicit loading state in PdfPreview component with `pdfLoading` state:
+  - Shows "Mengkonversi dokumen ke PDF…" with clear progress indicator
+  - Shows "Proses ini memerlukan LibreOffice dan hanya terjadi sekali (cache-miss)" as helper text
+  - No flash of empty/broken content from the other mode
+- 65.1 VERIFY: Confirmed the root cause — header used `bg-white/95` (hardcoded white) instead of dark-theme tokens
+- 65.2: Fixed header to reuse dark-theme tokens:
+  - `bg-white/95` → `bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60`
+  - `style={{ backgroundColor: '#f8f9fa' }}` → `bg-background`
+  - `style={{ color: '#1a1a1a' }}` → `text-foreground`
+  - `bg-white` → `bg-card` for document containers
+  - `text-gray-600` → `text-muted-foreground` for zoom controls
+  - `bg-emerald-100 text-emerald-700` → added `dark:bg-emerald-900/40 dark:text-emerald-300` for dark mode
+- 65.3: WCAG contrast — all text uses `text-foreground` and `text-muted-foreground` tokens which meet WCAG 4.5:1
+- 65.4: Added explicit spacing between header elements:
+  - `gap-2` → `gap-3` between left-side elements
+  - Size badge: `text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded`
+  - Type badge: `text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded`
+  - `shrink-0` on icon, badges, and buttons to prevent squishing
+  - `min-w-0` on left container to allow truncation
+  - `max-w-[40vw]` on file name (reduced from 50vw) for better balance
+- 65.5: Verified z-index stacking — header uses `z-30` (above canvas-rendered content at z-10)
+- PDF 404 investigation: File ID `cms4vabp3001loojf5j6kunop` doesn't exist in the database (not even soft-deleted). This was a stale reference, not a code bug.
+- Lint check: All changes pass `bun run lint`
+- Browser testing: Verified PDF viewer renders correctly with dark-theme tokens
+
+Stage Summary:
+- Modul 64: Default view-mode changed to high-fidelity (LibreOffice→PDF) for DOCX/XLSX/PPTX
+- Modul 65: Header now uses dark-theme tokens from app-shell, proper spacing, z-index, WCAG contrast
+- PDF 404: Not a code bug — the specific file ID doesn't exist in the database
+- Pending tasks from previous session (sidebar resize, formatFileName): Already completed in previous session
