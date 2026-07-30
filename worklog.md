@@ -208,3 +208,37 @@ Stage Summary:
 - Modul 65: Header now uses dark-theme tokens from app-shell, proper spacing, z-index, WCAG contrast
 - PDF 404: Not a code bug — the specific file ID doesn't exist in the database
 - Pending tasks from previous session (sidebar resize, formatFileName): Already completed in previous session
+
+---
+Task ID: 66-67
+Agent: Main Agent
+Task: Modul 66 — List View Row-Based Layout (Google Drive Parity) + Modul 67 — Type-Differentiated File Icons
+
+Work Log:
+- 66.1 Diagnostic: Audited existing grid/list toggle — VERDICT: functional, not cosmetic. The toggle at content-area.tsx lines 417-437 already switches between grid and list render paths. The list view was a basic row layout but lacked columnar structure, headers, action icons, persistence, etc.
+- 66.2-66.6: Enhanced list view with:
+  - Column headers (Name, Size, Modified, Owner) — desktop only (hidden on mobile)
+  - Fixed-width secondary columns (w-20 for Size, w-28 for Modified, w-24 for Owner)
+  - Owner column: conditional on currentWorkspaceId non-null (hidden in personal workspace)
+  - Trailing action icons on row hover: Download, Share, Favorite, Overflow menu
+  - Fixed compact row height: 44px (h-[44px])
+  - Checkbox for multi-select: CheckSquare/Square icons, toggles multiSelectedIds
+  - Interaction contract: reuses handleItemClick + handleItemDoubleClick — identical to grid
+  - Selection state: reuses multiSelectedIds Zustand — same as grid
+  - DnD: DraggableItem + DroppableFolder wrapping preserved
+- 66.7: DnD hit-detection — verified bounding-box geometry of row elements works with @dnd-kit
+- 66.8: Persist viewMode to localStorage — key 'app-view-mode', read on init via getInitialViewMode()
+- 66.9: Mobile breakpoint handling — secondary columns (Size, Modified, Owner) hidden on <640px via 'hidden sm:flex'
+- 66.10: Tested — toggle grid↔list works, select/double-click open/drag/hover actions all functional, long names truncate with tooltip, persistence confirmed after full reload
+- 67: Type-differentiated file icons implemented — using MIME type classification from getMimePreviewType():
+  - Image: sky-500, PDF: red-500, Video: purple-500, Audio: pink-500, DOCX: blue-500, XLSX: emerald-500, PPTX: orange-500, Text: gray-500, Code: teal-500, Archive: amber-600, Unknown: muted-foreground
+  - Applied to both grid view (getIcon with h-5 w-5) and list view (getIconCompact with h-4 w-4)
+  - Folder stays orange, Note stays emerald (unchanged)
+
+Stage Summary:
+- List view is now a full row-based layout with columnar structure, headers, action icons, and compact rows
+- viewMode persists across reloads via localStorage
+- Mobile breakpoint collapses secondary columns
+- Type-differentiated file icons (Modul 67) implemented as optional companion
+- All changes verified via Agent Browser + VLM analysis
+- Zero new lint errors, zero new console errors
