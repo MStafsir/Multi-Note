@@ -7,10 +7,10 @@ import { useNodeList } from '@/hooks/use-file-tree';
 import { FileTreeItem } from './file-tree-item';
 
 export function FileTreeView() {
-  const { tree, isLoading, currentFolderId, setCurrentFolder } = useFileTreeStore();
+  const { tree, isLoading, currentFolderId, setCurrentFolder, sortBy, sortDirection } = useFileTreeStore();
 
-  // Fetch nodes
-  const { isLoading: queryLoading } = useNodeList(currentFolderId);
+  // Fetch nodes — MODUL 69: use sort params from store
+  const { isLoading: queryLoading } = useNodeList(currentFolderId, sortBy, sortDirection);
 
   // Initialize root folder on mount
   useEffect(() => {

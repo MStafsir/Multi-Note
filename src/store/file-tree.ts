@@ -6,6 +6,26 @@
 import { create } from 'zustand';
 import type { TreeNode, NodeType } from '@/types';
 
+// MODUL 69.4: Persist sort preference to localStorage
+const SORT_PREF_KEY = 'app-sort-preference';
+
+function getInitialSortPreference(): { sortBy: 'name' | 'createdAt'; sortDirection: 'asc' | 'desc' } {
+  if (typeof window === 'undefined') return { sortBy: 'name', sortDirection: 'asc' };
+  try {
+    const stored = localStorage.getItem(SORT_PREF_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.sortBy === 'name' || parsed.sortBy === 'createdAt') {
+        return {
+          sortBy: parsed.sortBy,
+          sortDirection: parsed.sortDirection === 'desc' ? 'desc' : 'asc',
+        };
+      }
+    }
+  } catch { /* localStorage not available */ }
+  return { sortBy: 'name', sortDirection: 'asc' };
+}
+
 interface FileTreeState {
   // Tree data
   tree: TreeNode[];
@@ -27,6 +47,10 @@ interface FileTreeState {
   // 17 — Active view state ('workspace' | 'trash' | 'admin')
   activeView: 'workspace' | 'trash' | 'admin';
 
+  // MODUL 69.4: Sort state — shared across components
+  sortBy: 'name' | 'createdAt';
+  sortDirection: 'asc' | 'desc';
+
   // Actions
   setTree: (nodes: TreeNode[]) => void;
   setCurrentFolder: (folderId: string | null, path: { id: string | null; name: string }[]) => void;
@@ -36,6 +60,7 @@ interface FileTreeState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setActiveView: (view: 'workspace' | 'trash' | 'admin') => void;
+  setSortPreference: (sortBy: 'name' | 'createdAt', sortDirection: 'asc' | 'desc') => void;
 
   // Optimistic updates (4.2)
   optimisticRename: (nodeId: string, newName: string) => string | null; // returns old name for rollback
@@ -60,6 +85,9 @@ export const useFileTreeStore = create<FileTreeState>((set, get) => ({
   isLoading: false,
   error: null,
   activeView: 'workspace',
+  // MODUL 69.4: Default sort state — initialized from localStorage
+  sortBy: typeof window !== 'undefined' ? getInitialSortPreference().sortBy : 'name',
+  sortDirection: typeof window !== 'undefined' ? getInitialSortPreference().sortDirection : 'asc',
 
   setTree: (nodes) => {
     const flatMap = new Map<string, TreeNode>();
@@ -106,6 +134,14 @@ export const useFileTreeStore = create<FileTreeState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   setActiveView: (view) => set({ activeView: view }),
+
+  // MODUL 69.4: Set sort preference — also persist to localStorage
+  setSortPreference: (sortBy, sortDirection) => {
+    set({ sortBy, sortDirection });
+    try {
+      localStorage.setItem(SORT_PREF_KEY, JSON.stringify({ sortBy, sortDirection }));
+    } catch { /* localStorage not available */ }
+  },
 
   // Optimistic rename — returns old name for rollback
   optimisticRename: (nodeId, newName) => {

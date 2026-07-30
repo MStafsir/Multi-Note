@@ -17,9 +17,12 @@ import {
   Archive,
   FileQuestion,
   ChevronRight,
+  ChevronDown,
   Grid3X3,
   List,
   ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
   Loader2,
   MoreHorizontal,
   Pencil,
@@ -83,6 +86,10 @@ import { getPreviewTier, getMimePreviewType, getMimeLabel } from '@/lib/mime-ico
 
 // 66.8: Persist viewMode to localStorage across reloads
 const VIEW_MODE_KEY = 'app-view-mode';
+
+type SortBy = 'name' | 'createdAt';
+type SortDirection = 'asc' | 'desc';
+
 function getInitialViewMode(): 'grid' | 'list' {
   if (typeof window === 'undefined') return 'grid';
   try {
@@ -133,6 +140,22 @@ export function ContentArea() {
     try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* ignore */ }
   };
 
+  // MODUL 69.4: Persist sort preference changes to localStorage (via store)
+  const handleSortChange = (newSortBy: SortBy, newSortDirection: SortDirection) => {
+    setSortPreference(newSortBy, newSortDirection);
+  };
+
+  // MODUL 69.3: Toggle sort — clicking column header toggles direction
+  const handleColumnSort = (column: SortBy) => {
+    if (sortBy === column) {
+      // Same column: toggle direction
+      handleSortChange(column, sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Different column: switch to it with ascending default
+      handleSortChange(column, 'asc');
+    }
+  };
+
   // Listen for sidebar upload trigger event
   useEffect(() => {
     const handler = () => {
@@ -151,6 +174,10 @@ export function ContentArea() {
     isLoading,
     selectedNodeIds,
     selectNode,
+    // MODUL 69.4: Sort state from store
+    sortBy,
+    sortDirection,
+    setSortPreference,
   } = useFileTreeStore();
 
   const { isDragging } = useWorkspaceDnd();
@@ -501,6 +528,52 @@ export function ContentArea() {
             }}
           />
 
+          {/* MODUL 69.3: Sort dropdown button */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-[44px] gap-1.5"
+                aria-label="Sort options"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                <span className="hidden sm:inline">Sort</span>
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => handleSortChange('name', 'asc')}
+                className={sortBy === 'name' && sortDirection === 'asc' ? 'bg-accent' : ''}
+              >
+                <ArrowUp className="h-4 w-4 mr-2" />
+                Nama (A-Z)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleSortChange('name', 'desc')}
+                className={sortBy === 'name' && sortDirection === 'desc' ? 'bg-accent' : ''}
+              >
+                <ArrowDown className="h-4 w-4 mr-2" />
+                Nama (Z-A)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleSortChange('createdAt', 'desc')}
+                className={sortBy === 'createdAt' && sortDirection === 'desc' ? 'bg-accent' : ''}
+              >
+                <ArrowDown className="h-4 w-4 mr-2" />
+                Terbaru
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleSortChange('createdAt', 'asc')}
+                className={sortBy === 'createdAt' && sortDirection === 'asc' ? 'bg-accent' : ''}
+              >
+                <ArrowUp className="h-4 w-4 mr-2" />
+                Terlama
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {/* View mode toggle */}
           <div className="flex items-center border rounded-md">
             <Button
@@ -669,7 +742,7 @@ export function ContentArea() {
                               )}
                             </div>
                             <span className="text-xs text-muted-foreground">
-                              {formatDate(node.updatedAt)}
+                              {formatDate(node.createdAt)}
                             </span>
                           </CardContent>
 
@@ -756,12 +829,35 @@ export function ContentArea() {
                   // ============================================================
                   <div className="flex flex-col">
                     {/* 66.3: Column headers — desktop only */}
+                    {/* MODUL 69.3: Clickable column headers for sort */}
                     <div className="hidden sm:flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border select-none">
                       <span className="w-6 shrink-0" /> {/* checkbox spacer */}
                       <span className="w-6 shrink-0" /> {/* icon spacer */}
-                      <span className="flex-1 min-w-0">Name</span>
+                      <button
+                        className="flex-1 min-w-0 flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                        onClick={() => handleColumnSort('name')}
+                        aria-label={`Sort by name, ${sortBy === 'name' ? (sortDirection === 'asc' ? 'currently ascending' : 'currently descending') : 'click to sort ascending'}`}
+                      >
+                        Name
+                        {sortBy === 'name' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-40" />
+                        )}
+                      </button>
                       <span className="w-20 shrink-0 text-right">Size</span>
-                      <span className="w-28 shrink-0 text-right">Modified</span>
+                      <button
+                        className="w-28 shrink-0 flex items-center justify-end gap-1 hover:text-foreground transition-colors cursor-pointer"
+                        onClick={() => handleColumnSort('createdAt')}
+                        aria-label={`Sort by created date, ${sortBy === 'createdAt' ? (sortDirection === 'asc' ? 'currently ascending' : 'currently descending') : 'click to sort ascending'}`}
+                      >
+                        Created
+                        {sortBy === 'createdAt' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-40" />
+                        )}
+                      </button>
                       {currentWorkspaceId && (
                         <span className="w-24 shrink-0 text-right">Owner</span>
                       )}
@@ -853,9 +949,9 @@ export function ContentArea() {
                                   : ''}
                               </span>
 
-                              {/* Modified date column */}
+                              {/* MODUL 69.2: Created date column (was Modified/updatedAt) */}
                               <span className="w-28 text-xs text-muted-foreground text-right shrink-0">
-                                {formatDate(node.updatedAt)}
+                                {formatDate(node.createdAt)}
                               </span>
 
                               {/* 66.3: Owner column — only in workspace context */}

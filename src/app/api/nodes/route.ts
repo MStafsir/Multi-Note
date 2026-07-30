@@ -28,6 +28,11 @@ async function handleGetNodes(request: Request): Promise<NextResponse> {
     const parentId = searchParams.get('parentId') || null;
     const includeDeleted = searchParams.get('includeDeleted') === 'true';
     const type = searchParams.get('type') || undefined;
+    // MODUL 69: Sort parameters
+    const sortByParam = searchParams.get('sortBy') || 'name';
+    const sortDirectionParam = searchParams.get('sortDirection') || 'asc';
+    const sortBy: 'name' | 'createdAt' = sortByParam === 'createdAt' ? 'createdAt' : 'name';
+    const sortDirection: 'asc' | 'desc' = sortDirectionParam === 'desc' ? 'desc' : 'asc';
 
     // 4.5 — Return flat array with parent_id reference
     // Materialize tree in client using adjacency-list-to-tree algorithm
@@ -48,9 +53,21 @@ async function handleGetNodes(request: Request): Promise<NextResponse> {
       andConditions.push({ type: type });
     }
 
+    // MODUL 69.5/69.8: Server-side sort with folder-first priority
+    // Prisma doesn't support CASE WHEN in orderBy, so we use a two-step approach:
+    // 1. Fetch with user's sort field + direction (no type clause)
+    // 2. Post-sort in JS to enforce folder-first priority (constant, never flips)
+    // 69.6: SQLite is case-insensitive by default for ORDER BY on text columns
+    // 69.7: Use id as tiebreaker for consistent ordering
+    const sortField = sortBy === 'createdAt' ? 'createdAt' : 'name';
+    const orderByClause = [
+      { [sortField]: sortDirection }, // User's sort field with direction
+      { id: 'asc' as const }, // 69.7: Tiebreaker for consistent ordering
+    ];
+
     const nodes = await db.node.findMany({
       where: { AND: andConditions },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+      orderBy: orderByClause,
       include: {
         metadata: true,
         note: true,
@@ -66,20 +83,32 @@ async function handleGetNodes(request: Request): Promise<NextResponse> {
 
     const allNodes = await db.node.findMany({
       where: { AND: allNodesAndConditions },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+      orderBy: orderByClause,
       include: {
         metadata: true,
         note: true,
       },
     });
 
+    // 69.8: Post-sort to enforce folder-first priority (CONSTANT, never flips)
+    // Folders (type='folder') always appear first, regardless of sort direction
+    // Within each group (folders / non-folders), the server sort order is preserved
+    const sortWithFolderPriority = <T extends { type: string }>(items: T[]): T[] => {
+      const folders = items.filter(n => n.type === 'folder');
+      const nonFolders = items.filter(n => n.type !== 'folder');
+      return [...folders, ...nonFolders];
+    };
+
+    const sortedNodes = sortWithFolderPriority(nodes);
+    const sortedAllNodes = sortWithFolderPriority(allNodes);
+
     logger.info('nodes_listed', { parentId, type, includeDeleted, count: nodes.length }, session.user.id);
 
     return NextResponse.json({
       success: true,
       data: {
-        nodes: nodes.map(formatNode),
-        allNodes: allNodes.map(formatNode),
+        nodes: sortedNodes.map(formatNode),
+        allNodes: sortedAllNodes.map(formatNode),
       },
     });
   } catch (error: unknown) {

@@ -18,16 +18,24 @@ const NODE_KEYS = {
 };
 
 // --- GET: Fetch nodes for a folder ---
-export function useNodeList(parentId: string | null) {
+// MODUL 69: Accept sort params
+export function useNodeList(
+  parentId: string | null,
+  sortBy: 'name' | 'createdAt' = 'name',
+  sortDirection: 'asc' | 'desc' = 'asc',
+) {
   const { setTree, setLoading, setError } = useFileTreeStore();
 
   return useQuery({
-    queryKey: NODE_KEYS.list(parentId),
+    queryKey: [...NODE_KEYS.list(parentId), sortBy, sortDirection],
     queryFn: async () => {
       setLoading(true);
       try {
         const params = new URLSearchParams();
         if (parentId) params.set('parentId', parentId);
+        // MODUL 69: Pass sort params to API
+        params.set('sortBy', sortBy);
+        params.set('sortDirection', sortDirection);
 
         const res = await fetch(`/api/nodes?${params.toString()}`);
         const data = await res.json();
@@ -336,20 +344,14 @@ function buildTreeFromFlat(nodes: TreeNode[]): TreeNode[] {
     }
   }
 
-  // Sort: folders first, then alphabetically
+  // MODUL 69.9: Server-side sort is authoritative — preserve the order from the API.
+  // The API already applies folder-first priority + user's sort field + direction.
+  // Only sort children within each folder (API returns them sorted per parentId).
+  // NO client-side re-sort that would override the server ORDER BY.
   for (const [, node] of nodeMap) {
-    node.children.sort((a, b) => {
-      if (a.type === 'folder' && b.type !== 'folder') return -1;
-      if (a.type !== 'folder' && b.type === 'folder') return 1;
-      return a.name.localeCompare(b.name);
-    });
+    // Children are already in the correct order from the API response
+    // (the API's allNodes query applies the same ORDER BY to all nodes)
   }
-
-  rootNodes.sort((a, b) => {
-    if (a.type === 'folder' && b.type !== 'folder') return -1;
-    if (a.type !== 'folder' && b.type === 'folder') return 1;
-    return a.name.localeCompare(b.name);
-  });
 
   return rootNodes;
 }
