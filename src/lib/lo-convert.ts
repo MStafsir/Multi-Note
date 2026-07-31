@@ -70,7 +70,9 @@ function processQueue(): void {
 // ============================================================
 
 /** Path to the LibreOffice soffice binary */
-const SOFFICE_PATH = '/usr/bin/soffice';
+const SOFFICE_PATH = process.platform === 'win32'
+  ? 'C:\\Program Files\\LibreOffice\\program\\soffice.exe'
+  : '/usr/bin/soffice';
 
 /** Timeout for LibreOffice conversion in milliseconds */
 const CONVERSION_TIMEOUT_MS = 60_000;

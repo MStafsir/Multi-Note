@@ -186,7 +186,7 @@ function PresentationPreview({ data }: {
 // PDF Preview Sub-component (uses pdfjs-dist)
 // Shared by both Tier 1 (native PDF) and High-Fidelity (LibreOffice→PDF)
 // ============================================================
-function PdfPreview({ contentUrl }: { contentUrl: string }) {
+function PdfPreview({ contentUrl, onError }: { contentUrl: string; onError?: () => void }) {
   const [numPages, setNumPages] = useState(0);
   const [pdfDoc, setPdfDoc] = useState<unknown>(null);
   const [scale, setScale] = useState(1.2);
@@ -219,6 +219,7 @@ function PdfPreview({ contentUrl }: { contentUrl: string }) {
           console.error('PDF load error:', err);
           setPdfError('Failed to load PDF document');
           setPdfLoading(false);
+          onError?.();
         }
       }
     };
