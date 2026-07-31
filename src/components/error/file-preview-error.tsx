@@ -26,7 +26,7 @@ export function FilePreviewError({
   fileName = 'File',
   downloadUrl,
 }: FilePreviewErrorProps) {
-  const fullDownloadUrl = downloadUrl || (typeof window !== 'undefined' ? `/api/upload/download/${fileName}` : '#');
+  const fullDownloadUrl = downloadUrl || '#';
 
   return (
     <Card className="w-full max-w-md mx-auto">

@@ -972,7 +972,7 @@ export function FilePreview({ id, name, mimeType, sizeBytes, checksumSha256, onC
   const previewTier: PreviewTier = getPreviewTier(mimeType);
 
   const previewUrl = `/api/preview/${id}`;
-  const downloadUrl = `/api/upload/download/${id}`;
+  const downloadUrl = `/api/files/${id}/content?download=true`;
   const contentUrl = `/api/files/${id}/content`;
 
   // MODUL 51: Preview cache hook for Tier 2/3 offline support

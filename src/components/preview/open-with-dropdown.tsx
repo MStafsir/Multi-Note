@@ -35,7 +35,7 @@ function getOfficeUriScheme(mimeType: string): { scheme: string; label: string; 
 }
 
 export function OpenWithDropdown({ nodeId, mimeType, fileName }: OpenWithDropdownProps) {
-  const downloadUrl = `/api/upload/download/${nodeId}`;
+  const downloadUrl = `/api/files/${nodeId}/content?download=true`;
   const officeUri = getOfficeUriScheme(mimeType);
 
   return (

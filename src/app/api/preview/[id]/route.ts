@@ -170,7 +170,7 @@ export async function GET(
           previewType: 'pptx',
           slideTexts,
           totalSlides: slideTexts.length || 0,
-          downloadUrl: `/api/upload/download/${id}`,
+          downloadUrl: `/api/files/${id}/content?download=true`,
         },
       });
     }
@@ -190,7 +190,7 @@ export async function GET(
           sizeBytes: bigintToNumber(node.metadata.sizeBytes),
           previewType,
           contentUrl: `/api/files/${id}/content`,
-          downloadUrl: `/api/upload/download/${id}`,
+          downloadUrl: `/api/files/${id}/content?download=true`,
         },
       });
     }
@@ -205,7 +205,7 @@ export async function GET(
           mimeType,
           sizeBytes: bigintToNumber(node.metadata.sizeBytes),
           previewType: 'none',
-          downloadUrl: `/api/upload/download/${id}`,
+          downloadUrl: `/api/files/${id}/content?download=true`,
           message: 'No inline preview available',
         },
       });
@@ -220,7 +220,7 @@ export async function GET(
         mimeType,
         sizeBytes: bigintToNumber(node.metadata.sizeBytes),
         previewType: 'none',
-        downloadUrl: `/api/upload/download/${id}`,
+        downloadUrl: `/api/files/${id}/content?download=true`,
         message: 'No preview available',
       },
     });
