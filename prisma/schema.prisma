@@ -107,7 +107,8 @@ model Node {
   isFavorite   Boolean   @default(false) // Modul 21.3 — direct column for high-frequency access
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime? // soft-delete (Modul 4.3)
+  deletedAt      DateTime?   // soft-delete (Modul 4.3)
+  scheduledDate  DateTime?   // MODUL 78.1 — nullable, purely-additive. Calendar entry = note + scheduledDate IS NOT NULL
 
   owner      User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   parent     Node?          @relation("NodeTree", fields: [parentId], references: [id], onDelete: Cascade)
@@ -130,6 +131,7 @@ model Node {
   @@index([deletedAt])
   @@index([ownerId, isFavorite]) // Modul 21.4 — favorites filter
   @@index([workspaceId]) // MODUL 40.3 — workspace-scoped queries
+  @@index([ownerId, workspaceId, scheduledDate]) // MODUL 78.3 — calendar range query per-bulan
 }
 
 // --- File Metadata (Modul 2.6) ---

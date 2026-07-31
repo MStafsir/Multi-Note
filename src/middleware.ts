@@ -245,6 +245,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/api/nodes') ||
     pathname.startsWith('/api/upload') ||
+    pathname.startsWith('/api/calendar') ||
     pathname.startsWith('/api/storage-quota') ||
     pathname.startsWith('/api/preview') ||
     pathname.startsWith('/api/search') ||
@@ -334,6 +335,7 @@ export const config = {
   matcher: [
     '/api/nodes/:path*',
     '/api/upload/:path*',
+    '/api/calendar/:path*',
     '/api/storage-quota/:path*',
     '/api/preview/:path*',
     '/api/search/:path*',

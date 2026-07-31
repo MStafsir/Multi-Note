@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings, Building2, Mail } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Calculator, Search, LogOut, X, Settings, Building2, Mail, CalendarDays } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
@@ -30,6 +30,7 @@ import { useAuthStore } from '@/store/auth';
 import { useWorkspaceStore } from '@/store/workspace';
 import { useWorkspaces } from '@/hooks/use-workspace';
 import { useCalculatorStore } from '@/store/calculator';
+import { useCalendarStore } from '@/store/calendar';
 import { useFileTreeStore } from '@/store/file-tree';
 import { useUndoStore } from '@/store/undo';
 import { useDeleteNode } from '@/hooks/use-file-tree';
@@ -38,6 +39,7 @@ import { LocaleSwitcher } from './locale-switcher';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 // Heavy components loaded dynamically to reduce OOM during initial compilation
 const CalculatorWidget = dynamic(() => import('@/components/calculator/calculator-widget').then(m => ({ default: m.CalculatorWidget })), { ssr: false });
+const CalendarPanel = dynamic(() => import('@/components/calendar/calendar-panel').then(m => ({ default: m.CalendarPanel })), { ssr: false });
 const SearchDropdown = dynamic(() => import('@/components/search/search-dropdown').then(m => ({ default: m.SearchDropdown })), { ssr: false });
 const TrashView = dynamic(() => import('@/components/trash/trash-view').then(m => ({ default: m.TrashView })), { ssr: false });
 const AdminDashboard = dynamic(() => import('@/components/admin/admin-dashboard').then(m => ({ default: m.AdminDashboard })), { ssr: false });
@@ -80,6 +82,7 @@ export function WorkspaceLayout() {
   const { user } = useAuthStore();
   const { currentWorkspaceId, currentWorkspaceRole, workspaces } = useWorkspaceStore();
   const { toggleOpen, isOpen } = useCalculatorStore();
+  const { toggleOpen: toggleCalendarOpen, isOpen: isCalendarOpen } = useCalendarStore();
   const { setCurrentFolder, flatNodes, activeView, selectedNodeIds } = useFileTreeStore();
   const { popAction } = useUndoStore();
   const deleteMutation = useDeleteNode();
@@ -430,6 +433,24 @@ export function WorkspaceLayout() {
                   </TooltipContent>
                 </Tooltip>
 
+                {/* MODUL 79.3 — Calendar toggle button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isCalendarOpen ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className="h-9 w-9 shrink-0 min-h-[44px] min-w-[44px]"
+                      onClick={toggleCalendarOpen}
+                      aria-label="Toggle calendar"
+                    >
+                      <CalendarDays className={`h-4 w-4 ${isCalendarOpen ? 'text-primary' : 'text-muted-foreground'}`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Kalender</p>
+                  </TooltipContent>
+                </Tooltip>
+
                 {/* User menu dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -580,6 +601,9 @@ export function WorkspaceLayout() {
                 <ContentArea />
               )}
             </main>
+
+            {/* MODUL 79 — Calendar panel docked right */}
+            <CalendarPanel />
           </div>
 
           {/* Sticky footer */}

@@ -215,9 +215,22 @@ async function handlePatchNode(
         create: { nodeId: id, contentJson: validated.contentJson },
       });
 
-      const updated = await db.node.update({
+      // MODUL 78.1 — Also update scheduledDate if provided
+      if (body.scheduledDate !== undefined) {
+        const parsedDate = body.scheduledDate ? new Date(body.scheduledDate) : null;
+        await db.node.update({
+          where: { id },
+          data: { scheduledDate: parsedDate, updatedAt: new Date() },
+        });
+      } else {
+        await db.node.update({
+          where: { id },
+          data: { updatedAt: new Date() },
+        });
+      }
+
+      const updated = await db.node.findUnique({
         where: { id },
-        data: { updatedAt: new Date() },
         include: { metadata: true, note: true },
       });
 
@@ -225,7 +238,41 @@ async function handlePatchNode(
 
       logger.info('note_content_updated', { nodeId: id }, session.user.id);
 
-      const noteMetadata = updated.metadata as Record<string, unknown> | null;
+      const noteMetadata = updated?.metadata as Record<string, unknown> | null;
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: updated?.id,
+          type: updated?.type,
+          name: updated?.name,
+          parentId: updated?.parentId,
+          ownerId: updated?.ownerId,
+          scheduledDate: updated?.scheduledDate ?? null,
+          createdAt: updated?.createdAt,
+          updatedAt: updated?.updatedAt,
+          deletedAt: updated?.deletedAt,
+          metadata: noteMetadata ? { ...noteMetadata, sizeBytes: bigintToNumber(noteMetadata.sizeBytes as bigint | number | null) } : null,
+          content: updated?.note ? { nodeId: updated.note.nodeId, contentJson: updated.note.contentJson } : null,
+        },
+      });
+    }
+
+    // MODUL 78.1 — Update scheduledDate only (calendar entry date change)
+    if (body.scheduledDate !== undefined) {
+      if (!editAccess.hasAccess) {
+        return NextResponse.json({ success: false, error: 'You need edit permission to modify this node' }, { status: 403 });
+      }
+
+      const parsedDate = body.scheduledDate ? new Date(body.scheduledDate) : null;
+      const updated = await db.node.update({
+        where: { id },
+        data: { scheduledDate: parsedDate },
+        include: { metadata: true, note: true },
+      });
+
+      logger.info('node_scheduled_date_updated', { nodeId: id, scheduledDate: parsedDate?.toISOString() }, session.user.id);
+
+      const schedMetadata = updated.metadata as Record<string, unknown> | null;
       return NextResponse.json({
         success: true,
         data: {
@@ -234,10 +281,11 @@ async function handlePatchNode(
           name: updated.name,
           parentId: updated.parentId,
           ownerId: updated.ownerId,
+          scheduledDate: updated.scheduledDate ?? null,
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
           deletedAt: updated.deletedAt,
-          metadata: noteMetadata ? { ...noteMetadata, sizeBytes: bigintToNumber(noteMetadata.sizeBytes as bigint | number | null) } : null,
+          metadata: schedMetadata ? { ...schedMetadata, sizeBytes: bigintToNumber(schedMetadata.sizeBytes as bigint | number | null) } : null,
           content: updated.note ? { nodeId: updated.note.nodeId, contentJson: updated.note.contentJson } : null,
         },
       });

@@ -242,6 +242,7 @@ function formatNode(node: Record<string, unknown>) {
     parentId: node.parentId,
     ownerId: node.ownerId,
     isFavorite: node.isFavorite,
+    scheduledDate: node.scheduledDate ?? null, // MODUL 78.1 — calendar entry date
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
     deletedAt: node.deletedAt,
